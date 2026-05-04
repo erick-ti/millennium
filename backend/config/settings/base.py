@@ -1,0 +1,222 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import environ
+import structlog
+
+BASE_DIR = Path(__file__).resolve().parents[2]
+
+# `env` is shared by all settings modules. Dotenv loading is intentionally
+# NOT done here — it lives in dev.py only. If base.py loaded .env, then a
+# developer running `DJANGO_SETTINGS_MODULE=config.settings.prod` locally
+# would silently inherit dev values from .env and bypass prod's fail-closed
+# env validation.
+env = environ.Env()
+
+# ---------------------------------------------------------------------------
+# Core
+#
+# Settings intentionally NOT set here (each environment-specific module sets
+# them so prod fails closed when env vars are missing):
+#   - SECRET_KEY
+#   - DATABASES
+#   - CACHES
+#   - CELERY_BROKER_URL / CELERY_RESULT_BACKEND
+# dev/test provide safe local defaults; prod reads env vars with no fallback.
+# ---------------------------------------------------------------------------
+
+DEBUG = env.bool("DJANGO_DEBUG", default=False)
+ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[])
+
+# ---------------------------------------------------------------------------
+# Apps
+# ---------------------------------------------------------------------------
+
+DJANGO_APPS = [
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+]
+
+THIRD_PARTY_APPS = [
+    "rest_framework",
+    "drf_spectacular",
+    "django_structlog",
+]
+
+LOCAL_APPS = [
+    "apps.core",
+]
+
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+
+# ---------------------------------------------------------------------------
+# Middleware
+# ---------------------------------------------------------------------------
+
+MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+    # WhiteNoise must come immediately after SecurityMiddleware — see WN docs.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_structlog.middlewares.RequestMiddleware",
+]
+
+# ---------------------------------------------------------------------------
+# URLs / WSGI / ASGI
+# ---------------------------------------------------------------------------
+
+ROOT_URLCONF = "config.urls"
+WSGI_APPLICATION = "config.wsgi.application"
+ASGI_APPLICATION = "config.asgi.application"
+
+# ---------------------------------------------------------------------------
+# Templates
+# ---------------------------------------------------------------------------
+
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ],
+        },
+    },
+]
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
+
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
+# ---------------------------------------------------------------------------
+# i18n / time
+# ---------------------------------------------------------------------------
+
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "UTC"
+USE_I18N = True
+USE_TZ = True
+
+# ---------------------------------------------------------------------------
+# Static
+# ---------------------------------------------------------------------------
+
+STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Default storage uses Django's stdlib backend; prod overrides to WhiteNoise's
+# CompressedManifestStaticFilesStorage for hashed filenames + far-future caching.
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ---------------------------------------------------------------------------
+# DRF + drf-spectacular
+# ---------------------------------------------------------------------------
+
+REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+    ],
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Millennium API",
+    "DESCRIPTION": "Yu-Gi-Oh collection portfolio tracker",
+    "VERSION": "0.1.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    # Schema/docs are recon material — require auth even though DRF default is.
+    # drf-spectacular uses its own SERVE_PERMISSIONS, not DEFAULT_PERMISSION_CLASSES.
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.IsAuthenticated"],
+}
+
+# ---------------------------------------------------------------------------
+# Celery (broker/backend URLs set by env-specific modules — see top of file)
+# ---------------------------------------------------------------------------
+
+CELERY_TASK_ALWAYS_EAGER = False
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_BEAT_SCHEDULE: dict[str, Any] = {}
+
+# ---------------------------------------------------------------------------
+# Logging — structlog + stdlib bridge
+# ---------------------------------------------------------------------------
+
+LOGGING: dict[str, Any] = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {
+            "()": "structlog.stdlib.ProcessorFormatter",
+            "processor": structlog.processors.JSONRenderer(),
+        },
+        "console": {
+            "()": "structlog.stdlib.ProcessorFormatter",
+            "processor": structlog.dev.ConsoleRenderer(colors=True),
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "console",
+        },
+    },
+    "root": {"handlers": ["console"], "level": "INFO"},
+    "loggers": {
+        "django": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "django_structlog": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "apps": {"handlers": ["console"], "level": "INFO", "propagate": False},
+    },
+}
+
+structlog.configure(
+    processors=[
+        structlog.contextvars.merge_contextvars,
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+    ],
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    wrapper_class=structlog.stdlib.BoundLogger,
+    cache_logger_on_first_use=True,
+)
