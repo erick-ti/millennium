@@ -1,0 +1,22 @@
+name: gitleaks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:  # allow manual runs from the Actions tab
+
+jobs:
+  scan:
+    name: scan for secrets
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          # full history so PR scans cover the entire diff range, not just the tip commit
+          fetch-depth: 0
+
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
