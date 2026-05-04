@@ -21,16 +21,19 @@ A personal Yu-Gi-Oh collection portfolio tracker that treats a card collection l
 
 ## Current milestone
 
-**Phase 1A: Project scaffold.** Django project with config/ structure, DRF + drf-spectacular, health endpoint, Docker Compose (Django + Postgres + Redis), Celery + Celery Beat, Makefile, pyproject.toml with tooling, passing test, admin/auth enabled, structlog. No app models.
+**Phase 1A.5: Data reconnaissance spike.** Examine real Dragon Shield CSV, TCGCSV product/price data, and YGOPRODeck metadata to validate schema assumptions before writing migrations. Exploratory only — no production code.
+
+## Completed milestones
+
+- **Phase 1A: Project scaffold** (completed 2026-05-03, commits `6a33c4a` → `e5c2dc9`). Django 5.2 with config/ split, DRF + drf-spectacular, `/api/health/`, Docker Compose (Postgres 16 + Redis + backend + celery worker + beat), Makefile, pyproject.toml with ruff/mypy/pytest, 3 passing tests, admin/auth, structlog. Six rounds of adversarial review hardening.
 
 ## Upcoming milestones
 
-1. **Phase 1A.5: Data reconnaissance spike.** Examine real Dragon Shield CSV, TCGCSV product/price data, and YGOPRODeck metadata to validate schema assumptions before writing migrations. Exploratory only — no production code.
-2. **Phase 1B: Core data model.** cards, card_printings, external_price_ids, portfolios, collection_items, collection_lots, storage_locations, price_sources, price_snapshots, portfolio_value_snapshots. First migrations, base model mixin, constraints, enum definitions, seed data.
-3. **Phase 2: Data pipeline.** YGOPRODeck metadata sync, TCGCSV daily price ingestion, Celery task wiring, price snapshot storage with confidence scoring, provider adapter pattern.
-4. **Phase 3: CSV import.** Dragon Shield CSV parser, column mapping, card-to-printing matching engine, review queue API, import batch/row storage.
-5. **Phase 4: Frontend MVP.** Next.js scaffold, OpenAPI client generation, collection view, card detail with price history, portfolio summary, import upload + match review UI.
-6. **Phase 5: Portfolio analytics.** Archetype tagging, deck association, biggest movers, price alerts, advanced filtering. Minimal Playwright smoke tests after UI stabilizes.
+1. **Phase 1B: Core data model.** cards, card_printings, external_price_ids, portfolios, collection_items, collection_lots, storage_locations, price_sources, price_snapshots, portfolio_value_snapshots. First migrations, base model mixin, constraints, enum definitions, seed data.
+2. **Phase 2: Data pipeline.** YGOPRODeck metadata sync, TCGCSV daily price ingestion, Celery task wiring, price snapshot storage with confidence scoring, provider adapter pattern.
+3. **Phase 3: CSV import.** Dragon Shield CSV parser, column mapping, card-to-printing matching engine, review queue API, import batch/row storage.
+4. **Phase 4: Frontend MVP.** Next.js scaffold, OpenAPI client generation, collection view, card detail with price history, portfolio summary, import upload + match review UI.
+5. **Phase 5: Portfolio analytics.** Archetype tagging, deck association, biggest movers, price alerts, advanced filtering. Minimal Playwright smoke tests after UI stabilizes.
 
 ## Non-goals
 
