@@ -1,0 +1,97 @@
+x-backend-env: &backend-env
+  DJANGO_SETTINGS_MODULE: config.settings.dev
+  DJANGO_SECRET_KEY: dev-secret-do-not-use-in-prod
+  DJANGO_DEBUG: "true"
+  DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,backend
+  DATABASE_URL: postgres://postgres:postgres@postgres:5432/millennium
+  REDIS_URL: redis://redis:6379/0
+  CELERY_BROKER_URL: redis://redis:6379/1
+  CELERY_RESULT_BACKEND: redis://redis:6379/2
+
+x-backend-build: &backend-build
+  build:
+    context: ../backend
+    dockerfile: Dockerfile
+
+x-backend-volumes: &backend-volumes
+  volumes:
+    - ../backend:/app
+    # NOTE: image installs deps into /opt/venv (outside the bind mount), so
+    # rebuilds actually refresh deps. Don't mount anything at /app/.venv —
+    # a named volume there would shadow the rebuilt image's deps.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: millennium
+    # Loopback-only — default postgres/postgres credentials must never be
+    # reachable from the host network. Override via a compose override file
+    # if you need cross-device DB access.
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    # Loopback-only — Redis has no password; do not expose to LAN.
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    <<: [*backend-build, *backend-volumes]
+    command: python manage.py runserver 0.0.0.0:8000
+    environment: *backend-env
+    # Loopback-only — runserver enables DEBUG tracebacks that leak env vars
+    # and source. Override via docker-compose.override.yml when cross-device
+    # frontend testing is actually needed (Phase 4).
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/health/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery-worker:
+    <<: [*backend-build, *backend-volumes]
+    command: celery -A config worker -l info
+    environment: *backend-env
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery-beat:
+    <<: [*backend-build, *backend-volumes]
+    # --schedule keeps the PersistentScheduler shelf out of the source mount.
+    command: celery -A config beat -l info --schedule /tmp/celerybeat-schedule
+    environment: *backend-env
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
