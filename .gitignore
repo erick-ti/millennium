@@ -54,4 +54,12 @@ celerybeat.pid
 .DS_Store
 Thumbs.db
 
+# ===== Local data samples and reconnaissance notes =====
+# Raw scanner exports, pricing/metadata samples, and recon notes derived from
+# them are kept local because real Dragon Shield exports + the notes that quote
+# them contain personal collection data (folder names, cards owned, prices paid).
+# Narrow paths only — `docs/` itself stays available for committed project docs.
+data/samples/
+docs/recon/
+
 # Note: keep uv.lock checked in for reproducible builds — do not ignore it.
