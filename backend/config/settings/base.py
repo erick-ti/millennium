@@ -3,8 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import django_stubs_ext
 import environ
 import structlog
+
+# Make django-stubs' generic ModelAdmin/QuerySet/Manager subscriptable at runtime
+# (not just for mypy), so `ModelAdmin[Card]` doesn't raise. Main dep → holds in --no-dev prod.
+django_stubs_ext.monkeypatch()
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
@@ -51,6 +56,7 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     "apps.core",
+    "apps.cards",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
