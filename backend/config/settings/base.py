@@ -3,8 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import django_stubs_ext
 import environ
 import structlog
+
+# django-stubs types ModelAdmin/QuerySet/Manager as generic for the type checker
+# only; monkeypatch() makes them subscriptable at runtime too, so `ModelAdmin[Card]`
+# and friends don't raise TypeError. django-stubs-ext is a main (non-dev) dependency,
+# so this import holds even in a --no-dev prod image.
+django_stubs_ext.monkeypatch()
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
@@ -51,6 +58,7 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     "apps.core",
+    "apps.cards",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
