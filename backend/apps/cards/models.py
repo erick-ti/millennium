@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from typing import Any
+
 from django.db import models
 
+from apps.cards.normalization import normalize_name
 from apps.core.models import TimeStampedModel
 
 
@@ -15,13 +18,17 @@ class Card(TimeStampedModel):
 
     passcode = models.BigIntegerField(null=True, blank=True, unique=True)
     name = models.CharField(max_length=255, db_index=True)
-    # Denormalized search key (lowercased, accent-stripped, entity-decoded).
-    # Deliberately non-unique: Konami may ship names that collide after
-    # normalization; ``passcode`` is the real identity.
+    # Derived from ``name`` via ``normalize_name`` on every save, so it can't
+    # drift. Indexed, not unique: names may collide after normalization;
+    # ``passcode`` is the real identity.
     normalized_name = models.CharField(max_length=255, db_index=True)
 
     class Meta:
         ordering = ["name"]
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        self.normalized_name = normalize_name(self.name)
+        super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return self.name
