@@ -10,4 +10,4 @@ class CardAdmin(admin.ModelAdmin[Card]):
     list_display = ["name", "passcode", "normalized_name", "updated_at"]
     search_fields = ["name", "normalized_name", "passcode"]
     ordering = ["name"]
-    readonly_fields = ["created_at", "updated_at"]
+    readonly_fields = ["created_at", "updated_at", "normalized_name"]
