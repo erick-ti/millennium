@@ -21,19 +21,19 @@ A personal Yu-Gi-Oh collection portfolio tracker that treats a card collection l
 
 ## Current milestone
 
-**Phase 1A.5: Data reconnaissance spike.** Examine real Dragon Shield CSV, TCGCSV product/price data, and YGOPRODeck metadata to validate schema assumptions before writing migrations. Exploratory only — no production code.
+**Phase 1B: Core data model.** cards, card_printings, external_price_ids, portfolios, collection_items, collection_lots, storage_locations, price_sources, price_snapshots, portfolio_value_snapshots. First migrations, base model mixin, constraints, enum definitions, seed data. Implements the eight 2026-05-18 schema decisions in `DECISIONS.md`.
 
 ## Completed milestones
 
 - **Phase 1A: Project scaffold** (completed 2026-05-03, commits `6a33c4a` → `e5c2dc9`). Django 5.2 with config/ split, DRF + drf-spectacular, `/api/health/`, Docker Compose (Postgres 16 + Redis + backend + celery worker + beat), Makefile, pyproject.toml with ruff/mypy/pytest, 3 passing tests, admin/auth, structlog. Six rounds of adversarial review hardening.
+- **Phase 1A.5: Data reconnaissance spike** (completed 2026-05-18). Real Dragon Shield CSV, TCGCSV product/price data (8 sets across four eras), and YGOPRODeck full card dump inspected. End-to-end pipeline validated 7/7 with the `"Prismatic "` rarity fallback rule. Eight schema decisions recorded in `DECISIONS.md` covering cards PK, card_printings natural key, external_price_ids, collection_items/lots layout, edition placement, price_snapshots structure, DS-folder→portfolio mapping, and normalized_name indexing. Findings doc at `docs/recon/PHASE_1A5_FINDINGS.md` (gitignored per project doc-layer convention).
 
 ## Upcoming milestones
 
-1. **Phase 1B: Core data model.** cards, card_printings, external_price_ids, portfolios, collection_items, collection_lots, storage_locations, price_sources, price_snapshots, portfolio_value_snapshots. First migrations, base model mixin, constraints, enum definitions, seed data.
-2. **Phase 2: Data pipeline.** YGOPRODeck metadata sync, TCGCSV daily price ingestion, Celery task wiring, price snapshot storage with confidence scoring, provider adapter pattern.
-3. **Phase 3: CSV import.** Dragon Shield CSV parser, column mapping, card-to-printing matching engine, review queue API, import batch/row storage.
-4. **Phase 4: Frontend MVP.** Next.js scaffold, OpenAPI client generation, collection view, card detail with price history, portfolio summary, import upload + match review UI.
-5. **Phase 5: Portfolio analytics.** Archetype tagging, deck association, biggest movers, price alerts, advanced filtering. Minimal Playwright smoke tests after UI stabilizes.
+1. **Phase 2: Data pipeline.** YGOPRODeck metadata sync, TCGCSV daily price ingestion, Celery task wiring, price snapshot storage with confidence scoring, provider adapter pattern.
+2. **Phase 3: CSV import.** Dragon Shield CSV parser, column mapping, card-to-printing matching engine, review queue API, import batch/row storage.
+3. **Phase 4: Frontend MVP.** Next.js scaffold, OpenAPI client generation, collection view, card detail with price history, portfolio summary, import upload + match review UI.
+4. **Phase 5: Portfolio analytics.** Archetype tagging, deck association, biggest movers, price alerts, advanced filtering. Minimal Playwright smoke tests after UI stabilizes.
 
 ## Non-goals
 
@@ -46,11 +46,8 @@ A personal Yu-Gi-Oh collection portfolio tracker that treats a card collection l
 
 ## Open questions
 
-1. **TCGCSV product-to-YGOPRODeck mapping.** Best join key between TCGCSV's TCGplayer product IDs and YGOPRODeck's card/set data.
-2. **Dragon Shield CSV schema.** Need an actual export to inspect column layout, encoding, and field representation.
-3. **Condition adjustment factors.** Multipliers for LP/MP/HP/DMG when only product-level pricing is available.
-4. **OpenAPI client generation tooling.** openapi-typescript-codegen vs orval vs alternatives.
-5. **`normalized_name` uniqueness on cards.** Index only, or unique constraint? Needs validation against real YGOPRODeck data.
+1. **Condition adjustment factors.** Multipliers for LP/MP/HP/DMG when only product-level pricing is available. Phase 2-blocking (valuation needs them); not Phase 1B-blocking.
+2. **OpenAPI client generation tooling.** openapi-typescript-codegen vs orval vs alternatives. Phase 4-blocking.
 
 ## Architecture direction
 
