@@ -1,0 +1,49 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:  # allow manual runs from the Actions tab
+
+jobs:
+  postgres:
+    name: pytest (postgres)
+    runs-on: ubuntu-latest
+    # The default `make test` runs on sqlite, where Django skips the
+    # CardPrinting NULLS NOT DISTINCT unique constraint — so the suite can pass
+    # without exercising the real engine. This job runs the suite against a
+    # PostgreSQL 16 service (matching the compose/prod engine) via the
+    # `test_postgres` settings, so constraint enforcement is actually verified.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: millennium
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/millennium
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+
+      - name: sync deps
+        run: uv sync --frozen --group dev
+
+      - name: pytest (postgres-backed settings)
+        run: uv run pytest --ds=config.settings.test_postgres
