@@ -5,6 +5,10 @@ on:
   pull_request:
   workflow_dispatch:  # allow manual runs from the Actions tab
 
+# Least privilege: gitleaks only reads repo contents to scan.
+permissions:
+  contents: read
+
 jobs:
   scan:
     name: scan for secrets
