@@ -2,11 +2,15 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+from django.contrib.admin.sites import AdminSite
+from django.contrib.auth.models import User
 from django.db import IntegrityError, models, transaction
 from django.db.models import ProtectedError
+from django.test import RequestFactory
 
 from apps.cards.models import Card, CardPrinting
 from apps.core.enums import Edition
+from apps.pricing.admin import PriceSnapshotAdmin
 from apps.pricing.models import ExternalPriceId, PriceSnapshot, Provider
 
 
@@ -238,3 +242,30 @@ def test_price_snapshot_latest_index_defined() -> None:
         index.fields == ["printing", "edition", "-snapshot_date"]
         for index in PriceSnapshot._meta.indexes
     )
+
+
+def test_price_snapshot_admin_blocks_edit_and_delete_of_existing() -> None:
+    """Append-only: an existing price snapshot can be neither edited nor deleted
+    (per-object checks don't depend on the user); delete is also blocked at the
+    model level, dropping the bulk delete_selected action."""
+    admin_obj = PriceSnapshotAdmin(PriceSnapshot, AdminSite())
+    request = RequestFactory().get("/")
+    existing = PriceSnapshot()
+
+    assert admin_obj.has_delete_permission(request) is False
+    assert admin_obj.has_delete_permission(request, existing) is False
+    assert admin_obj.has_change_permission(request, existing) is False
+
+
+@pytest.mark.django_db
+def test_price_snapshot_admin_change_permission_defers_to_user() -> None:
+    """Edit-locking must not bypass Django's model-level permissions: the obj=None
+    case (which gates the changelist) still defers to the user's perms."""
+    admin_obj = PriceSnapshotAdmin(PriceSnapshot, AdminSite())
+    request = RequestFactory().get("/")
+
+    request.user = User.objects.create_user("limited", is_staff=True)
+    assert admin_obj.has_change_permission(request) is False
+
+    request.user = User.objects.create_superuser("super", "super@example.com", "x")
+    assert admin_obj.has_change_permission(request) is True
