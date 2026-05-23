@@ -29,6 +29,14 @@ class Card(TimeStampedModel):
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         self.normalized_name = normalize_name(self.name)
+        # A partial update that touches `name` (e.g. update_or_create issues
+        # save(update_fields={"name", ...})) would otherwise write `name` but
+        # drop the recomputed `normalized_name`, silently desyncing the two in
+        # the DB — the exact drift this derivation exists to prevent (DECISIONS
+        # 2026-05-20). Carry normalized_name along whenever name is being saved.
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and "name" in update_fields:
+            kwargs["update_fields"] = {*update_fields, "normalized_name"}
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:

@@ -48,6 +48,18 @@ def test_renaming_updates_normalized_name() -> None:
 
 
 @pytest.mark.django_db
+def test_partial_update_preserves_normalized_name() -> None:
+    """A save(update_fields=["name"]) must still persist the derived
+    normalized_name. update_or_create takes this partial-update path, so without
+    it the derived field silently desyncs in the DB (DECISIONS 2026-05-20)."""
+    card = Card.objects.create(name="Dark Magician")
+    card.name = "Dark Magician Girl"
+    card.save(update_fields=["name"])
+    card.refresh_from_db()
+    assert card.normalized_name == "dark magician girl"
+
+
+@pytest.mark.django_db
 def test_printing_linked_to_card() -> None:
     card = Card.objects.create(name="Dark Magician")
     printing = CardPrinting.objects.create(
