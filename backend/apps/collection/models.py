@@ -144,3 +144,81 @@ class CollectionItem(TimeStampedModel):
             f"{self.printing} ({self.get_edition_display()}, "
             f"{self.get_condition_display()}, {self.get_language_display()}) in {self.portfolio}"
         )
+
+
+class CollectionLot(TimeStampedModel):
+    """A single acquisition batch under a ``CollectionItem`` (DECISIONS 2026-05-18).
+
+    The ``CollectionItem`` is the aggregate holding ("3 Ash Blossom 1st-Edition
+    NM English in the Yubel Deck"); each lot is one acquisition event that added
+    copies to it, carrying that event's cost basis. A holding's quantity is the
+    SUM of its lots' ``quantity`` (it is NOT stored on the item), and
+    per-acquisition P&L (FIFO / LIFO / average cost) operates on lots — the
+    textbook cost-basis primitive.
+
+    Edition is deliberately NOT stored here: it is inherited from the parent item
+    (DECISIONS 2026-05-18), so a lot can't drift to a different edition than the
+    holding it belongs to. Lots are conceptually immutable acquisition records,
+    but that is a convention (correcting a mistaken cost must stay possible), not
+    a ``save()``-enforced lock.
+
+    The ``collection_item`` FK is ``CASCADE``: a lot is *part of* its holding, so
+    deleting the holding takes its acquisition events with it. This differs from
+    the leaf-mapping CASCADE on ``ExternalPriceId`` (cost basis is not
+    re-derivable), but the valuable data is still shielded from accidental loss
+    by the ``PROTECT`` FKs one level up — nothing cascades *into* a
+    ``CollectionItem`` (its ``printing``/``portfolio`` are PROTECT,
+    ``storage_location`` is SET_NULL), so the only path here is a deliberate
+    holding delete, where dropping its lots is the correct outcome.
+    """
+
+    collection_item = models.ForeignKey(
+        CollectionItem, on_delete=models.CASCADE, related_name="lots"
+    )
+    quantity = models.PositiveIntegerField()
+    # Per-card acquisition cost (DECISIONS 2026-05-18 names this field unit_cost).
+    # Decimal, never float, for money. Dragon Shield's "Price Bought" is itself
+    # per-card (docs/recon/PHASE_1A5_FINDINGS.md:82), so the Phase 3 import maps it
+    # straight to unit_cost with no total/quantity division: a per-card USD price
+    # is cents, represented exactly at 2 dp. Nullable: an acquisition's price can be
+    # genuinely unknown (pack pulls, trades, gifts, legacy hand-entry), and NULL
+    # ("unknown") is kept distinct from 0.00 ("free") so unknown cost can't
+    # masquerade as zero basis and inflate P&L.
+    unit_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    # Acquisition date (DS "Date Bought" is a date, not a timestamp). Nullable for
+    # the same unknown-provenance reason as unit_cost; not part of any identity.
+    acquired_at = models.DateField(null=True, blank=True)
+    # Free-text back-reference to the import that created this lot, for Phase 3
+    # traceability. Nullable (manual lots have none) and intentionally
+    # unconstrained: re-import dedup / idempotency is a deferred Phase 3 concern
+    # (DECISIONS 2026-05-18), and trimming/validating the ref is an import-boundary
+    # obligation (the external_id precedent), not enforced on the column here.
+    import_source_ref = models.CharField(max_length=255, null=True, blank=True)  # noqa: DJ001
+
+    class Meta:
+        # Deterministic, backend-portable order: chronological by acquisition, with
+        # unknown-date lots explicitly last (nulls_last makes sqlite — which sorts
+        # NULLs first by default — agree with Postgres, which sorts them last), then
+        # id as a stable tiebreaker so same-date lots have a defined order. FIFO/LIFO
+        # cost-basis code must still set its own explicit order_by, not lean on this.
+        ordering = ["collection_item", models.F("acquired_at").asc(nulls_last=True), "id"]
+        constraints = [
+            # A lot of zero or negative copies is meaningless. PositiveIntegerField
+            # only adds a form-layer validator (MinValueValidator), not a DB guard,
+            # so an explicit CHECK > 0 is what actually rejects 0 / negatives on
+            # every backend (sqlite included, so `make test` exercises it) — the
+            # project's "guard at the DB, not just the field/form layer" pattern.
+            models.CheckConstraint(
+                condition=models.Q(quantity__gt=0),
+                name="collection_lot_quantity_positive",
+            ),
+            # Cost basis may be unknown (NULL) or zero (free) but never negative.
+            models.CheckConstraint(
+                condition=models.Q(unit_cost__isnull=True) | models.Q(unit_cost__gte=0),
+                name="collection_lot_unit_cost_non_negative",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        cost = "cost unknown" if self.unit_cost is None else f"{self.unit_cost} each"
+        return f"{self.quantity} x {self.collection_item} ({cost})"
