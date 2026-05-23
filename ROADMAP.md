@@ -21,7 +21,7 @@ A personal Yu-Gi-Oh collection portfolio tracker that treats a card collection l
 
 ## Current milestone
 
-**Phase 1B: Core data model.** cards, card_printings, external_price_ids, portfolios, collection_items, collection_lots, storage_locations, price_sources, price_snapshots, portfolio_value_snapshots. First migrations, base model mixin, constraints, enum definitions, seed data. Implements the eight 2026-05-18 schema decisions in `DECISIONS.md`.
+**Phase 1B: Core data model.** cards, card_printings, external_price_ids, portfolios, collection_items, collection_lots, storage_locations, price_snapshots, portfolio_value_snapshots. First migrations, base model mixin, constraints, enum definitions, seed data. Implements the eight 2026-05-18 schema decisions in `DECISIONS.md`.
 
 ## Completed milestones
 
