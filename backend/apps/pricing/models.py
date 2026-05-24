@@ -137,6 +137,19 @@ class PriceSnapshot(TimeStampedModel):
                 condition=models.Q(source__in=Provider.values),
                 name="price_snapshot_source_valid",
             ),
+            # Money can't be negative; each price point is NULL or >= 0. NaN/inf are
+            # already blocked upstream (the TCGCSV `_to_decimal` boundary guard and
+            # Django's DecimalField quantize), so this backstops a negative from any
+            # source — a manual admin edit, a future provider — matching the
+            # CollectionLot / PortfolioValueSnapshot money-CHECK pattern.
+            models.CheckConstraint(
+                condition=(models.Q(low_price__isnull=True) | models.Q(low_price__gte=0))
+                & (models.Q(mid_price__isnull=True) | models.Q(mid_price__gte=0))
+                & (models.Q(high_price__isnull=True) | models.Q(high_price__gte=0))
+                & (models.Q(market_price__isnull=True) | models.Q(market_price__gte=0))
+                & (models.Q(direct_low_price__isnull=True) | models.Q(direct_low_price__gte=0)),
+                name="price_snapshot_prices_non_negative",
+            ),
         ]
         indexes = [
             # Covering index for the hot "latest price for this printing+edition"

@@ -193,6 +193,22 @@ def test_invalid_source_rejected_by_db() -> None:
 
 
 @pytest.mark.django_db
+def test_negative_price_rejected_by_db() -> None:
+    """Money can't be negative; the CHECK backstops a negative from any source (NaN/inf
+    are blocked upstream at the TCGCSV boundary and by DecimalField quantize)."""
+    printing = _printing(Card.objects.create(name="Pot of Greed"))
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        PriceSnapshot.objects.create(
+            printing=printing,
+            edition=Edition.FIRST_EDITION,
+            source=Provider.TCGCSV,
+            snapshot_date=date(2026, 5, 1),
+            market_price=Decimal("-1.00"),
+        )
+
+
+@pytest.mark.django_db
 def test_prices_optional_and_confidence_defaults_to_one() -> None:
     """Every price point is nullable (a provider may omit some); confidence
     defaults to 1.0 for the single trusted source."""
