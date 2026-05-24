@@ -67,6 +67,13 @@ module = "tests.*"
 disallow_untyped_decorators = false
 
 [[tool.mypy.overrides]]
+# Celery's @shared_task is an untyped decorator (celery ships no usable type info —
+# see the ignore_missing_imports override below), which mypy --strict rejects via
+# disallow_untyped_decorators. Allow it in task modules only — the tests.* precedent.
+module = "apps.*.tasks"
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
 module = ["celery", "celery.*", "environ", "environ.*"]
 ignore_missing_imports = true
 

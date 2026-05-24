@@ -6,6 +6,7 @@ from typing import Any
 import django_stubs_ext
 import environ
 import structlog
+from celery.schedules import crontab
 
 # Make django-stubs' generic ModelAdmin/QuerySet/Manager subscriptable at runtime
 # (not just for mypy), so `ModelAdmin[Card]` doesn't raise. Main dep → holds in --no-dev prod.
@@ -180,7 +181,36 @@ SPECTACULAR_SETTINGS = {
 
 CELERY_TASK_ALWAYS_EAGER = False
 CELERY_TIMEZONE = TIME_ZONE
-CELERY_BEAT_SCHEDULE: dict[str, Any] = {}
+# Daily UTC schedule (CELERY_TIMEZONE = TIME_ZONE = "UTC"). The metadata sync runs
+# first (02:00) so the printings it seeds exist before the pricing reconcile (03:00)
+# matches against them; the hour gap also keeps the two runs' logs and failures
+# independent. The ordering is a soft dependency, not a hard chain — reconciliation
+# tolerates stale metadata (genuinely new printings are review-queued, not lost), and
+# both syncs are idempotent (DECISIONS 2026-05-24 slice 3).
+CELERY_BEAT_SCHEDULE: dict[str, Any] = {
+    "ygoprodeck-metadata-daily": {
+        "task": "cards.sync_ygoprodeck_metadata",
+        "schedule": crontab(hour=2, minute=0),
+    },
+    "tcgcsv-pricing-daily": {
+        "task": "pricing.sync_tcgcsv_pricing",
+        "schedule": crontab(hour=3, minute=0),
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Sync cardinality guard (DECISIONS 2026-05-24 slice 3)
+#
+# The recurring daily syncs reject a fetch that shrank below
+# `last_good * (1 - tolerance)` vs the last successful run (recorded in
+# core.SyncRun), catching a truncated bulk dump before it overwrites a good
+# catalog. Metadata card count is ~monotonic (Konami never un-releases), so a
+# tight bound is safe; TCGCSV price-row coverage fluctuates day-to-day (a product
+# has a price row only when TCGplayer reports one), so prices need more slack.
+# ---------------------------------------------------------------------------
+
+SYNC_GUARD_METADATA_TOLERANCE = env.float("SYNC_GUARD_METADATA_TOLERANCE", default=0.02)
+SYNC_GUARD_PRICING_TOLERANCE = env.float("SYNC_GUARD_PRICING_TOLERANCE", default=0.10)
 
 # ---------------------------------------------------------------------------
 # Logging — structlog + stdlib bridge

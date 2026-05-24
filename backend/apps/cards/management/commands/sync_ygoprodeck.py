@@ -4,15 +4,22 @@ from typing import Any
 
 from django.core.management.base import BaseCommand
 
-from apps.cards.sync import sync_cards_from_metadata
-from apps.pricing.providers.ygoprodeck import YgoprodeckProvider
+from apps.cards.sync import run_ygoprodeck_sync
 
 
 class Command(BaseCommand):
     help = "Sync card and printing metadata from YGOPRODeck's bulk card dump."
 
     def handle(self, *args: Any, **options: Any) -> None:
-        result = sync_cards_from_metadata(YgoprodeckProvider())
+        # Runs under the compare-to-previous cardinality guard and records a SyncRun
+        # (DECISIONS 2026-05-24 slice 3) — same orchestration the Celery task uses.
+        result = run_ygoprodeck_sync()
+        if result is None:
+            # Another run held the advisory lock — this invocation was skipped.
+            self.stdout.write(
+                self.style.WARNING("YGOPRODeck sync skipped: another run is already in progress.")
+            )
+            return
         self.stdout.write(
             self.style.SUCCESS(
                 "YGOPRODeck sync complete: "

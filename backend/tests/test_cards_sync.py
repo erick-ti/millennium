@@ -1,13 +1,23 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from contextlib import contextmanager
+from io import StringIO
 
 import pytest
 from django.core.management import call_command
+from django.test import override_settings
 
 from apps.cards.models import Card, CardPrinting, MetadataSource, PrintingAlias
-from apps.cards.sync import sync_cards_from_metadata
-from apps.pricing.providers.base import CardMetadata, MetadataProvider, PrintingMetadata
+from apps.cards.sync import run_ygoprodeck_sync, sync_cards_from_metadata
+from apps.core.models import SyncKind, SyncRun, SyncStatus
+from apps.core.sync_history import record_run
+from apps.pricing.providers.base import (
+    CardMetadata,
+    JsonFetcher,
+    MetadataProvider,
+    PrintingMetadata,
+)
 
 
 class FakeMetadataProvider(MetadataProvider):
@@ -139,15 +149,141 @@ def test_sync_resolves_through_alias_after_reconciliation() -> None:
 
 @pytest.mark.django_db
 def test_management_command_syncs(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The command wires the real provider to the sync service; here the provider
-    is swapped for a fake so no network call happens."""
-    from apps.cards.management.commands import sync_ygoprodeck as command_module
-
+    """The command runs the guarded orchestration (run_ygoprodeck_sync); here the
+    provider is swapped at the orchestration's construction site for a fake (ignoring
+    the injected fetch/min_cards) so no network call happens."""
     monkeypatch.setattr(
-        command_module, "YgoprodeckProvider", lambda: FakeMetadataProvider([_BLUE_EYES])
+        "apps.cards.sync.YgoprodeckProvider", lambda *a, **k: FakeMetadataProvider([_BLUE_EYES])
     )
 
     call_command("sync_ygoprodeck")
 
     assert Card.objects.filter(passcode=89631139).exists()
     assert CardPrinting.objects.count() == 2
+    # The orchestration records a SUCCESS run for the next sync's baseline.
+    assert SyncRun.objects.filter(
+        kind=SyncKind.YGOPRODECK_METADATA, status=SyncStatus.SUCCESS
+    ).exists()
+
+
+# --- run_ygoprodeck_sync: cardinality guard + history recording -------------
+
+
+def _ygo_payload(cards: list[tuple[int, str, list[tuple[str, str]]]]) -> dict[str, object]:
+    """A YGOPRODeck cardinfo.php payload from (passcode, name, [(set_code, rarity)]) tuples."""
+    return {
+        "data": [
+            {
+                "id": passcode,
+                "name": name,
+                "card_sets": [
+                    {"set_code": sc, "set_rarity": sr, "set_name": "Some Set"} for sc, sr in sets
+                ],
+            }
+            for passcode, name, sets in cards
+        ]
+    }
+
+
+def _fetch(payload: dict[str, object]) -> JsonFetcher:
+    return lambda _url: payload
+
+
+@pytest.mark.django_db
+def test_run_ygoprodeck_sync_records_success_with_cardinality() -> None:
+    # Seed a tiny baseline so the dynamic floor (≈card_count * 0.98) sits below the
+    # fixture; with no history the ~1000-card bootstrap floor would reject it.
+    record_run(SyncKind.YGOPRODECK_METADATA, SyncStatus.SUCCESS, card_count=2)
+    payload = _ygo_payload(
+        [
+            (1, "Card A", [("AA-001", "Common")]),
+            (2, "Card B", [("BB-001", "Rare"), ("BB-002", "Common")]),
+            (3, "Card C", []),
+        ]
+    )
+
+    result = run_ygoprodeck_sync(fetch=_fetch(payload))
+
+    assert result is not None
+    assert result.cards_created == 3
+    assert result.printings_created == 3
+    new_run = SyncRun.objects.get(kind=SyncKind.YGOPRODECK_METADATA, card_count=3)
+    assert new_run.status == SyncStatus.SUCCESS
+    assert new_run.printing_count == 3
+    assert new_run.detail["cards_created"] == 3
+
+
+@pytest.mark.django_db
+def test_run_ygoprodeck_sync_guard_rejects_shrunk_fetch() -> None:
+    """A fetch below last_good * (1 - tolerance) is rejected before any write, and the
+    rejection is recorded FAILED (so it never becomes the baseline)."""
+    record_run(SyncKind.YGOPRODECK_METADATA, SyncStatus.SUCCESS, card_count=1000)
+    payload = _ygo_payload([(i, f"Card {i}", []) for i in range(1, 4)])  # 3 ≪ floor 980
+
+    with pytest.raises(ValueError, match="floor"):
+        run_ygoprodeck_sync(fetch=_fetch(payload))
+
+    assert Card.objects.count() == 0  # rejected at fetch, before the write loop
+    failed = SyncRun.objects.get(kind=SyncKind.YGOPRODECK_METADATA, status=SyncStatus.FAILED)
+    assert "floor" in failed.error
+
+
+@pytest.mark.django_db
+def test_run_ygoprodeck_sync_first_run_enforces_bootstrap_floor() -> None:
+    """No history → the provider's absolute bootstrap floor (~1000) still guards run 1."""
+    with pytest.raises(ValueError, match="floor"):
+        run_ygoprodeck_sync(fetch=_fetch(_ygo_payload([(1, "Only Card", [])])))
+
+    assert (
+        SyncRun.objects.filter(
+            kind=SyncKind.YGOPRODECK_METADATA, status=SyncStatus.FAILED
+        ).count()
+        == 1
+    )
+
+
+@pytest.mark.django_db
+@override_settings(SYNC_GUARD_METADATA_TOLERANCE=2.0)
+def test_run_ygoprodeck_sync_rejects_misconfigured_tolerance() -> None:
+    """A percent-style tolerance (=2 for "2%") would push the floor non-positive and
+    silently disable the guard; the sync fails closed instead and records FAILED
+    (adversarial-review F1)."""
+    with pytest.raises(ValueError, match="tolerance"):
+        run_ygoprodeck_sync(fetch=_fetch(_ygo_payload([(1, "A", [])])))
+
+    assert Card.objects.count() == 0  # rejected before any fetch/write
+    assert SyncRun.objects.filter(
+        kind=SyncKind.YGOPRODECK_METADATA, status=SyncStatus.FAILED
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_run_ygoprodeck_sync_skips_when_lock_held(monkeypatch: pytest.MonkeyPatch) -> None:
+    """If another run holds the advisory lock, this one skips: returns None, records no
+    SyncRun, and writes nothing (adversarial-review F2)."""
+
+    @contextmanager
+    def _held(_kind: object) -> Iterator[bool]:
+        yield False
+
+    monkeypatch.setattr("apps.cards.sync.sync_lock", _held)
+
+    result = run_ygoprodeck_sync(fetch=_fetch(_ygo_payload([(1, "A", [])])))
+
+    assert result is None
+    assert not SyncRun.objects.exists()
+    assert not Card.objects.exists()
+
+
+@pytest.mark.django_db
+def test_management_command_reports_skip(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When the orchestration skips (lock held), the command says so rather than
+    crashing on a None result."""
+    monkeypatch.setattr(
+        "apps.cards.management.commands.sync_ygoprodeck.run_ygoprodeck_sync", lambda: None
+    )
+    out = StringIO()
+
+    call_command("sync_ygoprodeck", stdout=out)
+
+    assert "skipped" in out.getvalue().lower()

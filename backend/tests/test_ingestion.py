@@ -193,9 +193,9 @@ def test_sync_tcgcsv_command_runs_full_pipeline(monkeypatch: pytest.MonkeyPatch)
     CardPrinting.objects.create(
         card=card, set_code="MP25-EN172", set_rarity="Ultra Rare", set_name="Maximum Pride 2025"
     )
-    from apps.pricing.management.commands import sync_tcgcsv as command_module
-
-    monkeypatch.setattr(command_module, "TcgcsvProvider", lambda: _FakeProvider())
+    # The command runs run_tcgcsv_sync, which constructs TcgcsvProvider with injected
+    # floors; swap it at that construction site for the fake (ignoring those args).
+    monkeypatch.setattr("apps.pricing.sync.TcgcsvProvider", lambda *a, **k: _FakeProvider())
     call_command("sync_tcgcsv")
 
     assert ExternalPriceId.objects.filter(provider=Provider.TCGCSV, external_id="651572").exists()
