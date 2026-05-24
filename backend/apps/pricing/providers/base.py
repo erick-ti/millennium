@@ -83,11 +83,13 @@ class CardMetadata:
 class PriceData:
     """A single provider price row for a printing+subtype on the fetch day.
 
-    Provisional: the concrete shape is finalized when the first
-    ``PricingProvider`` (TCGCSV) lands in Phase 2's price-ingestion slice. Fields
-    mirror what ``PriceSnapshot`` consumes — an ``external_id`` to match back to
-    a printing, the raw provider ``subtype_name`` (normalized to an edition
-    downstream), and the price points (a provider may report any subset).
+    Produced by ``PricingProvider.fetch_prices`` and consumed when writing
+    ``PriceSnapshot``: ``external_id`` matches back to a printing (via
+    ``external_price_ids``); ``subtype_name`` is the raw provider edition (e.g.
+    TCGCSV ``"1st Edition"``, normalized to an ``Edition`` downstream and kept
+    verbatim as the snapshot's ``source_subtype_name``); the five price points
+    map 1:1 to the snapshot's columns (a provider may report any subset — absent
+    ones are ``None``). ``TcgcsvProvider`` is the first implementation.
     """
 
     external_id: str
@@ -97,6 +99,30 @@ class PriceData:
     high_price: Decimal | None = None
     market_price: Decimal | None = None
     direct_low_price: Decimal | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ProductListing:
+    """A pricing provider's sellable single-card product, matched to a
+    ``CardPrinting`` by ``(set_code, set_rarity)`` before any price attaches.
+
+    The pricing counterpart to ``PrintingMetadata``: a metadata provider supplies
+    the catalog of printings that *exist*; a pricing provider supplies the
+    products it *sells*, which the matching slice links to those printings (then
+    prices via ``PriceData``, joined by ``external_id``). ``set_rarity`` here is
+    the provider's *canonical* rarity — TCGCSV is the source of truth (DECISIONS
+    2026-05-23), so it is what a provisional metadata rarity gets reconciled
+    against. ``name`` is the raw product name (e.g. ``"Blue-Eyes White Dragon
+    (Version 1)"``); its parenthetical is the only signal distinguishing
+    same-``(set_code, set_rarity)`` variant artworks (recon Q5), so it is kept
+    verbatim for the matcher rather than parsed here.
+    """
+
+    external_id: str
+    set_code: str
+    set_rarity: str
+    name: str
+    set_name: str = ""
 
 
 # Provider roles -------------------------------------------------------------
@@ -117,22 +143,28 @@ class MetadataProvider(abc.ABC):
 
 
 class PricingProvider(abc.ABC):
-    """A source of *prices* for already-known printings.
+    """A source of *prices* (and the sellable-product catalog they attach to) for
+    printings. The pricing counterpart to ``MetadataProvider`` (see that
+    docstring for why the roles are separate). ``TcgcsvProvider`` is the first
+    implementation (Phase 2 price ingestion).
 
-    The pricing counterpart to ``MetadataProvider`` (see that docstring for why
-    the roles are separate). The concrete contract — and the final shape of
-    ``PriceData`` — is settled when the first implementation (TCGCSV) lands in
-    Phase 2's price-ingestion slice; declared now so the role split is explicit
-    from the start of the provider layer.
+    ``fetch_prices`` yields ``PriceData`` — a provider id plus price points. On
+    its own that can't be matched to a printing on the first run (``external_price_ids``
+    is empty until something populates it), so a concrete pricing provider also
+    surfaces its product catalog as ``ProductListing`` (``external_id`` +
+    ``(set_code, set_rarity)`` + raw name) for the matching slice to link to a
+    ``CardPrinting`` before pricing. That catalog method is deliberately left off
+    this ABC while there is one provider (n=1): ``ProductListing`` is the
+    provider-neutral contract the matcher consumes; *how* a provider produces it
+    stays concrete until a second provider shows what generalizes.
 
-    Open obligation for that slice: TCGCSV is also the *only* catalog source for
-    entities absent from YGOPRODeck (tokens — DECISIONS 2026-05-18), so it must
-    be able to create passcode-null ``Card`` / ``CardPrinting`` rows, not merely
-    price existing ones. ``PriceData`` alone (an id + prices) can't create those
-    printings. The role split permits the fix — one TCGCSV adapter can implement
-    ``MetadataProvider`` too — but ``CardMetadata`` must first gain a
-    passcode-optional form (see its docstring). Until then this foundation only
-    covers passcode-bearing YGOPRODeck cards, which is correct for this slice.
+    Still deferred (token slice): TCGCSV is the *only* catalog source for entities
+    absent from YGOPRODeck (tokens — DECISIONS 2026-05-18). Creating passcode-null
+    ``Card`` / ``CardPrinting`` rows for them needs ``CardMetadata`` to gain a
+    passcode-optional form (see its docstring); until then a pricing provider
+    matches its products to *existing* YGOPRODeck-seeded printings only, and the
+    unmatched (tokens included) go to the reconciliation slice's review queue
+    rather than being created.
     """
 
     @abc.abstractmethod
