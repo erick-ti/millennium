@@ -153,3 +153,79 @@ class PriceSnapshot(TimeStampedModel):
             f"{self.printing} ({self.get_edition_display()}) "
             f"{self.get_source_display()} {self.snapshot_date}: {price}"
         )
+
+
+class UnmatchedReason(models.TextChoices):
+    """Why a provider product couldn't be auto-resolved to a single printing."""
+
+    NO_PRINTING_MATCH = "no_printing_match", "No printing match"
+    MULTI_VARIANT = "multi_variant", "Multiple variants"
+    RARITY_DISAGREEMENT = "rarity_disagreement", "Rarity disagreement"
+    # The product's id already resolves to a *different* printing (provider-side
+    # drift across runs, a manual edit, or a prior bad run). (provider, external_id)
+    # is unique and which side is correct needs a human, so we queue rather than
+    # silently rewrite the mapping or report a false match.
+    EXTERNAL_ID_CONFLICT = "external_id_conflict", "External id conflict"
+
+
+class UnmatchedStatus(models.TextChoices):
+    """Human triage state for a review-queue entry."""
+
+    UNRESOLVED = "unresolved", "Unresolved"
+    RESOLVED = "resolved", "Resolved"
+    IGNORED = "ignored", "Ignored"
+
+
+class UnmatchedProduct(TimeStampedModel):
+    """A pricing-provider product the reconciliation could not safely resolve to
+    exactly one ``CardPrinting`` — the review queue (DECISIONS 2026-05-23 point 8:
+    unresolved conflicts are queued, never silently guessed). Mutable: a human
+    triages ``status``.
+
+    Upserted on ``(provider, external_id)`` so a daily re-run refreshes an entry
+    rather than piling up duplicates, while preserving a human's ``status`` /
+    ``notes``. ``product_name`` keeps the raw provider name (its parenthetical is
+    the variant signal a human needs); ``reason`` distinguishes the failure class.
+    Not append-only history (unlike ``PriceSnapshot``) — it's a work list — so it
+    carries a normal admin with no delete/edit lockdown.
+    """
+
+    provider = models.CharField(max_length=32, choices=Provider.choices)
+    external_id = models.CharField(max_length=64)
+    set_code = models.CharField(max_length=32, db_index=True)
+    set_rarity = models.CharField(max_length=64)
+    product_name = models.CharField(max_length=255)
+    set_name = models.CharField(max_length=255, blank=True, default="")
+    reason = models.CharField(max_length=32, choices=UnmatchedReason.choices)
+    status = models.CharField(
+        max_length=16, choices=UnmatchedStatus.choices, default=UnmatchedStatus.UNRESOLVED
+    )
+    notes = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["provider", "status", "set_code", "set_rarity"]
+        constraints = [
+            # One queue entry per provider product; a re-run upserts on this key.
+            # Both columns non-null → a plain UNIQUE exercised on sqlite too.
+            models.UniqueConstraint(
+                fields=["provider", "external_id"],
+                name="unique_unmatched_product_per_provider",
+            ),
+            # Closed-vocabulary guards (the PriceSnapshot/CollectionItem precedent):
+            # `choices` is form-layer only, so guard each enum at the DB everywhere.
+            models.CheckConstraint(
+                condition=models.Q(provider__in=Provider.values),
+                name="unmatched_product_provider_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(reason__in=UnmatchedReason.values),
+                name="unmatched_product_reason_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status__in=UnmatchedStatus.values),
+                name="unmatched_product_status_valid",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_reason_display()}: {self.set_code}/{self.set_rarity} ({self.external_id})"
