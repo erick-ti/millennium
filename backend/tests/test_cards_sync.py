@@ -5,7 +5,7 @@ from collections.abc import Iterator
 import pytest
 from django.core.management import call_command
 
-from apps.cards.models import Card, CardPrinting
+from apps.cards.models import Card, CardPrinting, MetadataSource, PrintingAlias
 from apps.cards.sync import sync_cards_from_metadata
 from apps.pricing.providers.base import CardMetadata, MetadataProvider, PrintingMetadata
 
@@ -102,6 +102,39 @@ def test_sync_card_without_printings() -> None:
     assert result.cards_created == 1
     assert result.printings_created == 0
     assert CardPrinting.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_sync_resolves_through_alias_after_reconciliation() -> None:
+    """Once TCGCSV reconciliation has corrected a provisional rarity and recorded a
+    PrintingAlias, a YGOPRODeck re-sync of the *original* provisional key resolves to
+    the canonical printing instead of recreating the provisional duplicate — the
+    round-4 rerun-safety prerequisite (DECISIONS 2026-05-23)."""
+    card = Card.objects.create(passcode=24094653, name="Super Polymerization")
+    canonical = CardPrinting.objects.create(
+        card=card,
+        set_code="RA03-EN053",
+        set_rarity="Prismatic Ultimate Rare",  # already canonicalized by reconciliation
+        set_name="Quarter Century Stampede",
+    )
+    PrintingAlias.objects.create(
+        source=MetadataSource.YGOPRODECK,
+        card=card,
+        set_code="RA03-EN053",
+        set_rarity="Ultimate Rare",  # the provisional key YGOPRODeck still emits
+        printing=canonical,
+    )
+    record = CardMetadata(
+        passcode=24094653,
+        name="Super Polymerization",
+        printings=(PrintingMetadata("RA03-EN053", "Ultimate Rare", "Quarter Century Stampede"),),
+    )
+
+    result = sync_cards_from_metadata(FakeMetadataProvider([record]))
+
+    assert result.printings_created == 0  # resolved via alias, not recreated
+    assert CardPrinting.objects.count() == 1  # no provisional duplicate
+    assert CardPrinting.objects.get().set_rarity == "Prismatic Ultimate Rare"
 
 
 @pytest.mark.django_db

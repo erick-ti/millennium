@@ -1,7 +1,7 @@
 import pytest
 from django.db import IntegrityError, connection, models, transaction
 
-from apps.cards.models import Card, CardPrinting
+from apps.cards.models import Card, CardPrinting, MetadataSource, PrintingAlias
 from apps.cards.normalization import normalize_name
 
 # The CardPrinting natural-key UniqueConstraint sets nulls_distinct=False, which
@@ -254,3 +254,84 @@ def test_bulk_create_allows_canonical_variant_labels() -> None:
 )
 def test_normalize_name(raw: str, expected: str) -> None:
     assert normalize_name(raw) == expected
+
+
+# --- PrintingAlias ----------------------------------------------------------
+
+
+def _canonical_printing(card: Card) -> CardPrinting:
+    return CardPrinting.objects.create(
+        card=card,
+        set_code="RA03-EN053",
+        set_rarity="Prismatic Ultimate Rare",
+        set_name="Quarter Century Stampede",
+    )
+
+
+@pytest.mark.django_db
+def test_printing_alias_resolves_provisional_key_to_canonical() -> None:
+    card = Card.objects.create(name="Super Polymerization")
+    printing = _canonical_printing(card)
+    alias = PrintingAlias.objects.create(
+        source=MetadataSource.YGOPRODECK,
+        card=card,
+        set_code="RA03-EN053",
+        set_rarity="Ultimate Rare",  # the provisional value YGOPRODeck seeded
+        printing=printing,
+    )
+
+    assert alias.printing == printing
+    assert list(printing.aliases.all()) == [alias]
+
+
+@pytest.mark.django_db
+def test_printing_alias_provisional_key_is_unique() -> None:
+    """(source, card, set_code, set_rarity) is unique — all non-null, so enforced on
+    sqlite too (unlike the CardPrinting natural key)."""
+    card = Card.objects.create(name="Super Polymerization")
+    fields = dict(
+        source=MetadataSource.YGOPRODECK,
+        card=card,
+        set_code="RA03-EN053",
+        set_rarity="Ultimate Rare",
+        printing=_canonical_printing(card),
+    )
+    PrintingAlias.objects.create(**fields)
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        PrintingAlias.objects.create(**fields)
+
+
+@pytest.mark.django_db
+def test_printing_alias_invalid_source_rejected_by_db() -> None:
+    """choices is form-layer only; the CHECK keeps an out-of-vocabulary source out
+    (e.g. the pricing 'tcgcsv' slug is not a metadata source)."""
+    card = Card.objects.create(name="Super Polymerization")
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        PrintingAlias.objects.create(
+            source="tcgcsv",
+            card=card,
+            set_code="RA03-EN053",
+            set_rarity="Ultimate Rare",
+            printing=_canonical_printing(card),
+        )
+
+
+@pytest.mark.django_db
+def test_deleting_printing_cascades_aliases() -> None:
+    """on_delete=CASCADE — the alias is a re-derivable leaf, meaningless without its
+    printing (the external_price_ids pattern)."""
+    card = Card.objects.create(name="Super Polymerization")
+    printing = _canonical_printing(card)
+    PrintingAlias.objects.create(
+        source=MetadataSource.YGOPRODECK,
+        card=card,
+        set_code="RA03-EN053",
+        set_rarity="Ultimate Rare",
+        printing=printing,
+    )
+
+    printing.delete()
+
+    assert PrintingAlias.objects.count() == 0

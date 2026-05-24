@@ -98,3 +98,65 @@ class CardPrinting(TimeStampedModel):
         if self.variant_label:
             parts.append(self.variant_label)
         return " / ".join(parts)
+
+
+class MetadataSource(models.TextChoices):
+    """Catalog/metadata providers that seed provisional printings. Distinct from
+    the pricing ``Provider`` enum: a metadata source carries card identity, not
+    prices, and YGOPRODeck (metadata-only) is not a pricing provider. Kept as its
+    own column on ``PrintingAlias`` so a second metadata source needs no remodel.
+    """
+
+    YGOPRODECK = "ygoprodeck", "YGOPRODeck"
+
+
+class PrintingAlias(TimeStampedModel):
+    """Maps a metadata source's *provisional* printing key to the canonical
+    ``CardPrinting`` after TCGCSV rarity reconciliation.
+
+    YGOPRODeck seeds printings with a provisional ``set_rarity`` (DECISIONS
+    2026-05-23); when TCGCSV reconciliation corrects that rarity in place, the
+    original ``(set_code, set_rarity)`` no longer matches on a re-sync, so the
+    YGOPRODeck sync would re-create the provisional row as a duplicate. This alias
+    records the original key → canonical printing so the re-sync resolves to the
+    canonical row instead — the round-4 rerun-safety prerequisite, i.e. the
+    ``external_price_ids`` pattern applied to metadata identity.
+
+    Keyed ``(source, card, set_code, set_rarity)`` where ``set_rarity`` is the
+    *provisional* value. All columns non-null, so a plain UNIQUE exercised on
+    sqlite too (unlike the ``CardPrinting`` natural key). ``card`` is denormalized
+    from the resolved printing for an explicit, self-describing key; it always
+    equals ``printing.card``. ``variant_label`` is intentionally absent: v1 only
+    aliases the in-place rarity-correction case (multi-variant splits go to the
+    review queue, never aliased), so the provisional key's variant is always NULL.
+    It joins this key via an additive migration if variant-splitting ever lands.
+    """
+
+    source = models.CharField(max_length=32, choices=MetadataSource.choices)
+    card = models.ForeignKey(Card, on_delete=models.CASCADE, related_name="printing_aliases")
+    set_code = models.CharField(max_length=32, db_index=True)
+    set_rarity = models.CharField(max_length=64)
+    # The canonical printing the provisional key now resolves to. CASCADE: the
+    # alias is a re-derivable leaf (like external_price_ids), meaningless without
+    # its printing, so it should vanish with it rather than block the delete.
+    printing = models.ForeignKey(CardPrinting, on_delete=models.CASCADE, related_name="aliases")
+
+    class Meta:
+        ordering = ["source", "set_code", "set_rarity"]
+        constraints = [
+            # One alias per (source, card, set_code, provisional rarity). All-non-null
+            # → a plain UNIQUE created and exercised on sqlite too.
+            models.UniqueConstraint(
+                fields=["source", "card", "set_code", "set_rarity"],
+                name="unique_printing_alias_provisional_key",
+            ),
+            # Closed vocabulary; `choices` is form-layer only, so guard the column at
+            # the DB on every backend (the PriceSnapshot/CollectionItem enum precedent).
+            models.CheckConstraint(
+                condition=models.Q(source__in=MetadataSource.values),
+                name="printing_alias_source_valid",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_source_display()} {self.set_code}/{self.set_rarity} -> {self.printing}"

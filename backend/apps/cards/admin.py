@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from django.contrib import admin
 
-from apps.cards.models import Card, CardPrinting
+from apps.cards.models import Card, CardPrinting, PrintingAlias
 
 
 @admin.register(Card)
@@ -22,3 +22,14 @@ class CardPrintingAdmin(admin.ModelAdmin[CardPrinting]):
     ordering = ["set_code", "set_rarity"]
     readonly_fields = ["created_at", "updated_at"]
     autocomplete_fields = ["card"]
+
+
+@admin.register(PrintingAlias)
+class PrintingAliasAdmin(admin.ModelAdmin[PrintingAlias]):
+    list_display = ["source", "set_code", "set_rarity", "card", "printing", "updated_at"]
+    list_select_related = ["card", "printing", "printing__card"]
+    list_filter = ["source"]
+    search_fields = ["set_code", "set_rarity", "card__name", "printing__set_code"]
+    ordering = ["source", "set_code", "set_rarity"]
+    readonly_fields = ["created_at", "updated_at"]
+    autocomplete_fields = ["card", "printing"]

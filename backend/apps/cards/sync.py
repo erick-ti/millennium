@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from apps.cards.models import Card, CardPrinting
+from apps.cards.models import Card, CardPrinting, MetadataSource, PrintingAlias
 from apps.pricing.providers.base import MetadataProvider
 
 
@@ -31,15 +31,12 @@ def sync_cards_from_metadata(provider: MetadataProvider) -> SyncResult:
     re-run over unchanged data performs no writes at all. Single-writer: the daily
     sync is one task, so get-then-write needs no row locking.
 
-    SCOPE — initial / manual seed only, NOT yet safe to wire recurring. The
-    printing upsert keys on ``(card, set_code, set_rarity, variant_label)``, but
-    DECISIONS 2026-05-23 makes the YGOPRODeck rarity/variant *provisional*: TCGCSV
-    ingestion later mutates those key columns (rarity correction in place, variant
-    splitting). A re-run after that recomputes the *original* provisional key,
-    misses the canonicalized row, and re-creates the provisional duplicate. Before
-    this is scheduled (slice 4) or runs alongside TCGCSV canonicalization (slice
-    3) it must become reconciliation-aware via a stable provider-side alias
-    (DECISIONS 2026-05-23 round-4 follow-up).
+    Reconciliation-aware (DECISIONS 2026-05-23 round-4): before matching a printing
+    by its natural key it consults ``PrintingAlias``, so once TCGCSV ingestion has
+    corrected a provisional ``set_rarity`` in place, a re-run resolves the original
+    provisional key to the canonical printing instead of recreating it as a
+    duplicate. (Beat scheduling still waits on the second recurring-safety
+    prerequisite — slice 3/4's compare-to-previous cardinality guard.)
     """
     cards_created = cards_updated = cards_unchanged = 0
     printings_created = printings_updated = printings_unchanged = 0
@@ -57,6 +54,26 @@ def sync_cards_from_metadata(provider: MetadataProvider) -> SyncResult:
             else:
                 cards_unchanged += 1
         for printing in record.printings:
+            alias = PrintingAlias.objects.filter(
+                source=MetadataSource.YGOPRODECK,
+                card=card,
+                set_code=printing.set_code,
+                set_rarity=printing.set_rarity,
+            ).first()
+            if alias is not None:
+                # A prior TCGCSV reconciliation corrected this provisional
+                # (set_code, set_rarity) to a canonical printing; resolve to that row
+                # rather than recreating the provisional one (DECISIONS 2026-05-23
+                # round-4). Treat like an existing printing — refresh set_name if it
+                # drifted (the only mutable, non-key field a refresh changes).
+                canonical = alias.printing
+                if canonical.set_name != printing.set_name:
+                    canonical.set_name = printing.set_name
+                    canonical.save()
+                    printings_updated += 1
+                else:
+                    printings_unchanged += 1
+                continue
             try:
                 existing = CardPrinting.objects.get(
                     card=card,
