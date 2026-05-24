@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 import pytest
 
-from apps.pricing.providers.base import MetadataProvider, PricingProvider
+from apps.pricing.providers.base import MetadataProvider, PricingProvider, ProductListing
+from apps.pricing.providers.tcgcsv import TcgcsvProvider
 from apps.pricing.providers.ygoprodeck import YgoprodeckProvider
 
 
@@ -229,3 +231,267 @@ def test_provider_roles_are_abstract() -> None:
         MetadataProvider()  # type: ignore[abstract]
     with pytest.raises(TypeError):
         PricingProvider()  # type: ignore[abstract]
+
+
+# -- TcgcsvProvider ----------------------------------------------------------
+
+
+def _envelope(results: list[Any], *, success: bool = True) -> dict[str, Any]:
+    """The TCGCSV response envelope shared by groups / products / prices."""
+    return {"success": success, "results": results, "errors": [], "totalItems": len(results)}
+
+
+def _tcgcsv(
+    *,
+    groups: list[dict[str, Any]],
+    products: dict[int, list[dict[str, Any]]] | None = None,
+    prices: dict[int, list[dict[str, Any]]] | None = None,
+    min_groups: int = 1,
+    min_products: int = 1,
+    min_price_rows: int = 1,
+) -> TcgcsvProvider:
+    """A TcgcsvProvider whose network fetch is replaced by a URL-routing fixture.
+
+    Floors default to 1 so small fixtures don't trip the truncation guards; the
+    guards themselves are exercised by the *_below_floor_* tests.
+    """
+    products = products or {}
+    prices = prices or {}
+
+    def fetch(url: str) -> Any:
+        segments = url.split("/")
+        kind = segments[-1]
+        if kind == "groups":
+            return _envelope(groups)
+        group_id = int(segments[-2])
+        table = products if kind == "products" else prices
+        return _envelope(table.get(group_id, []))
+
+    return TcgcsvProvider(
+        fetch=fetch, min_groups=min_groups, min_products=min_products, min_price_rows=min_price_rows
+    )
+
+
+def _product(
+    product_id: int, number: str, rarity: str, name: str = "Some Card"
+) -> dict[str, Any]:
+    return {
+        "productId": product_id,
+        "name": name,
+        "extendedData": [
+            {"name": "Number", "displayName": "Number", "value": number},
+            {"name": "Rarity", "displayName": "Rarity", "value": rarity},
+            {"name": "Attribute", "displayName": "Attribute", "value": "DARK"},
+        ],
+    }
+
+
+def _sealed_product(product_id: int, name: str = "Booster Box") -> dict[str, Any]:
+    """A sealed product: no extendedData 'Number', so it's not a single card."""
+    return {
+        "productId": product_id,
+        "name": name,
+        "extendedData": [{"name": "Description", "displayName": "Description", "value": "Sealed"}],
+    }
+
+
+def _price(
+    product_id: int,
+    subtype: str,
+    *,
+    low: float | None = None,
+    mid: float | None = None,
+    high: float | None = None,
+    market: float | None = None,
+    direct: float | None = None,
+) -> dict[str, Any]:
+    return {
+        "productId": product_id,
+        "lowPrice": low,
+        "midPrice": mid,
+        "highPrice": high,
+        "marketPrice": market,
+        "directLowPrice": direct,
+        "subTypeName": subtype,
+    }
+
+
+def test_fetch_products_normalizes_and_drops_sealed() -> None:
+    provider = _tcgcsv(
+        groups=[{"groupId": 23656, "name": "Quarter Century Stampede"}],
+        products={
+            23656: [
+                _product(
+                    592540, "RA03-EN053", "Prismatic Ultimate Rare", "Super Polymerization (PUR)"
+                ),
+                _sealed_product(653375, "THE CHRONICLES DECK"),
+            ]
+        },
+    )
+
+    listings = provider.fetch_products()
+
+    assert listings == [
+        ProductListing(
+            external_id="592540",
+            set_code="RA03-EN053",
+            set_rarity="Prismatic Ultimate Rare",
+            name="Super Polymerization (PUR)",
+            set_name="Quarter Century Stampede",
+        )
+    ]
+
+
+def test_fetch_products_keeps_variant_parenthetical() -> None:
+    """One YGOPRODeck (set_code, rarity) → many TCGCSV products; the variant lives
+    only in the product name parenthetical, kept verbatim for the matching slice."""
+    provider = _tcgcsv(
+        groups=[{"groupId": 1841, "name": "Legendary Decks II"}],
+        products={
+            1841: [
+                _product(123525, "LDK2-ENK01", "Common", "Blue-Eyes White Dragon (Version 2)"),
+                _product(123620, "LDK2-ENK01", "Common", "Blue-Eyes White Dragon (Version 4)"),
+                _product(123621, "LDK2-ENK01", "Common", "Blue-Eyes White Dragon (Version 1)"),
+            ]
+        },
+    )
+
+    listings = provider.fetch_products()
+
+    assert {pl.external_id for pl in listings} == {"123525", "123620", "123621"}
+    assert {(pl.set_code, pl.set_rarity) for pl in listings} == {("LDK2-ENK01", "Common")}
+    assert {pl.name for pl in listings} == {
+        "Blue-Eyes White Dragon (Version 2)",
+        "Blue-Eyes White Dragon (Version 4)",
+        "Blue-Eyes White Dragon (Version 1)",
+    }
+
+
+def test_fetch_products_skips_single_card_missing_rarity() -> None:
+    provider = _tcgcsv(
+        groups=[{"groupId": 1, "name": "A Set"}],
+        products={
+            1: [
+                _product(10, "AB-001", "Common"),
+                {
+                    "productId": 11,
+                    "name": "No Rarity",
+                    "extendedData": [{"name": "Number", "value": "AB-002"}],
+                },
+            ]
+        },
+    )
+
+    listings = provider.fetch_products()
+
+    assert [pl.external_id for pl in listings] == ["10"]
+
+
+def test_fetch_prices_drops_sealed_and_keeps_exact_decimals() -> None:
+    provider = _tcgcsv(
+        groups=[{"groupId": 330, "name": "Legend of Blue Eyes White Dragon"}],
+        prices={
+            330: [
+                _price(21747, "1st Edition", low=0.13, mid=0.47, high=19.99, market=0.44),
+                _price(21747, "Unlimited", low=0.10, mid=0.30, high=5.0, market=0.25),
+                _price(653375, "Normal", low=20.79, mid=23.45, high=50.0, market=22.41),
+            ]
+        },
+    )
+
+    rows = provider.fetch_prices()
+
+    assert {r.subtype_name for r in rows} == {"1st Edition", "Unlimited"}  # "Normal" dropped
+    first = next(r for r in rows if r.subtype_name == "1st Edition")
+    assert first.external_id == "21747"
+    assert first.market_price == Decimal("0.44")
+    assert first.high_price == Decimal("19.99")
+    assert first.direct_low_price is None
+
+
+def test_fetch_prices_drops_non_finite_negative_and_unparseable() -> None:
+    """NaN/Infinity (which Python's JSON parser accepts), negatives, and
+    unparseable values are dropped to None at the boundary rather than poisoning
+    stored prices; valid points on the same row survive."""
+    bad_row = {
+        "productId": 10,
+        "lowPrice": "oops",  # unparseable
+        "midPrice": -1.0,  # negative
+        "highPrice": float("nan"),  # non-finite
+        "marketPrice": 0.44,  # valid
+        "directLowPrice": float("inf"),  # non-finite
+        "subTypeName": "1st Edition",
+    }
+    provider = _tcgcsv(groups=[{"groupId": 1, "name": "A"}], prices={1: [bad_row]})
+
+    (row,) = provider.fetch_prices()
+
+    assert row.market_price == Decimal("0.44")
+    assert row.low_price is None
+    assert row.mid_price is None
+    assert row.high_price is None
+    assert row.direct_low_price is None
+
+
+def test_groups_fetched_once_across_methods() -> None:
+    """fetch_products + fetch_prices on one instance fetch the group list once."""
+    calls: list[str] = []
+
+    def fetch(url: str) -> Any:
+        calls.append(url)
+        if url.endswith("/groups"):
+            return _envelope([{"groupId": 1, "name": "A"}])
+        if url.endswith("/products"):
+            return _envelope([_product(10, "AB-001", "Common")])
+        return _envelope([_price(10, "1st Edition", market=1.0)])
+
+    provider = TcgcsvProvider(fetch=fetch, min_groups=1, min_products=1, min_price_rows=1)
+    provider.fetch_products()
+    provider.fetch_prices()
+
+    assert sum(1 for url in calls if url.endswith("/groups")) == 1
+
+
+def test_unsuccessful_envelope_fails_closed() -> None:
+    provider = TcgcsvProvider(
+        fetch=lambda _url: {"success": False, "results": [], "errors": ["boom"]}, min_groups=1
+    )
+    with pytest.raises(ValueError, match="not successful"):
+        provider.fetch_products()
+
+
+def test_non_list_results_fails_closed() -> None:
+    provider = TcgcsvProvider(
+        fetch=lambda _url: {"success": True, "results": {"oops": 1}}, min_groups=1
+    )
+    with pytest.raises(ValueError, match="results"):
+        provider.fetch_products()
+
+
+def test_truncated_group_list_below_floor_fails_closed() -> None:
+    with pytest.raises(ValueError, match="floor"):
+        _tcgcsv(groups=[{"groupId": 1, "name": "A"}], min_groups=5).fetch_products()
+
+
+def test_truncated_products_below_floor_fails_closed() -> None:
+    provider = _tcgcsv(
+        groups=[{"groupId": 1, "name": "A"}],
+        products={1: [_product(10, "AB-001", "Common")]},
+        min_products=5,
+    )
+    with pytest.raises(ValueError, match="floor"):
+        provider.fetch_products()
+
+
+def test_truncated_prices_below_floor_fails_closed() -> None:
+    provider = _tcgcsv(
+        groups=[{"groupId": 1, "name": "A"}],
+        prices={1: [_price(10, "1st Edition", market=1.0)]},
+        min_price_rows=5,
+    )
+    with pytest.raises(ValueError, match="floor"):
+        provider.fetch_prices()
+
+
+def test_tcgcsv_implements_pricing_provider() -> None:
+    assert isinstance(TcgcsvProvider(fetch=lambda _url: _envelope([])), PricingProvider)
