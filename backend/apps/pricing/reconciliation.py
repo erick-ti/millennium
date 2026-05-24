@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 from django.db import transaction
 
@@ -32,6 +32,9 @@ class ReconcileResult:
     queued_multi_variant: int = 0
     queued_rarity_disagreement: int = 0
     queued_external_id_conflict: int = 0
+    # The external_ids flagged EXTERNAL_ID_CONFLICT *this run* — passed to ingestion so
+    # it skips them regardless of the queue row's (mutable, human-set) triage status.
+    conflicted_external_ids: frozenset[str] = frozenset()
 
 
 @dataclass
@@ -49,9 +52,12 @@ class _Counts:
     queued_multi_variant: int = 0
     queued_rarity_disagreement: int = 0
     queued_external_id_conflict: int = 0
+    conflicted_external_ids: set[str] = field(default_factory=set)
 
     def result(self) -> ReconcileResult:
-        return ReconcileResult(**asdict(self))
+        data = asdict(self)
+        conflicted = data.pop("conflicted_external_ids")
+        return ReconcileResult(conflicted_external_ids=frozenset(conflicted), **data)
 
 
 def reconcile_products_to_printings(products: Iterable[ProductListing]) -> ReconcileResult:
@@ -231,5 +237,6 @@ def _queue(product: ProductListing, reason: UnmatchedReason, counts: _Counts) ->
         counts.queued_multi_variant += 1
     elif reason == UnmatchedReason.EXTERNAL_ID_CONFLICT:
         counts.queued_external_id_conflict += 1
+        counts.conflicted_external_ids.add(product.external_id.strip())
     else:
         counts.queued_rarity_disagreement += 1
