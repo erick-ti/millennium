@@ -33,12 +33,13 @@ _SEALED_SUBTYPE = "Normal"
 _NUMBER_FIELD = "Number"  # the set_code, e.g. "RA03-EN053"
 _RARITY_FIELD = "Rarity"  # TCGCSV-canonical rarity, e.g. "Prismatic Ultimate Rare"
 
-# Coarse sanity floors (the YgoprodeckProvider pattern): the live YuGiOh catalog
-# has ~650 groups and tens of thousands of single-card products/price rows and
-# only grows, so a value well under that never false-rejects but catches a
-# grossly truncated fetch (a cut connection yields a handful of rows). The
-# precise guard — compare against the last successful sync — needs run history
-# and lands with slice 4's Celery wiring (DECISIONS 2026-05-23 round-4 follow-up).
+# Absolute bootstrap floors for the FIRST run only (no history yet), the
+# YgoprodeckProvider pattern: the live YuGiOh catalog has ~650 groups and tens of
+# thousands of single-card products/price rows and only grows, so a value well under
+# that never false-rejects but catches a grossly truncated fetch (a cut connection
+# yields a handful of rows). Once a prior successful sync exists, the orchestration
+# injects the precise compare-to-previous floor (last_good * (1 - tolerance)) via
+# `min_products` / `min_price_rows`, superseding these (DECISIONS 2026-05-24 slice 3).
 _MIN_EXPECTED_GROUPS = 100
 _MIN_EXPECTED_PRODUCTS = 1000
 
@@ -59,14 +60,16 @@ class TcgcsvProvider(PricingProvider):
         self,
         fetch: JsonFetcher = fetch_json,
         *,
-        min_groups: int = _MIN_EXPECTED_GROUPS,
-        min_products: int = _MIN_EXPECTED_PRODUCTS,
-        min_price_rows: int = _MIN_EXPECTED_PRODUCTS,
+        min_groups: int | None = None,
+        min_products: int | None = None,
+        min_price_rows: int | None = None,
     ) -> None:
         self._fetch = fetch
-        self._min_groups = min_groups
-        self._min_products = min_products
-        self._min_price_rows = min_price_rows
+        # None → the absolute bootstrap floor (first run, no history). The
+        # orchestration passes last_good * (1 - tolerance) once history exists.
+        self._min_groups = _MIN_EXPECTED_GROUPS if min_groups is None else min_groups
+        self._min_products = _MIN_EXPECTED_PRODUCTS if min_products is None else min_products
+        self._min_price_rows = _MIN_EXPECTED_PRODUCTS if min_price_rows is None else min_price_rows
         # Cached so fetch_products + fetch_prices on one instance fetch the group
         # list once, not twice.
         self._group_cache: list[dict[str, Any]] | None = None

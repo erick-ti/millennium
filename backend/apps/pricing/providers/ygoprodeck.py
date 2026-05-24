@@ -20,23 +20,23 @@ logger = structlog.get_logger(__name__)
 # this provider is metadata only — pricing comes from TCGCSV (the source split).
 CARDINFO_URL = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
 
-# Coarse sanity floor, not a precise expectation: the full dump is ~14k cards
-# and only grows (Konami never un-releases), so any value well under that never
-# false-rejects but catches a grossly truncated response (a cut connection
-# yields a handful of cards). The precise guard — comparing against the last
-# successful sync — needs run history and lands with slice 4's Celery wiring
-# (DECISIONS 2026-05-23 round-4 follow-up).
+# Absolute bootstrap floor for the FIRST run only (no history yet): the full dump
+# is ~14k cards and only grows (Konami never un-releases), so any value well under
+# that never false-rejects but catches a grossly truncated response (a cut connection
+# yields a handful of cards). Once a prior successful sync exists, the orchestration
+# injects the precise compare-to-previous floor (last_good * (1 - tolerance)) via
+# `min_cards`, which supersedes this coarse one (DECISIONS 2026-05-24 slice 3).
 _MIN_EXPECTED_CARDS = 1000
 
 
 class YgoprodeckProvider(MetadataProvider):
     """Card metadata from YGOPRODeck's ``cardinfo.php`` bulk dump."""
 
-    def __init__(
-        self, fetch: JsonFetcher = fetch_json, *, min_cards: int = _MIN_EXPECTED_CARDS
-    ) -> None:
+    def __init__(self, fetch: JsonFetcher = fetch_json, *, min_cards: int | None = None) -> None:
         self._fetch = fetch
-        self._min_cards = min_cards
+        # None → the absolute bootstrap floor (first run, no history). The
+        # orchestration passes last_good * (1 - tolerance) once history exists.
+        self._min_cards = _MIN_EXPECTED_CARDS if min_cards is None else min_cards
 
     def fetch_card_metadata(self) -> list[CardMetadata]:
         payload = self._fetch(CARDINFO_URL)

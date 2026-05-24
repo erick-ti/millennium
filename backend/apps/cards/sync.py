@@ -1,9 +1,18 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+
+import structlog
+from django.conf import settings
 
 from apps.cards.models import Card, CardPrinting, MetadataSource, PrintingAlias
-from apps.pricing.providers.base import MetadataProvider
+from apps.core.locks import sync_lock
+from apps.core.models import SyncKind, SyncStatus
+from apps.core.sync_history import record_run, shrink_floor
+from apps.pricing.providers.base import JsonFetcher, MetadataProvider, fetch_json
+from apps.pricing.providers.ygoprodeck import YgoprodeckProvider
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,3 +116,51 @@ def sync_cards_from_metadata(provider: MetadataProvider) -> SyncResult:
         printings_updated=printings_updated,
         printings_unchanged=printings_unchanged,
     )
+
+
+def run_ygoprodeck_sync(*, fetch: JsonFetcher = fetch_json) -> SyncResult | None:
+    """Run the YGOPRODeck metadata sync under the compare-to-previous cardinality
+    guard, recording the outcome in ``SyncRun`` (DECISIONS 2026-05-24 slice 3).
+
+    The recurring-safety guard (round-4 prerequisite #2): once a prior successful run
+    exists, the provider's fetch floor is raised to ``last_good_cards * (1 - tolerance)``,
+    so a truncated bulk dump is rejected *before* any write; the first run has no
+    history, so the provider's own absolute bootstrap floor applies. A SUCCESS row
+    records the run's cardinality (the next run's baseline); a failure (including a
+    guard rejection or a misconfigured tolerance) records FAILED + the error and
+    re-raises, so a bad fetch never becomes the baseline.
+
+    Serialized by a per-kind advisory lock: the underlying upsert paths assume a single
+    writer, which beat alone doesn't enforce (e.g. a manual ``sync_ygoprodeck`` overlapping
+    the scheduled task). If another run already holds the lock this one **skips** (logs and
+    returns ``None`` -- no ``SyncRun``, since it never ran), rather than racing the
+    get-then-create paths. The single entry point for the sync, called by both the
+    management command and the Celery task. ``fetch`` is injectable so tests can drive it
+    without the network.
+    """
+    with sync_lock(SyncKind.YGOPRODECK_METADATA) as acquired:
+        if not acquired:
+            logger.warning("ygoprodeck_sync.skipped_already_running")
+            return None
+        try:
+            # shrink_floor inside the try so a misconfigured tolerance records FAILED too.
+            floor = shrink_floor(
+                SyncKind.YGOPRODECK_METADATA,
+                "card_count",
+                tolerance=settings.SYNC_GUARD_METADATA_TOLERANCE,
+            )
+            provider = YgoprodeckProvider(fetch, min_cards=floor)
+            result = sync_cards_from_metadata(provider)
+        except Exception as exc:
+            record_run(SyncKind.YGOPRODECK_METADATA, SyncStatus.FAILED, error=str(exc))
+            raise
+        record_run(
+            SyncKind.YGOPRODECK_METADATA,
+            SyncStatus.SUCCESS,
+            card_count=result.cards_created + result.cards_updated + result.cards_unchanged,
+            printing_count=(
+                result.printings_created + result.printings_updated + result.printings_unchanged
+            ),
+            detail=asdict(result),
+        )
+        return result

@@ -4,23 +4,23 @@ from typing import Any
 
 from django.core.management.base import BaseCommand
 
-from apps.pricing.ingestion import ingest_prices
-from apps.pricing.providers.tcgcsv import TcgcsvProvider
-from apps.pricing.reconciliation import reconcile_products_to_printings
+from apps.pricing.sync import run_tcgcsv_sync
 
 
 class Command(BaseCommand):
     help = "Reconcile TCGCSV products to printings, then ingest current single-card prices."
 
     def handle(self, *args: Any, **options: Any) -> None:
-        # Reconcile first so external_price_ids exist before pricing joins through them
-        # (DECISIONS 2026-05-23). One provider instance fetches the group list once.
-        provider = TcgcsvProvider()
-        rec = reconcile_products_to_printings(provider.fetch_products())
-        # Pass the run's conflicted ids so ingestion skips pricing through stale mappings.
-        ing = ingest_prices(
-            provider.fetch_prices(), excluded_external_ids=rec.conflicted_external_ids
-        )
+        # Reconcile-then-ingest under the compare-to-previous cardinality guard, recording
+        # a SyncRun (DECISIONS 2026-05-24 slice 3) — same orchestration the Celery task uses.
+        outcome = run_tcgcsv_sync()
+        if outcome is None:
+            # Another run held the advisory lock — this invocation was skipped.
+            self.stdout.write(
+                self.style.WARNING("TCGCSV sync skipped: another run is already in progress.")
+            )
+            return
+        rec, ing = outcome
         queued = (
             rec.queued_no_printing_match
             + rec.queued_multi_variant
