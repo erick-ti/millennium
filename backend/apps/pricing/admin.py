@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.contrib import admin
 from django.http import HttpRequest
 
-from apps.pricing.models import ExternalPriceId, PriceSnapshot
+from apps.pricing.models import ExternalPriceId, PriceSnapshot, UnmatchedProduct
 
 
 @admin.register(ExternalPriceId)
@@ -57,3 +57,22 @@ class PriceSnapshotAdmin(admin.ModelAdmin[PriceSnapshot]):
         if obj is not None:
             return False
         return super().has_change_permission(request, obj)
+
+
+@admin.register(UnmatchedProduct)
+class UnmatchedProductAdmin(admin.ModelAdmin[UnmatchedProduct]):
+    list_display = [
+        "set_code",
+        "set_rarity",
+        "product_name",
+        "reason",
+        "status",
+        "provider",
+        "updated_at",
+    ]
+    list_filter = ["status", "reason", "provider"]
+    # A work queue, not append-only history: triage status inline from the changelist.
+    list_editable = ["status"]
+    search_fields = ["external_id", "set_code", "set_rarity", "product_name", "set_name"]
+    ordering = ["provider", "status", "set_code", "set_rarity"]
+    readonly_fields = ["created_at", "updated_at"]

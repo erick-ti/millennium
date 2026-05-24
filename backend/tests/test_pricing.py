@@ -11,7 +11,14 @@ from django.test import RequestFactory
 from apps.cards.models import Card, CardPrinting
 from apps.core.enums import Edition
 from apps.pricing.admin import PriceSnapshotAdmin
-from apps.pricing.models import ExternalPriceId, PriceSnapshot, Provider
+from apps.pricing.models import (
+    ExternalPriceId,
+    PriceSnapshot,
+    Provider,
+    UnmatchedProduct,
+    UnmatchedReason,
+    UnmatchedStatus,
+)
 
 
 def _printing(card: Card, set_code: str = "LOB-005") -> CardPrinting:
@@ -269,3 +276,48 @@ def test_price_snapshot_admin_change_permission_defers_to_user() -> None:
 
     request.user = User.objects.create_superuser("super", "super@example.com", "x")
     assert admin_obj.has_change_permission(request) is True
+
+
+# --- UnmatchedProduct -------------------------------------------------------
+
+
+def _unmatched_fields(**overrides: object) -> dict[str, object]:
+    fields: dict[str, object] = dict(
+        provider=Provider.TCGCSV,
+        external_id="592540",
+        set_code="RA03-EN053",
+        set_rarity="Prismatic Ultimate Rare",
+        product_name="Super Polymerization (PUR)",
+        reason=UnmatchedReason.RARITY_DISAGREEMENT,
+    )
+    fields.update(overrides)
+    return fields
+
+
+@pytest.mark.django_db
+def test_unmatched_product_unique_per_provider() -> None:
+    """(provider, external_id) is unique so a daily re-run upserts one entry per
+    product rather than piling up duplicates. Plain UNIQUE, enforced on sqlite too."""
+    UnmatchedProduct.objects.create(**_unmatched_fields())
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        UnmatchedProduct.objects.create(**_unmatched_fields())
+
+
+@pytest.mark.django_db
+def test_unmatched_product_status_defaults_to_unresolved() -> None:
+    entry = UnmatchedProduct.objects.create(**_unmatched_fields())
+
+    assert entry.status == UnmatchedStatus.UNRESOLVED
+
+
+@pytest.mark.django_db
+def test_unmatched_product_invalid_reason_rejected_by_db() -> None:
+    with pytest.raises(IntegrityError), transaction.atomic():
+        UnmatchedProduct.objects.create(**_unmatched_fields(reason="bogus"))
+
+
+@pytest.mark.django_db
+def test_unmatched_product_invalid_status_rejected_by_db() -> None:
+    with pytest.raises(IntegrityError), transaction.atomic():
+        UnmatchedProduct.objects.create(**_unmatched_fields(status="bogus"))
