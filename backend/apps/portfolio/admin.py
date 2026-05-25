@@ -24,6 +24,7 @@ class PortfolioValueSnapshotAdmin(admin.ModelAdmin[PortfolioValueSnapshot]):
         "market_value",
         "cost_basis",
         "unrealized_gain",
+        "coverage_complete",
         "valuation_version",
     ]
     list_select_related = ["portfolio"]
@@ -53,3 +54,9 @@ class PortfolioValueSnapshotAdmin(admin.ModelAdmin[PortfolioValueSnapshot]):
         if obj is not None:
             return False
         return super().has_change_permission(request, obj)
+
+    @admin.display(boolean=True, description="Complete")
+    def coverage_complete(self, obj: PortfolioValueSnapshot) -> bool:
+        """At-a-glance: did this valuation cover the whole portfolio (both priced
+        and costed)? A partial snapshot has unrealized_gain NULL."""
+        return obj.is_complete

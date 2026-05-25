@@ -43,6 +43,15 @@ class PortfolioValueSnapshot(TimeStampedModel):
     pure range scan. (Append-only is a convention here, not a ``save()``-enforced
     lock.)
 
+    The lower layers honestly model "unknown" (``CollectionLot.unit_cost`` and
+    ``PriceSnapshot`` prices are nullable; a printing may have no snapshot at
+    all), so a rolled-up total must not silently look complete. The engine sums
+    only what it can value/cost — unknowns are *excluded*, never coerced to 0 —
+    and records how much of the portfolio each total actually covers via the
+    ``*_card_count`` fields; ``unrealized_gain`` is left NULL unless coverage is
+    full, because under partial coverage ``market_value`` and ``cost_basis`` sum
+    different subsets and their difference is not a gain (DECISIONS 2026-05-25).
+
     ``valuation_method`` and ``valuation_version`` record *how* the row was
     computed, so a snapshot stays interpretable after the valuation formula
     changes: a change applies going forward (one snapshot per portfolio per day,
@@ -67,13 +76,29 @@ class PortfolioValueSnapshot(TimeStampedModel):
     market_value = models.DecimalField(max_digits=14, decimal_places=2)
     liquidation_value = models.DecimalField(max_digits=14, decimal_places=2)
     cost_basis = models.DecimalField(max_digits=14, decimal_places=2)
-    # market_value - cost_basis. Stored (so it's queryable / sortable) but a CHECK
-    # below ties it to those two columns so it can't drift; the value itself may be
-    # negative — a holding underwater is a legitimate loss.
-    unrealized_gain = models.DecimalField(max_digits=14, decimal_places=2)
+    # market_value - cost_basis, but only when the valuation is fully covered.
+    # Under partial coverage market_value and cost_basis sum *different* subsets
+    # (priced cards vs costed lots), so their difference is not a gain — the engine
+    # leaves this NULL and the consumer reads it as "not computable yet". The CHECKs
+    # below allow NULL or, when set, tie it to market_value - cost_basis AND require
+    # full coverage. A set value may still be negative (a holding underwater is a
+    # legitimate loss). (DECISIONS 2026-05-25 — the conditional successor to Phase
+    # 1B's unconditional gain CHECK.)
+    unrealized_gain = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True
+    )
+    # Coverage, as card-quantity counts (DECISIONS 2026-05-25). total = every owned
+    # card (SUM of lot quantities); priced = cards whose holding got a usable price;
+    # costed = cards whose acquisition lot had a known unit_cost. NOT NULL, no
+    # default (the money-fields posture — the engine always sets them). The
+    # market_value_complete / cost_basis_complete flags are *derived* from these
+    # (properties below), not stored, so they can't drift from the counts.
+    total_card_count = models.PositiveIntegerField()
+    priced_card_count = models.PositiveIntegerField()
+    costed_card_count = models.PositiveIntegerField()
     # How this row was valued, recorded so older snapshots stay interpretable when
-    # the formula changes. The Phase 2 valuation engine defines the method
-    # vocabulary, so this is open text (no enum / CHECK) for now.
+    # the formula changes. The valuation engine defines the method vocabulary, so
+    # this is open text (no enum / CHECK).
     valuation_method = models.CharField(max_length=64)
     valuation_version = models.PositiveSmallIntegerField()
 
@@ -103,14 +128,68 @@ class PortfolioValueSnapshot(TimeStampedModel):
                 condition=models.Q(cost_basis__gte=0),
                 name="portfolio_value_snapshot_cost_basis_non_negative",
             ),
-            # unrealized_gain is stored (queryable) but must equal market_value -
-            # cost_basis, so it can't drift from the row's own totals — no separate
+            # Coverage counts are subsets of the total, so neither can exceed it.
+            models.CheckConstraint(
+                condition=models.Q(priced_card_count__lte=models.F("total_card_count")),
+                name="portfolio_value_snapshot_priced_count_within_total",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(costed_card_count__lte=models.F("total_card_count")),
+                name="portfolio_value_snapshot_costed_count_within_total",
+            ),
+            # unrealized_gain is stored (queryable / sortable) but, when set, must
+            # equal market_value - cost_basis so it can't drift from the row's own
+            # totals. NULL is allowed (partial coverage — see the next CHECK); no
             # sign bound, since a loss is a valid negative gain.
             models.CheckConstraint(
-                condition=models.Q(unrealized_gain=models.F("market_value") - models.F("cost_basis")),
+                condition=models.Q(unrealized_gain__isnull=True)
+                | models.Q(unrealized_gain=models.F("market_value") - models.F("cost_basis")),
                 name="portfolio_value_snapshot_unrealized_gain_matches",
+            ),
+            # unrealized_gain is set if and ONLY if coverage is full on both sides:
+            # only when market_value and cost_basis describe the same (whole) portfolio
+            # is their difference a true gain. So a complete row MUST carry the gain and
+            # a partial row MUST leave it NULL — the biconditional, not just one
+            # direction, so an admin/bulk writer can't persist a complete row with a
+            # NULL gain (which would read as is_complete yet have no P&L). The counts
+            # are non-null, so each equality is a clean boolean — the CHECK never
+            # evaluates to NULL. (DECISIONS 2026-05-25, tightened after a Codex
+            # adversarial review; the conditional successor to Phase 1B's unconditional
+            # gain CHECK.)
+            models.CheckConstraint(
+                condition=models.Q(
+                    priced_card_count=models.F("total_card_count"),
+                    costed_card_count=models.F("total_card_count"),
+                    unrealized_gain__isnull=False,
+                )
+                | (
+                    ~(
+                        models.Q(priced_card_count=models.F("total_card_count"))
+                        & models.Q(costed_card_count=models.F("total_card_count"))
+                    )
+                    & models.Q(unrealized_gain__isnull=True)
+                ),
+                name="portfolio_value_snapshot_gain_iff_complete",
             ),
         ]
 
     def __str__(self) -> str:
         return f"{self.portfolio} @ {self.snapshot_date}: {self.market_value}"
+
+    @property
+    def market_value_complete(self) -> bool:
+        """True iff every owned card was priced, so market_value covers the whole
+        portfolio rather than a subset. Derived from the counts (not stored) so it
+        can't drift; for an empty portfolio (total 0) it is vacuously True."""
+        return self.priced_card_count >= self.total_card_count
+
+    @property
+    def cost_basis_complete(self) -> bool:
+        """True iff every owned card's acquisition lot had a known unit_cost."""
+        return self.costed_card_count >= self.total_card_count
+
+    @property
+    def is_complete(self) -> bool:
+        """Both sides fully covered — the only state in which unrealized_gain is
+        computed (non-null) and the totals describe the whole portfolio."""
+        return self.market_value_complete and self.cost_basis_complete

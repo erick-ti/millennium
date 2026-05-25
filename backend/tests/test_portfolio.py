@@ -48,6 +48,13 @@ def test_name_is_unique() -> None:
 # --- PortfolioValueSnapshot -------------------------------------------------
 
 
+class _Derive:
+    """Sentinel for _value_snapshot: derive unrealized_gain from coverage."""
+
+
+_DERIVE = _Derive()
+
+
 def _value_snapshot(
     portfolio: Portfolio,
     *,
@@ -55,20 +62,35 @@ def _value_snapshot(
     market_value: Decimal = Decimal("0"),
     cost_basis: Decimal = Decimal("0"),
     liquidation_value: Decimal = Decimal("0"),
-    unrealized_gain: Decimal | None = None,
+    unrealized_gain: Decimal | None | _Derive = _DERIVE,
+    total_card_count: int = 1,
+    priced_card_count: int = 1,
+    costed_card_count: int = 1,
 ) -> PortfolioValueSnapshot:
-    """Create a snapshot with internally-consistent totals. unrealized_gain
-    defaults to market_value - cost_basis so the matching CHECK passes, and every
-    total is supplied explicitly since the money fields have no model default."""
-    if unrealized_gain is None:
-        unrealized_gain = market_value - cost_basis
+    """Create a snapshot with internally-consistent totals + coverage. Coverage
+    defaults to fully complete (1/1/1). unrealized_gain defaults (``_DERIVE``) to
+    market_value - cost_basis when coverage is complete and to None otherwise, so
+    the gain CHECKs pass; pass it explicitly (incl. None) to override. Every field
+    is supplied since the model has no defaults."""
+    gain: Decimal | None
+    if isinstance(unrealized_gain, _Derive):
+        complete = (
+            priced_card_count >= total_card_count
+            and costed_card_count >= total_card_count
+        )
+        gain = (market_value - cost_basis) if complete else None
+    else:
+        gain = unrealized_gain
     return PortfolioValueSnapshot.objects.create(
         portfolio=portfolio,
         snapshot_date=snapshot_date,
         market_value=market_value,
         cost_basis=cost_basis,
         liquidation_value=liquidation_value,
-        unrealized_gain=unrealized_gain,
+        unrealized_gain=gain,
+        total_card_count=total_card_count,
+        priced_card_count=priced_card_count,
+        costed_card_count=costed_card_count,
         valuation_method="tcgcsv_market",
         valuation_version=1,
     )
@@ -115,6 +137,9 @@ def test_totals_are_required() -> None:
         PortfolioValueSnapshot.objects.create(
             portfolio=portfolio,
             snapshot_date=date(2026, 5, 1),
+            total_card_count=0,
+            priced_card_count=0,
+            costed_card_count=0,
             valuation_method="tcgcsv_market",
             valuation_version=1,
         )
@@ -214,3 +239,154 @@ def test_value_snapshot_admin_change_permission_defers_to_user() -> None:
 
     request.user = User.objects.create_superuser("super", "super@example.com", "x")
     assert admin_obj.has_change_permission(request) is True
+
+
+# --- Coverage (DECISIONS 2026-05-25) ----------------------------------------
+
+
+@pytest.mark.django_db
+def test_partial_coverage_leaves_gain_null() -> None:
+    """Partial coverage (some cards unpriced) keeps the totals non-null but leaves
+    unrealized_gain NULL: market_value and cost_basis then sum different subsets,
+    so their difference is not a gain."""
+    portfolio = Portfolio.objects.create(name="Yubel Deck")
+    snap = _value_snapshot(
+        portfolio,
+        market_value=Decimal("100.00"),
+        cost_basis=Decimal("60.00"),
+        total_card_count=10,
+        priced_card_count=8,
+        costed_card_count=10,
+    )
+
+    assert snap.unrealized_gain is None
+    assert snap.market_value == Decimal("100.00")
+    assert snap.market_value_complete is False
+    assert snap.is_complete is False
+
+
+@pytest.mark.django_db
+def test_gain_set_while_incomplete_rejected() -> None:
+    """CHECK gain_iff_complete — a non-null gain on a partially-covered valuation is
+    rejected even when it is arithmetically correct, so the engine must leave it NULL
+    under partial coverage."""
+    portfolio = Portfolio.objects.create(name="Yubel Deck")
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _value_snapshot(
+            portfolio,
+            market_value=Decimal("100.00"),
+            cost_basis=Decimal("60.00"),
+            unrealized_gain=Decimal("40.00"),  # == market - cost, but coverage is partial
+            total_card_count=10,
+            priced_card_count=8,
+            costed_card_count=10,
+        )
+
+
+@pytest.mark.django_db
+def test_complete_with_null_gain_rejected() -> None:
+    """CHECK gain_iff_complete is bidirectional: a fully-covered snapshot MUST carry
+    the gain, so a complete row with NULL unrealized_gain is rejected — otherwise it
+    would read as is_complete yet have no P&L (caught in a Codex adversarial review)."""
+    portfolio = Portfolio.objects.create(name="Yubel Deck")
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _value_snapshot(
+            portfolio,
+            market_value=Decimal("100.00"),
+            cost_basis=Decimal("60.00"),
+            unrealized_gain=None,  # NULL while fully covered, so rejected
+            total_card_count=3,
+            priced_card_count=3,
+            costed_card_count=3,
+        )
+
+
+@pytest.mark.django_db
+def test_priced_count_cannot_exceed_total() -> None:
+    """CHECK priced_count_within_total — priced is a subset of total, never more.
+    gain is forced NULL so only the count CHECK can fire."""
+    portfolio = Portfolio.objects.create(name="Yubel Deck")
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _value_snapshot(
+            portfolio,
+            unrealized_gain=None,
+            total_card_count=3,
+            priced_card_count=5,
+            costed_card_count=3,
+        )
+
+
+@pytest.mark.django_db
+def test_costed_count_cannot_exceed_total() -> None:
+    """CHECK costed_count_within_total — costed is a subset of total, never more."""
+    portfolio = Portfolio.objects.create(name="Yubel Deck")
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        _value_snapshot(
+            portfolio,
+            unrealized_gain=None,
+            total_card_count=3,
+            priced_card_count=3,
+            costed_card_count=5,
+        )
+
+
+@pytest.mark.django_db
+def test_empty_portfolio_snapshot_is_complete() -> None:
+    """An empty portfolio writes explicit 0 totals with 0 coverage counts — that is
+    vacuously complete (nothing is missing), so unrealized_gain is 0, not NULL."""
+    portfolio = Portfolio.objects.create(name="Empty")
+    snap = _value_snapshot(
+        portfolio, total_card_count=0, priced_card_count=0, costed_card_count=0
+    )
+
+    assert snap.is_complete is True
+    assert snap.unrealized_gain == Decimal("0")
+
+
+def test_completeness_properties() -> None:
+    """market_value_complete / cost_basis_complete / is_complete derive from the
+    counts (no DB), so they can't drift from the stored coverage."""
+    partial = PortfolioValueSnapshot(
+        total_card_count=10, priced_card_count=8, costed_card_count=10
+    )
+    assert partial.market_value_complete is False
+    assert partial.cost_basis_complete is True
+    assert partial.is_complete is False
+
+    full = PortfolioValueSnapshot(
+        total_card_count=10, priced_card_count=10, costed_card_count=10
+    )
+    assert full.is_complete is True
+
+    empty = PortfolioValueSnapshot(
+        total_card_count=0, priced_card_count=0, costed_card_count=0
+    )
+    assert empty.is_complete is True  # vacuously, for an empty portfolio
+
+
+def test_coverage_constraints_present() -> None:
+    """Intent check (every backend): the coverage CHECKs exist by name, so the
+    nullable-gain rules are DB-enforced regardless of the test engine."""
+    names = {c.name for c in PortfolioValueSnapshot._meta.constraints}
+
+    assert "portfolio_value_snapshot_priced_count_within_total" in names
+    assert "portfolio_value_snapshot_costed_count_within_total" in names
+    assert "portfolio_value_snapshot_gain_iff_complete" in names
+
+
+def test_admin_coverage_complete_reflects_is_complete() -> None:
+    """The admin's boolean coverage column mirrors the model's is_complete."""
+    admin_obj = PortfolioValueSnapshotAdmin(PortfolioValueSnapshot, AdminSite())
+    complete = PortfolioValueSnapshot(
+        total_card_count=2, priced_card_count=2, costed_card_count=2
+    )
+    partial = PortfolioValueSnapshot(
+        total_card_count=2, priced_card_count=1, costed_card_count=2
+    )
+
+    assert admin_obj.coverage_complete(complete) is True
+    assert admin_obj.coverage_complete(partial) is False
