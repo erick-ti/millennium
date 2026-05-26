@@ -22,6 +22,13 @@ _SYNC_LOCK_IDS: dict[SyncKind, int] = {
     SyncKind.TCGCSV_PRICING: 2,
 }
 
+# Valuation isn't a SyncKind -- it does no fetch and records its own ValuationRun rather
+# than a SyncRun (DECISIONS 2026-05-25 slice 4c) -- so it takes its own id in the shared
+# advisory namespace beside the sync ids (1 = metadata, 2 = pricing, 3 = valuation). The
+# lock serializes valuation passes so a manual `value_portfolios` can't race the scheduled
+# task on the same-day get_or_create snapshot path.
+_VALUATION_LOCK_ID = 3
+
 
 @contextmanager
 def advisory_lock(lock_id: int) -> Iterator[bool]:
@@ -63,4 +70,11 @@ def advisory_lock(lock_id: int) -> Iterator[bool]:
 def sync_lock(kind: SyncKind) -> Iterator[bool]:
     """``advisory_lock`` keyed by sync ``kind`` -- serializes runs of the same sync."""
     with advisory_lock(_SYNC_LOCK_IDS[kind]) as acquired:
+        yield acquired
+
+
+@contextmanager
+def valuation_lock() -> Iterator[bool]:
+    """``advisory_lock`` for the valuation pass -- serializes concurrent valuations."""
+    with advisory_lock(_VALUATION_LOCK_ID) as acquired:
         yield acquired
