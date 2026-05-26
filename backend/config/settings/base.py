@@ -61,6 +61,7 @@ LOCAL_APPS = [
     "apps.pricing",
     "apps.portfolio",
     "apps.collection",
+    "apps.imports",
     "apps.valuation",
 ]
 
