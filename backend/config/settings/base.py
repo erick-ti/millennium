@@ -182,12 +182,16 @@ SPECTACULAR_SETTINGS = {
 
 CELERY_TASK_ALWAYS_EAGER = False
 CELERY_TIMEZONE = TIME_ZONE
-# Daily UTC schedule (CELERY_TIMEZONE = TIME_ZONE = "UTC"). The metadata sync runs
-# first (02:00) so the printings it seeds exist before the pricing reconcile (03:00)
-# matches against them; the hour gap also keeps the two runs' logs and failures
-# independent. The ordering is a soft dependency, not a hard chain — reconciliation
-# tolerates stale metadata (genuinely new printings are review-queued, not lost), and
-# both syncs are idempotent (DECISIONS 2026-05-24 slice 3).
+# Daily UTC schedule (CELERY_TIMEZONE = TIME_ZONE = "UTC"). Metadata runs first (02:00)
+# so the printings it seeds exist before the pricing reconcile (03:00) matches against
+# them; then valuation (04:00) rolls the day's prices into portfolio snapshots. The hour
+# gaps also keep each run's logs and failures independent. Metadata->pricing is a *soft*
+# dependency (an ordering, not a chain): reconciliation tolerates stale metadata
+# (genuinely new printings are review-queued, not lost) and both syncs are idempotent.
+# Valuation->pricing is a *hard* dependency: the 04:00 slot is only a hint -- run_valuation
+# refuses unless a successful same-day pricing SyncRun is recorded, because a slow ingest
+# could overrun 04:00 and valuing a partial price table writes an uncorrectable snapshot
+# (DECISIONS 2026-05-24 slice 3, 2026-05-25 slice 4c).
 CELERY_BEAT_SCHEDULE: dict[str, Any] = {
     "ygoprodeck-metadata-daily": {
         "task": "cards.sync_ygoprodeck_metadata",
@@ -196,6 +200,10 @@ CELERY_BEAT_SCHEDULE: dict[str, Any] = {
     "tcgcsv-pricing-daily": {
         "task": "pricing.sync_tcgcsv_pricing",
         "schedule": crontab(hour=3, minute=0),
+    },
+    "valuation-daily": {
+        "task": "valuation.value_portfolios",
+        "schedule": crontab(hour=4, minute=0),
     },
 }
 
