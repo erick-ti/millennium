@@ -46,8 +46,8 @@ A personal Yu-Gi-Oh collection portfolio tracker that treats a card collection l
 
 ## Open questions
 
-1. **Condition adjustment factors.** Multipliers for LP/MP/HP/DMG when only product-level pricing is available. Phase 2-blocking (valuation needs them); not Phase 1B-blocking.
-2. **Valuation coverage representation.** How `portfolio_value_snapshots` records partial/unknown inputs (lots with unknown `unit_cost`, unpriced printings) so a rolled-up total doesn't silently look complete. Phase 2-blocking for the valuation engine; see DECISIONS 2026-05-22 portfolio_value_snapshots follow-up.
+1. **Condition adjustment factors** — **resolved 2026-05-25** (slice 4b): the valuation engine applies a hardcoded, version-tagged DS-condition→factor table (NM 1.00 → Poor 0.40); see DECISIONS 2026-05-25. (Was: multipliers for LP/MP/HP/DMG when only product-level pricing is available.)
+2. **Valuation coverage representation** — **resolved 2026-05-25** (slice 4a): `portfolio_value_snapshots` carries card-quantity coverage counts (`total/priced/costed_card_count`) + a nullable `unrealized_gain` set iff fully covered (CHECK `gain_iff_complete`); unknowns are excluded from totals, never zeroed. See DECISIONS 2026-05-25. (Was: how partial/unknown inputs are recorded so a rolled-up total doesn't silently look complete.)
 3. **OpenAPI client generation tooling.** openapi-typescript-codegen vs orval vs alternatives. Phase 4-blocking.
 
 ## Architecture direction
