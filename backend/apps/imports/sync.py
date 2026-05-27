@@ -46,6 +46,12 @@ def _import_source_ref(item: CollectionItem) -> str:
     return f"{_IMPORT_SOURCE_PREFIX}:item:{item.pk}"
 
 
+class ImportRowNotActionable(Exception):
+    """A review action was attempted on a row not in a state that permits it — e.g.
+    approving a row with no matched printing, or acting on an already-resolved (non-PENDING)
+    row. The review API (slice 5) maps this to HTTP 400; the message is reviewer-facing."""
+
+
 @dataclass(frozen=True, slots=True)
 class ImportResult:
     """Per-run counts plus the batch outcome from one ``run_import`` pass (the
@@ -422,3 +428,183 @@ def preview_import(content: str) -> ImportPreview:
         unmatched=unmatched,
         reconciliation_fresh=_latest_reconciliation_cutoff() is not None,
     )
+
+
+# --- review actions (slice 5) ---------------------------------------------------
+# The review API resolves rows run_import staged PENDING (MEDIUM / UNMATCHED / a gate-held
+# EXACT) through three actions, all going through the same _materialize chokepoint the
+# automatic path uses (never re-implementing the collection writes — DECISIONS 2026-05-26
+# slice 4). They are plain orchestration functions (DRF-free, like run_import): the viewset
+# applies HTTP, these own the state transition + the collection writes.
+#
+# Each action, inside one transaction, (1) locks the parent batch and requires it to be in
+# REVIEW, then (2) reloads its row under a row lock and re-checks status on the *fresh* instance
+# (not the one the request fetched). The row re-check stops two concurrent POSTs on the same row
+# from both passing the PENDING check and diverging — a stale approve clobbering a concurrent
+# override, an approve+reject leaving a committed lot marked SKIPPED, or sibling approvals
+# recomputing the batch from an uncommitted view (Codex review round 1). The batch-REVIEW gate
+# stops a row being actioned while its batch is still PROCESSING (run_import owns it and would
+# finalize from its own tally) or FAILED (a partial run's leftover committed rows — re-import,
+# don't cherry-pick); without it the action mutates the row but _recompute_batch_status no-ops
+# on a non-REVIEW batch, leaving the two inconsistent (Codex review round 3). Single-user, but a
+# FAILED batch's leftover PENDING rows are a reachable steady state and double-clicks / two tabs
+# reach the races, and the project closes audit/collection-divergence (the slice-4 precedent). On
+# sqlite the locks no-op (writes serialize already, like the advisory locks); the re-checks they
+# guard run on every backend. Consistent batch→row lock order across all three → no deadlock.
+
+
+def _lock_review_batch(batch_id: int) -> ImportBatch:
+    """Lock the parent batch and require it to be in REVIEW — the only phase with rows awaiting
+    human action. Refuses a row whose batch is PROCESSING (``run_import`` owns it and finalizes
+    from its own tally — a review action must not race that), FAILED (a broken/partial import;
+    re-import rather than cherry-pick its committed leftover rows), PENDING (pre-processing), or
+    COMPLETED (no PENDING rows remain). Every legitimately-actionable PENDING row lives in a
+    REVIEW batch, so this blocks nothing valid. The lock serializes against ``run_import``'s final
+    ``batch.save`` (its plain UPDATE waits on this row lock) and against sibling review actions;
+    the returned locked batch is reused by ``_recompute_batch_status`` (DECISIONS 2026-05-27
+    round 3)."""
+    batch = ImportBatch.objects.select_for_update().get(pk=batch_id)
+    if batch.status != ImportStatus.REVIEW:
+        raise ImportRowNotActionable(
+            f"batch {batch.pk} is {batch.get_status_display()}, not in Review; its rows can't be "
+            "actioned — a still-processing or failed import is not reviewable (re-import instead)"
+        )
+    return batch
+
+
+def _lock_row(row_id: int) -> ImportRow:
+    """Reload an ``ImportRow`` under a row-level lock for the enclosing ``transaction.atomic``.
+    ``of=("self",)`` locks only the import_row table: a plain ``select_for_update()`` alongside
+    the nullable ``matched_printing`` select_related would try to lock the nullable side of an
+    outer join — a Postgres error. The joined rows are read, not locked (we never mutate them)."""
+    return (
+        ImportRow.objects.select_for_update(of=("self",))
+        .select_related("batch", "matched_printing", "matched_printing__card")
+        .get(pk=row_id)
+    )
+
+
+def _require_pending(row: ImportRow, verb: str) -> None:
+    if row.status != RowStatus.PENDING:
+        raise ImportRowNotActionable(
+            f"row {row.pk} is {row.get_status_display()}, not Pending; "
+            f"only a pending row can be {verb}"
+        )
+
+
+def approve_row(row: ImportRow) -> tuple[ImportRow, RowStatus]:
+    """Materialize a human-approved PENDING row through the ``_materialize`` chokepoint; return
+    the fresh (locked) row + its outcome — the review API's "approve" action.
+
+    A reviewer's explicit approval **overrides the automatic freshness gate** (DECISIONS
+    2026-05-27): ``run_import`` stages an EXACT row PENDING unless a same-day TCGCSV
+    reconciliation *covers* the matched printing, because the *automatic* path has no human
+    to weigh the ``is_multi_variant`` fail-open (a not-yet-reconciled multi-variant placeholder
+    reads as a confident match) — but review IS that human attention, so approval commits
+    regardless of reconciliation freshness. A known multi-variant placeholder
+    (``is_multi_variant=True``, surfaced to the reviewer by the serializer) is likewise
+    approvable: the human accepts the generic placeholder (v1 has no per-variant rows to pick).
+
+    Only a PENDING row with a ``matched_printing`` is approvable — an UNMATCHED row must be
+    ``override_row``'d to a chosen printing first, and an ERROR row (normalization failed → no
+    clean ``normalized_data``) is terminal (fix the source and re-import). The row is reloaded
+    under a lock and its status re-checked on that fresh instance, then ``_materialize``
+    (portfolio/item/lot find-or-create + per-holding dedup) and the audit-row save commit in one
+    ``transaction.atomic`` — the ``_process_row`` snapshot/audit atomicity, so a failed audit
+    save rolls the holding back too. Reloading also means the *current* matched printing is
+    materialized (a concurrent override can't be clobbered by this caller's stale instance).
+    Returns the outcome: MATERIALIZED (new holding) / SKIPPED (unchanged duplicate) / PENDING
+    (the holding was already imported with a different quantity/cost/date — a conflict the API
+    surfaces rather than silently overwriting historical cost basis; the row is left PENDING)."""
+    with transaction.atomic():
+        # Lock the batch (require REVIEW) before the row — consistent order across actions → no
+        # deadlock; the batch lock also serializes the sibling-row recompute race (round 1).
+        batch = _lock_review_batch(row.batch_id)
+        locked = _lock_row(row.pk)
+        _require_pending(locked, "approved")
+        if locked.matched_printing is None:
+            raise ImportRowNotActionable(
+                f"row {locked.pk} has no matched printing; override it to a printing before approving"
+            )
+        if not locked.normalized_data:
+            raise ImportRowNotActionable(f"row {locked.pk} has no normalized data to materialize")
+        outcome, message = _materialize(locked.normalized_data, locked.matched_printing)
+        locked.status = outcome
+        locked.error_message = message
+        locked.save(update_fields=["status", "error_message", "updated_at"])
+        _recompute_batch_status(batch)
+
+    logger.info(
+        "import.row_approved", row_id=locked.pk, batch_id=locked.batch_id, outcome=outcome.value
+    )
+    return locked, outcome
+
+
+def override_row(row: ImportRow, printing: CardPrinting) -> ImportRow:
+    """Point a PENDING row at a human-chosen ``CardPrinting`` (re-checked under a row lock);
+    return the fresh row — the review API's "override" action. Sets ``matched_printing`` only
+    and leaves the row PENDING, so the corrected match (and its ``is_multi_variant`` flag) can be
+    eyeballed, then ``approve_row``'d.
+
+    ``match_confidence`` is deliberately left at the matcher's original verdict: per the
+    ``ImportRow`` doctrine ``matched_printing`` is the *authoritative* match signal and
+    confidence is only a matcher-output quality tier — so a human override changes the
+    authoritative pointer without forging a matcher tier it never produced (there is no MANUAL
+    tier; inventing one would be a CHECK-altering enum migration). ``approve_row`` keys on
+    PENDING + a present ``matched_printing``, not on confidence, so an overridden UNMATCHED row
+    is immediately approvable. The parent batch is locked and required to be in REVIEW (like the
+    other actions — uniform batch→row order), but it is left as-is: the row stays PENDING, so no
+    batch-status recompute is needed."""
+    with transaction.atomic():
+        _lock_review_batch(row.batch_id)
+        locked = _lock_row(row.pk)
+        _require_pending(locked, "overridden")
+        locked.matched_printing = printing
+        locked.error_message = (
+            f"matched printing overridden via review to {printing.card.name} "
+            f"[{printing.set_code} {printing.set_rarity}]"
+        )
+        locked.save(update_fields=["matched_printing", "error_message", "updated_at"])
+    logger.info("import.row_overridden", row_id=locked.pk, printing_id=printing.pk)
+    return locked
+
+
+def reject_row(row: ImportRow) -> ImportRow:
+    """Mark a PENDING row SKIPPED (re-checked under a row lock); return the fresh row — the
+    review API's "reject" action: the reviewer declines to import this holding. SKIPPED is the
+    same terminal state a deduplicated re-import lands in (the model's documented "deduplicated
+    on re-import or human-rejected" semantics). Only PENDING rows are rejectable: a MATERIALIZED
+    row already wrote a holding (un-materializing would mean deleting collection data, out of v1
+    scope) and an ERROR row is already terminal."""
+    with transaction.atomic():
+        batch = _lock_review_batch(row.batch_id)
+        locked = _lock_row(row.pk)
+        _require_pending(locked, "rejected")
+        locked.status = RowStatus.SKIPPED
+        locked.error_message = "rejected via review"
+        locked.save(update_fields=["status", "error_message", "updated_at"])
+        _recompute_batch_status(batch)
+    logger.info("import.row_rejected", row_id=locked.pk, batch_id=locked.batch_id)
+    return locked
+
+
+def _recompute_batch_status(batch: ImportBatch) -> None:
+    """Re-derive a batch's status from its rows after a review action: COMPLETED when no row
+    still needs attention (none PENDING or ERROR), else REVIEW — mirroring ``run_import``'s
+    finalization (REVIEW if any PENDING/ERROR else COMPLETED), so a batch progresses to
+    COMPLETED as the reviewer clears its queue. Only a batch already in the post-processing
+    REVIEW/COMPLETED band is touched; a PENDING/PROCESSING/FAILED batch is left alone (a FAILED
+    parse has no rows; an in-flight batch is ``run_import``'s to finalize). ERROR rows keep a
+    batch in REVIEW — they are terminal (fix the source and re-import), so a batch with
+    unresolved ERROR rows never auto-completes, by design.
+
+    The caller (approve/reject) holds a ``select_for_update`` lock on ``batch``, which serializes
+    concurrent sibling-row actions through here — without it, two could each read the rows before
+    the other commits and both leave the batch REVIEW after its last row resolved."""
+    if batch.status not in (ImportStatus.REVIEW, ImportStatus.COMPLETED):
+        return
+    has_open = batch.rows.filter(status__in=[RowStatus.PENDING, RowStatus.ERROR]).exists()
+    new_status = ImportStatus.REVIEW if has_open else ImportStatus.COMPLETED
+    if new_status != batch.status:
+        batch.status = new_status
+        batch.save(update_fields=["status", "updated_at"])

@@ -164,6 +164,11 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
+    # List endpoints (the imports review queue can return a full collection's worth of rows)
+    # page by default; the response shape is {count, next, previous, results}. Not an
+    # environment-sensitive value (Invariant 2) — a framework default, safe in base.
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 100,
 }
 
 SPECTACULAR_SETTINGS = {
