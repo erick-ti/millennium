@@ -188,11 +188,16 @@ class CollectionLot(TimeStampedModel):
     # Acquisition date (DS "Date Bought" is a date, not a timestamp). Nullable for
     # the same unknown-provenance reason as unit_cost; not part of any identity.
     acquired_at = models.DateField(null=True, blank=True)
-    # Free-text back-reference to the import that created this lot, for Phase 3
-    # traceability. Nullable (manual lots have none) and intentionally
-    # unconstrained: re-import dedup / idempotency is a deferred Phase 3 concern
-    # (DECISIONS 2026-05-18), and trimming/validating the ref is an import-boundary
-    # obligation (the external_id precedent), not enforced on the column here.
+    # Back-reference to the import that created this lot, for traceability AND
+    # re-import dedup. The Phase 3 DS importer writes a per-holding-per-source key
+    # ("dragon_shield:item:<id>") so re-importing a full-collection snapshot is
+    # idempotent: one import-sourced lot per holding (DECISIONS 2026-05-26 slice 4,
+    # resolving the dedup strategy the 2026-05-18 / 2026-05-22 decisions deferred).
+    # Nullable: manual (non-import) lots have none, and a holding may legitimately
+    # have several manual acquisition lots — so the uniqueness below is scoped to
+    # NON-NULL refs (NULLs stay distinct, the default), enforcing dedup only on
+    # import-sourced lots. Trimming/validating the ref is the import boundary's job
+    # (the external_id precedent); the importer constructs it, so it is always clean.
     import_source_ref = models.CharField(max_length=255, null=True, blank=True)  # noqa: DJ001
 
     class Meta:
@@ -216,6 +221,20 @@ class CollectionLot(TimeStampedModel):
             models.CheckConstraint(
                 condition=models.Q(unit_cost__isnull=True) | models.Q(unit_cost__gte=0),
                 name="collection_lot_unit_cost_non_negative",
+            ),
+            # Per-holding-per-source import dedup: at most one lot per
+            # (collection_item, import_source_ref). import_source_ref is nullable, and
+            # SQL's default NULLS DISTINCT (no nulls_distinct=False here) lets a holding
+            # keep many manual lots (ref NULL, all distinct) while allowing only one lot
+            # per concrete import key — so re-importing a DS snapshot find-or-creates the
+            # same lot instead of duplicating it. A plain UNIQUE over a nullable column is
+            # created on every backend (sqlite included, unlike the NULLS-NOT-DISTINCT
+            # CardPrinting key), so `make test` exercises it. This is the DB backstop the
+            # importer's get_or_create relies on to be race-safe; it discharges the
+            # re-import dedup obligation the 2026-05-18 / 2026-05-22 decisions deferred.
+            models.UniqueConstraint(
+                fields=["collection_item", "import_source_ref"],
+                name="unique_lot_per_collection_item_import_source_ref",
             ),
         ]
 
