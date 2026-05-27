@@ -333,6 +333,53 @@ def test_acquired_at_is_optional() -> None:
 
 
 @pytest.mark.django_db
+def test_one_lot_per_item_and_import_source_ref() -> None:
+    """UNIQUE(collection_item, import_source_ref) — at most one import-sourced lot per
+    holding per source key, the DB backstop for the Phase 3 per-holding re-import dedup
+    (DECISIONS 2026-05-26 slice 4). A plain UNIQUE over a nullable column is created on
+    sqlite too, so `make test` exercises it."""
+    item = _collection_item()
+    CollectionLot.objects.create(
+        collection_item=item, quantity=3, import_source_ref="dragon_shield:item:1"
+    )
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        CollectionLot.objects.create(
+            collection_item=item, quantity=5, import_source_ref="dragon_shield:item:1"
+        )
+
+
+@pytest.mark.django_db
+def test_multiple_lots_with_null_import_source_ref_allowed() -> None:
+    """The dedup UNIQUE is scoped to NON-NULL refs (SQL's default NULLS DISTINCT): a
+    holding may still have many manual (non-import) lots, each with a NULL ref."""
+    item = _collection_item()
+    CollectionLot.objects.create(collection_item=item, quantity=1, import_source_ref=None)
+    CollectionLot.objects.create(collection_item=item, quantity=2, import_source_ref=None)
+
+    assert item.lots.count() == 2
+
+
+@pytest.mark.django_db
+def test_same_import_source_ref_allowed_across_different_items() -> None:
+    """Uniqueness is scoped to a holding — the same ref string under two different
+    holdings is fine (refs are per-item-derived, so this can't actually collide, but
+    the constraint must not over-reject)."""
+    item_a = _collection_item()
+    item_b = CollectionItem.objects.create(
+        printing=item_a.printing,
+        portfolio=Portfolio.objects.create(name="Long-term hold"),
+        condition=Condition.NEAR_MINT,
+        edition=Edition.FIRST_EDITION,
+        language=Language.ENGLISH,
+    )
+    CollectionLot.objects.create(collection_item=item_a, quantity=1, import_source_ref="ref")
+    CollectionLot.objects.create(collection_item=item_b, quantity=1, import_source_ref="ref")
+
+    assert CollectionLot.objects.filter(import_source_ref="ref").count() == 2
+
+
+@pytest.mark.django_db
 def test_collection_lot_str() -> None:
     item = _collection_item()
     lot = CollectionLot.objects.create(collection_item=item, quantity=3, unit_cost=Decimal("12.50"))
