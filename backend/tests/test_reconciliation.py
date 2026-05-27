@@ -102,9 +102,9 @@ def test_rarity_disagreement_is_queued() -> None:
 
 
 @pytest.mark.django_db
-def test_multi_variant_group_is_queued() -> None:
+def test_multi_variant_group_is_queued_and_flags_the_generic_printing() -> None:
     card = Card.objects.create(name="Blue-Eyes White Dragon")
-    _printing(card, "LDK2-ENK01", "Common")
+    printing = _printing(card, "LDK2-ENK01", "Common")
     products = [
         _listing("123525", "LDK2-ENK01", "Common", "Blue-Eyes White Dragon (Version 2)"),
         _listing("123620", "LDK2-ENK01", "Common", "Blue-Eyes White Dragon (Version 4)"),
@@ -116,6 +116,32 @@ def test_multi_variant_group_is_queued() -> None:
     assert result.queued_multi_variant == 3
     assert UnmatchedProduct.objects.filter(reason=UnmatchedReason.MULTI_VARIANT).count() == 3
     assert ExternalPriceId.objects.count() == 0  # never auto-attached
+    # The generic variant-NULL printing is flagged so the DS matcher later downgrades a
+    # match on it to review rather than auto-materializing it (DECISIONS 2026-05-26).
+    printing.refresh_from_db()
+    assert printing.is_multi_variant is True
+    assert result.multi_variant_flagged == 1
+
+
+@pytest.mark.django_db
+def test_multi_variant_prismatic_group_flags_the_provisional_printing() -> None:
+    """A multi-variant group whose TCGCSV rarity is "Prismatic X" must flag the
+    YGOPRODeck-seeded *provisional* "X" printing (resolved via the Prismatic strip), not
+    look for a nonexistent "Prismatic X" row — otherwise a DS "X" row later matches that
+    unflagged placeholder as EXACT (Codex review 2026-05-26)."""
+    card = Card.objects.create(name="Super Polymerization")
+    provisional = _printing(card, "RA03-EN053", "Ultimate Rare")  # YGOPRODeck provisional
+    products = [
+        _listing("592540", "RA03-EN053", "Prismatic Ultimate Rare", "Super Polymerization (v1)"),
+        _listing("592541", "RA03-EN053", "Prismatic Ultimate Rare", "Super Polymerization (v2)"),
+    ]
+
+    result = reconcile_products_to_printings(products)
+
+    assert result.queued_multi_variant == 2
+    provisional.refresh_from_db()
+    assert provisional.is_multi_variant is True  # flagged via the Prismatic-strip resolution
+    assert result.multi_variant_flagged == 1
 
 
 @pytest.mark.django_db

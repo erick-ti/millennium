@@ -32,6 +32,10 @@ class ReconcileResult:
     queued_multi_variant: int = 0
     queued_rarity_disagreement: int = 0
     queued_external_id_conflict: int = 0
+    # Generic variant-NULL printings flagged is_multi_variant this run (their key has
+    # several sellable variants queued above) — the DS matcher downgrades a match on one
+    # to MEDIUM/review (DECISIONS 2026-05-26).
+    multi_variant_flagged: int = 0
     # The external_ids flagged EXTERNAL_ID_CONFLICT *this run* — passed to ingestion so
     # it skips them regardless of the queue row's (mutable, human-set) triage status.
     conflicted_external_ids: frozenset[str] = frozenset()
@@ -52,6 +56,7 @@ class _Counts:
     queued_multi_variant: int = 0
     queued_rarity_disagreement: int = 0
     queued_external_id_conflict: int = 0
+    multi_variant_flagged: int = 0
     conflicted_external_ids: set[str] = field(default_factory=set)
 
     def result(self) -> ReconcileResult:
@@ -102,6 +107,7 @@ def reconcile_products_to_printings(products: Iterable[ProductListing]) -> Recon
             with transaction.atomic():
                 for product in group:
                     _queue(product, UnmatchedReason.MULTI_VARIANT, counts)
+                _flag_multi_variant(group[0].set_code, group[0].set_rarity, counts)
             continue
         product = group[0]
         printing = _exact_match(product)
@@ -129,6 +135,43 @@ def _exact_match(product: ProductListing) -> CardPrinting | None:
         set_rarity=product.set_rarity,
         variant_label__isnull=True,
     ).first()
+
+
+def _flag_multi_variant(set_code: str, set_rarity: str, counts: _Counts) -> None:
+    """Mark the generic (variant-NULL) printing for ``(set_code, set_rarity)`` as an
+    ambiguous multi-variant placeholder.
+
+    The several sellable products for this key are queued by the caller; the
+    YGOPRODeck-seeded generic printing stays put, so a later Dragon Shield import would
+    otherwise match it as if it were a specific printing and auto-materialize it. The flag
+    makes the matcher downgrade that match to MEDIUM/review (DECISIONS 2026-05-26).
+    Set-only (never auto-cleared here): a stale True over-routes to review, which fails
+    safe. Idempotent — skips the write if already set."""
+    printing = _generic_printing_for_rarity(set_code, set_rarity)
+    if printing is not None and not printing.is_multi_variant:
+        printing.is_multi_variant = True
+        printing.save(update_fields=["is_multi_variant", "updated_at"])
+        counts.multi_variant_flagged += 1
+
+
+def _generic_printing_for_rarity(set_code: str, set_rarity: str) -> CardPrinting | None:
+    """The generic (variant-NULL) printing a DS row for this key would match: the row at
+    the provider rarity as-is, else — for a ``"Prismatic X"`` group — the YGOPRODeck-seeded
+    *provisional* ``"X"`` row (DS / YGOPRODeck use the plain rarity; the same provisional
+    resolution ``_reconcile_deferred`` applies). Without this Prismatic fallback a
+    multi-variant Prismatic group wouldn't flag its provisional placeholder, so the matcher
+    could later mark that unpriced ambiguous row EXACT (Codex review 2026-05-26)."""
+    printing = CardPrinting.objects.filter(
+        set_code=set_code, set_rarity=set_rarity, variant_label__isnull=True
+    ).first()
+    if printing is not None:
+        return printing
+    if set_rarity.startswith(_PRISMATIC_PREFIX):
+        provisional = set_rarity[len(_PRISMATIC_PREFIX) :]
+        return CardPrinting.objects.filter(
+            set_code=set_code, set_rarity=provisional, variant_label__isnull=True
+        ).first()
+    return None
 
 
 def _reconcile_deferred(product: ProductListing, claimed: set[int], counts: _Counts) -> None:

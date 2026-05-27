@@ -64,6 +64,15 @@ class CardPrinting(TimeStampedModel):
     variant_label = models.CharField(max_length=128, null=True, blank=True)  # noqa: DJ001
     # Denormalized human-readable set name (e.g. "Quarter Century Stampede").
     set_name = models.CharField(max_length=255)
+    # Set by TCGCSV reconciliation when this generic (variant-NULL) printing's
+    # (set_code, set_rarity) has several distinct sellable variants it queued to review
+    # (DECISIONS 2026-05-24) rather than auto-splitting — so this row is an *ambiguous
+    # placeholder*, not a specific owned printing. The Dragon Shield matcher downgrades a
+    # match on it to MEDIUM/review, never EXACT/auto-materialize (DECISIONS 2026-05-26).
+    # Reconciliation only *sets* it — a stale True over-routes to review, which fails
+    # safe; it is cleared if/when variant-splitting replaces this placeholder with real
+    # per-variant rows.
+    is_multi_variant = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["set_code", "set_rarity"]
