@@ -96,8 +96,10 @@ class RowStatus(models.TextChoices):
     awaiting materialization or review; ``MATERIALIZED`` once it becomes a
     collection_item + lot; ``SKIPPED`` when deduplicated on re-import or human-
     rejected; ``ERROR`` when parsing / normalization failed (``error_message`` says
-    why). The "needs review" set is *derived* (PENDING with a sub-HIGH confidence),
-    not a distinct status, so it can't drift from the confidence tier.
+    why). The "needs review" set is *derived* — every still-PENDING row (the
+    ``needs_review`` property); ``match_confidence`` / ``error_message`` say *why* a row is
+    pending — not a distinct status, so it can't drift. (The original "PENDING + sub-EXACT"
+    framing hid changed-duplicate EXACT conflicts; DECISIONS 2026-05-27 round 2.)
     """
 
     PENDING = "pending", "Pending"
@@ -188,3 +190,18 @@ class ImportRow(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"Row {self.row_number} of batch {self.batch_id} ({self.get_status_display()})"
+
+    @property
+    def needs_review(self) -> bool:
+        """True while the row is still PENDING — the canonical "a human (or a re-sync) must act
+        on this" signal the review API derives from. Every reason ``run_import`` leaves a row
+        PENDING qualifies: a sub-EXACT match (MEDIUM/UNMATCHED), a freshness-gated EXACT row, OR
+        a changed-duplicate cost conflict (the holding was re-imported with a different
+        quantity/cost/date). The last two are PENDING **with** ``match_confidence=EXACT``, so a
+        ``PENDING && confidence != EXACT`` rule would silently drop them from the review surface
+        (the changed-duplicate conflict in particular needs a human decision and re-approving
+        just 409s) — keying purely on PENDING can't. ``match_confidence`` / ``error_message`` say
+        *why* a row is pending; this flag only says it is still open. Defined once here as the
+        single source of truth the serialized flag, the ``?needs_review`` filter, and the
+        ``rows_needs_review`` count all share, so they can't drift (DECISIONS 2026-05-27 round 2)."""
+        return self.status == RowStatus.PENDING
