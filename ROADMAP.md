@@ -21,7 +21,7 @@ A personal Yu-Gi-Oh collection portfolio tracker that treats a card collection l
 
 ## Current milestone
 
-**Phase 3: CSV import.** Dragon Shield CSV parser, column mapping, card-to-printing matching engine, review queue API, import batch/row storage.
+**Phase 4: Frontend MVP.** Next.js (App Router) scaffold, OpenAPI client generation, collection view, card detail with price history, portfolio summary, import upload + match-review UI.
 
 ## Completed milestones
 
@@ -29,11 +29,11 @@ A personal Yu-Gi-Oh collection portfolio tracker that treats a card collection l
 - **Phase 1A.5: Data reconnaissance spike** (completed 2026-05-18). Real Dragon Shield CSV, TCGCSV product/price data (8 sets across four eras), and YGOPRODeck full card dump inspected. End-to-end pipeline validated 7/7 with the `"Prismatic "` rarity fallback rule. Eight schema decisions recorded in `DECISIONS.md` covering cards PK, card_printings natural key, external_price_ids, collection_items/lots layout, edition placement, price_snapshots structure, DS-folder→portfolio mapping, and normalized_name indexing. Findings doc at `docs/recon/PHASE_1A5_FINDINGS.md` (gitignored per project doc-layer convention).
 - **Phase 1B: Core data model** (completed 2026-05-23, PRs #4–#14). All nine models on the `TimeStampedModel` base — cards, card_printings, external_price_ids, portfolios, storage_locations, collection_items, collection_lots, price_snapshots, portfolio_value_snapshots — with natural-key UNIQUE + enum/value CHECK constraints, deliberate FK delete semantics (PROTECT for valuable downstream data, CASCADE for composition), shared enums (Edition/Provider/Condition/Language), and append-only snapshot tables (admins block delete + edit). pytest-on-Postgres-16 + gitleaks gate every merge.
 - **Phase 2: Data pipeline** (completed 2026-05-25, PRs #15–#21). Provider adapter pattern, YGOPRODeck metadata sync + TCGCSV reconcile→ingest, daily Celery-beat wiring (02:00/03:00/04:00) under cardinality guards + per-kind advisory locks with append-only `SyncRun` history, and the valuation engine — `PortfolioValueSnapshot` with partial-coverage accounting + `ValuationRun` run history.
+- **Phase 3: CSV import** (completed 2026-05-27, PRs #22–#26). The `imports` app: `ImportBatch`/`ImportRow` JSON-staging models, Dragon Shield parser + normalization, the alias-aware card→printing matcher (`is_multi_variant` guard), `run_import` orchestration + materialization (per-printing reconciliation-coverage gate, per-holding re-import dedup), and the DRF review-queue API (list/filter, approve/override/reject through `_materialize`, schema gated per Invariant 7).
 
 ## Upcoming milestones
 
-1. **Phase 4: Frontend MVP.** Next.js scaffold, OpenAPI client generation, collection view, card detail with price history, portfolio summary, import upload + match review UI.
-2. **Phase 5: Portfolio analytics.** Archetype tagging, deck association, biggest movers, price alerts, advanced filtering. Minimal Playwright smoke tests after UI stabilizes.
+1. **Phase 5: Portfolio analytics.** Archetype tagging, deck association, biggest movers, price alerts, advanced filtering. Minimal Playwright smoke tests after UI stabilizes.
 
 ## Non-goals
 

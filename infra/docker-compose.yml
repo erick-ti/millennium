@@ -3,6 +3,11 @@ x-backend-env: &backend-env
   DJANGO_SECRET_KEY: dev-secret-do-not-use-in-prod
   DJANGO_DEBUG: "true"
   DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,backend
+  # Next.js dev proxy origin; CsrfViewMiddleware rejects unsafe-method requests
+  # whose Origin header doesn't match request.get_host() unless whitelisted
+  # here. Dev settings default the same way, but setting explicitly in compose
+  # keeps the contract declarative across environments.
+  DJANGO_CSRF_TRUSTED_ORIGINS: http://localhost:3000
   DATABASE_URL: postgres://postgres:postgres@postgres:5432/millennium
   REDIS_URL: redis://redis:6379/0
   CELERY_BROKER_URL: redis://redis:6379/1
@@ -91,6 +96,33 @@ services:
       backend:
         condition: service_healthy
       redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    environment:
+      # Inside the compose network, the backend resolves by service name. The
+      # frontend's next.config rewrites /api/* through this URL, so the browser
+      # talks same-origin to Next and Next forwards to Django (session cookie
+      # + CSRF flow stays CORS-free).
+      BACKEND_URL: http://backend:8000
+    # Loopback-only — same posture as the dev backend (Invariant 5 echo). next
+    # dev is less leaky than Django's DEBUG tracebacks, but the convention is
+    # "no dev server on coffee-shop wifi."
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ../frontend:/app
+      # Anonymous volumes shield the image's deps + build cache from the host
+      # bind mount: host node_modules are built for darwin-arm64 and won't run
+      # on linux-alpine; .next caches are host-arch too. Mirrors Invariant 8's
+      # "deps outside the bind mount" rule for the Node side.
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      backend:
         condition: service_healthy
 
 volumes:
