@@ -7,6 +7,13 @@ DEBUG = False
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS")
 
+# Frontend origin(s) the Django CSRF middleware accepts for /api/* POSTs.
+# Required in prod (no default → fails closed if forgotten, matching
+# SECRET_KEY/ALLOWED_HOSTS treatment). See dev.py for the failure mode:
+# without this, every unsafe method through the Next.js proxy 403s because
+# Origin (frontend) ≠ scheme://request.get_host() (backend).
+CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS")
+
 DATABASES = {"default": env.db("DATABASE_URL")}
 CACHES = {"default": env.cache("REDIS_URL")}
 CELERY_BROKER_URL = env("CELERY_BROKER_URL")

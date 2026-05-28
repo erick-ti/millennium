@@ -1,0 +1,43 @@
+name: frontend
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:  # allow manual runs from the Actions tab
+
+# Least privilege: this workflow only checks out code and runs lint+build.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: lint + build
+    runs-on: ubuntu-latest
+    # Mirrors the backend `tests` job's posture. Intended as a required check
+    # on `main` — add `frontend / lint + build` to the protect-main ruleset
+    # after this branch merges (the check name has to exist on main once
+    # before GitHub will let you select it). Until then the workflow is
+    # advisory: a broken next.config / TS error / stale import surfaces here
+    # as a red check but does NOT block merge.
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: install deps
+        run: npm ci
+
+      - name: lint
+        run: npm run lint
+
+      - name: build
+        run: npm run build

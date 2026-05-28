@@ -1,0 +1,17 @@
+# Build artifacts and deps the image installs itself.
+node_modules
+.next
+out
+build
+coverage
+
+# Local env (compose sets BACKEND_URL inline).
+.env
+.env.local
+.env.*.local
+
+# Misc
+.DS_Store
+*.log
+.vscode
+.idea
