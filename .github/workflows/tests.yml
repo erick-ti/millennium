@@ -50,4 +50,44 @@ jobs:
         run: uv sync --frozen --group dev
 
       - name: pytest (postgres-backed settings)
+        # Includes `tests/test_schema.py::test_committed_openapi_snapshot_matches_live_schema`
+        # — the schema → snapshot half of the drift gate (Codex slice 2 round 2).
         run: uv run pytest --ds=config.settings.test_postgres
+
+      # ─── snapshot → client drift gate ────────────────────────────────────
+      # The other half of the API-contract drift coverage lives here in the
+      # required `pytest (postgres)` workflow (rather than the advisory
+      # `frontend / lint + build` workflow) so the committed-snapshot strategy
+      # is enforced from day one — without this, a PR with a stale or missing
+      # `frontend/src/lib/api/generated/` tree could be merged past a red
+      # advisory check (Codex slice 2 round 4). Together with the python test
+      # above, both halves of the drift contract are required.
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: verify generated client matches snapshot
+        working-directory: frontend
+        # Use `git status --porcelain` (NOT `git diff --exit-code`): diff only
+        # inspects TRACKED files, so a commit that omits the generated tree
+        # entirely would get regenerated as untracked → diff sees no change →
+        # gate falsely passes (Codex slice 2 round 3). Porcelain catches both
+        # tracked-modified (`M`) and untracked-new (`??`).
+        run: |
+          npm run gen:api
+          drift=$(git status --porcelain -- src/lib/api/generated)
+          if [ -n "$drift" ]; then
+            echo "::error::Generated TS client is out of sync with frontend/openapi.json,"
+            echo "::error::or the committed repo is missing generated files entirely:"
+            echo "$drift" | sed 's/^/::error::  /'
+            echo "::error::Run 'make frontend-gen-api' locally and commit the result."
+            exit 1
+          fi

@@ -36,6 +36,15 @@ jobs:
       - name: install deps
         run: npm ci
 
+      # NOTE: The snapshot → client drift gate (`npm run gen:api` + porcelain
+      # check) deliberately lives in the REQUIRED `tests.yml` workflow, not
+      # here — Codex slice 2 round 4 found that a drift gate in an advisory
+      # workflow doesn't enforce the committed-client contract (a PR with a
+      # stale/missing generated tree could be merged past a red advisory).
+      # This workflow keeps only style/build checks (lint + next build); the
+      # contract gate is enforced one job over so promotion of this workflow
+      # to required is not a prerequisite for the strategy to be durable.
+
       - name: lint
         run: npm run lint
 

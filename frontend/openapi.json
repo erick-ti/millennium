@@ -1,0 +1,2176 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "Millennium API",
+        "version": "0.1.0",
+        "description": "Yu-Gi-Oh collection portfolio tracker"
+    },
+    "paths": {
+        "/api/cards/cards/": {
+            "get": {
+                "operationId": "cards_cards_list",
+                "description": "Read-only catalog of card identities. List returns ``{id, passcode, name}``;\nretrieve nests printings (a card has at most a handful — DECISIONS 2026-05-18)\nso slice 4's card-detail view loads in one round-trip.",
+                "summary": "List cards",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "cards"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedCardListList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/cards/cards/{id}/": {
+            "get": {
+                "operationId": "cards_cards_retrieve",
+                "description": "Read-only catalog of card identities. List returns ``{id, passcode, name}``;\nretrieve nests printings (a card has at most a handful — DECISIONS 2026-05-18)\nso slice 4's card-detail view loads in one round-trip.",
+                "summary": "Retrieve one card (with printings inline)",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this card.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "cards"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CardDetail"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/cards/printings/": {
+            "get": {
+                "operationId": "cards_printings_list",
+                "description": "Read-only catalog of printings. List filterable by ``?card=`` / ``?set_code=``;\nglobal ``PageNumberPagination(PAGE_SIZE=100)`` paginates the ~14k-row catalog.",
+                "summary": "List / filter printings",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "card",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Filter to one card's printings."
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "set_code",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Exact-match filter by set code."
+                    }
+                ],
+                "tags": [
+                    "cards"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedCardPrintingList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/cards/printings/{id}/": {
+            "get": {
+                "operationId": "cards_printings_retrieve",
+                "description": "Read-only catalog of printings. List filterable by ``?card=`` / ``?set_code=``;\nglobal ``PageNumberPagination(PAGE_SIZE=100)`` paginates the ~14k-row catalog.",
+                "summary": "Retrieve one printing",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this card printing.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "cards"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CardPrinting"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/collection/items/": {
+            "get": {
+                "operationId": "collection_items_list",
+                "description": "Read-only collection holdings. List returns one row per holding with\n``quantity`` = SUM over lots (an item with no lots reads as 0); retrieve\nnests the lots — the per-acquisition cost-basis history. ``portfolio`` /\n``printing`` FKs and the storage location are pre-joined for the list shape.",
+                "summary": "List / filter collection items (with aggregate quantity)",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "portfolio",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Filter to one portfolio's holdings."
+                    }
+                ],
+                "tags": [
+                    "collection"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedCollectionItemListList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/collection/items/{id}/": {
+            "get": {
+                "operationId": "collection_items_retrieve",
+                "description": "Read-only collection holdings. List returns one row per holding with\n``quantity`` = SUM over lots (an item with no lots reads as 0); retrieve\nnests the lots — the per-acquisition cost-basis history. ``portfolio`` /\n``printing`` FKs and the storage location are pre-joined for the list shape.",
+                "summary": "Retrieve one holding (with lots inline)",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this collection item.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "collection"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CollectionItemDetail"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/collection/lots/": {
+            "get": {
+                "operationId": "collection_lots_list",
+                "description": "Read-only per-acquisition lots. List filterable by ``?item=`` /\n``?portfolio=`` (via the item join). Default order matches the model's\nnatural (item, acquired_at-asc-nulls-last, id) — chronological within a\nholding, with unknown-date lots last.",
+                "summary": "List / filter collection lots",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "item",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Filter to one collection item's lots."
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "portfolio",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Filter to one portfolio's lots (via the item join)."
+                    }
+                ],
+                "tags": [
+                    "collection"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedCollectionLotList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/collection/lots/{id}/": {
+            "get": {
+                "operationId": "collection_lots_retrieve",
+                "description": "Read-only per-acquisition lots. List filterable by ``?item=`` /\n``?portfolio=`` (via the item join). Default order matches the model's\nnatural (item, acquired_at-asc-nulls-last, id) — chronological within a\nholding, with unknown-date lots last.",
+                "summary": "Retrieve one lot",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this collection lot.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "collection"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CollectionLot"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/health/": {
+            "get": {
+                "operationId": "health_retrieve",
+                "description": "Liveness probe — returns 200 when the process is up.",
+                "summary": "Service health",
+                "tags": [
+                    "health"
+                ],
+                "security": [
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Service is healthy"
+                    }
+                }
+            }
+        },
+        "/api/imports/batches/": {
+            "get": {
+                "operationId": "imports_batches_list",
+                "description": "Import history: list/retrieve batches with derived per-status row counts. Read-only —\nbatches are created by ``run_import`` (the ``import_dragon_shield`` command); the review\nsurface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly.",
+                "summary": "List import batches with per-status row counts",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "imports"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedImportBatchList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/imports/batches/{id}/": {
+            "get": {
+                "operationId": "imports_batches_retrieve",
+                "description": "Import history: list/retrieve batches with derived per-status row counts. Read-only —\nbatches are created by ``run_import`` (the ``import_dragon_shield`` command); the review\nsurface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly.",
+                "summary": "Retrieve one import batch",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this import batch.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "imports"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportBatch"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/imports/rows/": {
+            "get": {
+                "operationId": "imports_rows_list",
+                "description": "The review queue. List/filter staged rows (by ``batch`` / ``status`` /\n``match_confidence`` / ``needs_review`` — served by the ``(batch, status)`` index) and\nresolve a PENDING one via three actions, all routed through ``apps.imports.sync`` so the\ncollection writes go through the single ``_materialize`` chokepoint (DECISIONS 2026-05-26\nslice 4): ``approve`` materializes the row's matched printing, ``override`` re-points it at\na human-chosen printing, ``reject`` skips it.",
+                "summary": "List / filter import rows",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "batch",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Filter to one batch's rows."
+                    },
+                    {
+                        "in": "query",
+                        "name": "match_confidence",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "exact",
+                                "high",
+                                "low",
+                                "medium",
+                                "unmatched"
+                            ]
+                        },
+                        "description": "Filter by match-quality tier."
+                    },
+                    {
+                        "in": "query",
+                        "name": "needs_review",
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "description": "True = PENDING rows whose match is not a clean EXACT (the review set)."
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "error",
+                                "materialized",
+                                "pending",
+                                "skipped"
+                            ]
+                        },
+                        "description": "Filter by pipeline status."
+                    }
+                ],
+                "tags": [
+                    "imports"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedImportRowList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/imports/rows/{id}/": {
+            "get": {
+                "operationId": "imports_rows_retrieve",
+                "description": "The review queue. List/filter staged rows (by ``batch`` / ``status`` /\n``match_confidence`` / ``needs_review`` — served by the ``(batch, status)`` index) and\nresolve a PENDING one via three actions, all routed through ``apps.imports.sync`` so the\ncollection writes go through the single ``_materialize`` chokepoint (DECISIONS 2026-05-26\nslice 4): ``approve`` materializes the row's matched printing, ``override`` re-points it at\na human-chosen printing, ``reject`` skips it.",
+                "summary": "Retrieve one import row",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this import row.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "imports"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportRow"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/imports/rows/{id}/approve/": {
+            "post": {
+                "operationId": "imports_rows_approve_create",
+                "description": "Materialize the row through ``_materialize``, overriding the auto-materialization\nfreshness gate (the reviewer is the human attention that gate proxies for — DECISIONS\n2026-05-27). 200 with the updated row on MATERIALIZED/SKIPPED; 409 when the holding was\nalready imported with a different quantity/cost/date (the row stays PENDING — the API\nsurfaces the conflict rather than overwriting cost basis); 400 if the row isn't an\napprovable PENDING row with a matched printing.",
+                "summary": "Approve a row → materialize its matched printing",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this import row.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "imports"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportRow"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportRow"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/imports/rows/{id}/override/": {
+            "post": {
+                "operationId": "imports_rows_override_create",
+                "description": "Re-point the row at a human-chosen ``CardPrinting`` (body: ``{\"printing\": <id>}``)\nand leave it PENDING so the corrected match can be approved next. Approvable\nimmediately after (``approve`` keys on a present matched printing, not on confidence).",
+                "summary": "Override a row's matched printing",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this import row.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "imports"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImportRowOverrideRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImportRowOverrideRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImportRowOverrideRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportRow"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/imports/rows/{id}/reject/": {
+            "post": {
+                "operationId": "imports_rows_reject_create",
+                "description": "Mark a PENDING row SKIPPED (the reviewer declines the holding). 400 if the row is\nnot PENDING (a MATERIALIZED row already wrote a holding; an ERROR row is terminal).",
+                "summary": "Reject a row → skipped",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this import row.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "imports"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportRow"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/portfolio/portfolios/": {
+            "get": {
+                "operationId": "portfolio_portfolios_list",
+                "description": "Read-only portfolios. Each row carries the latest ``PortfolioValueSnapshot``\ninline (NULL when a portfolio has never been valued, e.g. a freshly-created\none from a Dragon Shield import that runs before the next 04:00 UTC\nvaluation beat — DECISIONS 2026-05-25 slice 4c).",
+                "summary": "List portfolios (with latest value snapshot inline)",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "portfolio"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedPortfolioList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/portfolio/portfolios/{id}/": {
+            "get": {
+                "operationId": "portfolio_portfolios_retrieve",
+                "description": "Read-only portfolios. Each row carries the latest ``PortfolioValueSnapshot``\ninline (NULL when a portfolio has never been valued, e.g. a freshly-created\none from a Dragon Shield import that runs before the next 04:00 UTC\nvaluation beat — DECISIONS 2026-05-25 slice 4c).",
+                "summary": "Retrieve one portfolio (with latest snapshot inline)",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this portfolio.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "portfolio"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Portfolio"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/portfolio/snapshots/": {
+            "get": {
+                "operationId": "portfolio_snapshots_list",
+                "description": "Read-only append-only daily valuation timeline. The slice-5 portfolio\nchart consumes ``?portfolio=&from=&to=`` to pull a range, then renders the\nvalue series. ``unrealized_gain`` may be NULL on a row (partial coverage —\nDECISIONS 2026-05-25 slice 4a); consumers handle NULL distinctly from 0.",
+                "summary": "List / filter portfolio value snapshots (append-only daily history)",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "from",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        },
+                        "description": "Inclusive lower bound on ``snapshot_date``."
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "portfolio",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Filter to one portfolio's snapshot timeline."
+                    },
+                    {
+                        "in": "query",
+                        "name": "to",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        },
+                        "description": "Inclusive upper bound on ``snapshot_date``."
+                    }
+                ],
+                "tags": [
+                    "portfolio"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedPortfolioValueSnapshotList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/portfolio/snapshots/{id}/": {
+            "get": {
+                "operationId": "portfolio_snapshots_retrieve",
+                "description": "Read-only append-only daily valuation timeline. The slice-5 portfolio\nchart consumes ``?portfolio=&from=&to=`` to pull a range, then renders the\nvalue series. ``unrealized_gain`` may be NULL on a row (partial coverage —\nDECISIONS 2026-05-25 slice 4a); consumers handle NULL distinctly from 0.",
+                "summary": "Retrieve one portfolio value snapshot",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this portfolio value snapshot.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "portfolio"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PortfolioValueSnapshot"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/pricing/snapshots/": {
+            "get": {
+                "operationId": "pricing_snapshots_list",
+                "description": "Read-only append-only price history. List filterable by\n``?printing=&edition=&from=&to=`` — the slice-4 price-chart shape. The\n``latest`` action returns the most-recent snapshot for one\n``(printing, edition)``, the \"today's price\" lookup; this is structured as\nan action (not the latest-first ordered list's first row) so a consumer\ncan't accidentally page into history when it only wants today.",
+                "summary": "List / filter price snapshots (append-only daily history)",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "edition",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "first",
+                                "limited",
+                                "unlimited"
+                            ]
+                        },
+                        "description": "Filter by edition (a pricing dimension — DECISIONS 2026-05-18)."
+                    },
+                    {
+                        "in": "query",
+                        "name": "from",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        },
+                        "description": "Inclusive lower bound on ``snapshot_date``."
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "printing",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Filter to one printing."
+                    },
+                    {
+                        "in": "query",
+                        "name": "to",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        },
+                        "description": "Inclusive upper bound on ``snapshot_date``."
+                    }
+                ],
+                "tags": [
+                    "pricing"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedPriceSnapshotList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/pricing/snapshots/{id}/": {
+            "get": {
+                "operationId": "pricing_snapshots_retrieve",
+                "description": "Read-only append-only price history. List filterable by\n``?printing=&edition=&from=&to=`` — the slice-4 price-chart shape. The\n``latest`` action returns the most-recent snapshot for one\n``(printing, edition)``, the \"today's price\" lookup; this is structured as\nan action (not the latest-first ordered list's first row) so a consumer\ncan't accidentally page into history when it only wants today.",
+                "summary": "Retrieve one price snapshot",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this price snapshot.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "pricing"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PriceSnapshot"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/pricing/snapshots/latest/": {
+            "get": {
+                "operationId": "pricing_snapshots_latest_retrieve",
+                "description": "The most recent snapshot for one ``(printing, edition)``. 404 when no\nsnapshot exists for the pair (a printing TCGCSV doesn't price, or one\nthe daily reconcile hasn't run for yet).",
+                "summary": "Latest snapshot for one (printing, edition) — the 'today's price' lookup",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "edition",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "first",
+                                "limited",
+                                "unlimited"
+                            ]
+                        },
+                        "description": "Edition (required).",
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "printing",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Printing id (required).",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "pricing"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PriceSnapshot"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "CardDetail": {
+                "type": "object",
+                "description": "Card detail nests its printings (most cards have at most a handful, so the\nnested payload stays small). The flat ``/api/cards/printings/?card={id}``\nendpoint remains available for filterable browsing.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "passcode": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "printings": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CardPrinting"
+                        },
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "printings"
+                ]
+            },
+            "CardList": {
+                "type": "object",
+                "description": "Card identity in list shape — ``normalized_name`` is deliberately omitted\n(it's an internal lookup index, not API surface — DECISIONS 2026-05-18).",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "passcode": {
+                        "type": "integer",
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "id",
+                    "name"
+                ]
+            },
+            "CardPrinting": {
+                "type": "object",
+                "description": "A printing — this artwork at this rarity in this set (DECISIONS 2026-05-18).\n\n``is_multi_variant`` flags an ambiguous-placeholder row whose generic\n``(set_code, set_rarity)`` covers multiple sellable variants (DECISIONS\n2026-05-24); slice 6's import-review UI surfaces it to let a reviewer weigh\nthe MEDIUM downgrade the matcher applies to a match on it (DECISIONS\n2026-05-26). ``card`` is the FK id; ``card_name`` is denormalized read-only\nso a list response doesn't force a per-row `/api/cards/cards/{id}/` lookup.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "card": {
+                        "type": "integer"
+                    },
+                    "card_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "set_code": {
+                        "type": "string",
+                        "maxLength": 32
+                    },
+                    "set_rarity": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "variant_label": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 128
+                    },
+                    "set_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "is_multi_variant": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "card",
+                    "card_name",
+                    "id",
+                    "set_code",
+                    "set_name",
+                    "set_rarity"
+                ]
+            },
+            "CollectionItemDetail": {
+                "type": "object",
+                "description": "Item detail nests its lots — the per-acquisition cost-basis history slice\n4 (card detail) and slice 5 (portfolio drill-down) want together with the\naggregate. Lots arrive in the model's natural order (acquired_at ascending,\nnulls last; id tiebreaker — DECISIONS 2026-05-22).",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "portfolio": {
+                        "type": "integer"
+                    },
+                    "portfolio_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "printing": {
+                        "type": "integer"
+                    },
+                    "card_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "set_code": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "set_rarity": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "variant_label": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "condition": {
+                        "$ref": "#/components/schemas/ConditionEnum"
+                    },
+                    "edition": {
+                        "$ref": "#/components/schemas/EditionEnum"
+                    },
+                    "language": {
+                        "$ref": "#/components/schemas/LanguageEnum"
+                    },
+                    "storage_location": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "storage_location_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "lots": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CollectionLot"
+                        },
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "card_name",
+                    "condition",
+                    "edition",
+                    "id",
+                    "language",
+                    "lots",
+                    "portfolio",
+                    "portfolio_name",
+                    "printing",
+                    "quantity",
+                    "set_code",
+                    "set_rarity",
+                    "storage_location_name",
+                    "variant_label"
+                ]
+            },
+            "CollectionItemList": {
+                "type": "object",
+                "description": "One holding — N copies of one printing in one condition/edition/language/\nportfolio (DECISIONS 2026-05-18). ``quantity`` is derived (SUM over child lots,\nnot stored on the item — DECISIONS 2026-05-18), supplied by the viewset's\nqueryset annotation; an item with no lots reads as 0. The printing's identity\nfields are denormalized read-only so the slice-3 collection table doesn't\nneed a per-row printing lookup.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "portfolio": {
+                        "type": "integer"
+                    },
+                    "portfolio_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "printing": {
+                        "type": "integer"
+                    },
+                    "card_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "set_code": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "set_rarity": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "variant_label": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "condition": {
+                        "$ref": "#/components/schemas/ConditionEnum"
+                    },
+                    "edition": {
+                        "$ref": "#/components/schemas/EditionEnum"
+                    },
+                    "language": {
+                        "$ref": "#/components/schemas/LanguageEnum"
+                    },
+                    "storage_location": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "storage_location_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "card_name",
+                    "condition",
+                    "edition",
+                    "id",
+                    "language",
+                    "portfolio",
+                    "portfolio_name",
+                    "printing",
+                    "quantity",
+                    "set_code",
+                    "set_rarity",
+                    "storage_location_name",
+                    "variant_label"
+                ]
+            },
+            "CollectionLot": {
+                "type": "object",
+                "description": "An acquisition batch under a ``CollectionItem`` — quantity + cost + date.\n\n``unit_cost`` / ``acquired_at`` are nullable (\"unknown\" — DECISIONS 2026-05-18):\na consumer treats NULL distinctly from ``0.00`` / today, the fake-gains-prevention\nposture that runs all the way up through the slice-4a coverage representation\n(a lot with NULL ``unit_cost`` drops out of the portfolio's ``costed_card_count``).\n``import_source_ref`` is the per-holding-per-source dedup key the importer writes\n(DECISIONS 2026-05-26 slice 4); manual lots have NULL.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "collection_item": {
+                        "type": "integer"
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 0
+                    },
+                    "unit_cost": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "nullable": true
+                    },
+                    "acquired_at": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "import_source_ref": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 255
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "collection_item",
+                    "created_at",
+                    "id",
+                    "quantity",
+                    "updated_at"
+                ]
+            },
+            "ConditionEnum": {
+                "enum": [
+                    "mint",
+                    "near_mint",
+                    "excellent",
+                    "good",
+                    "light_played",
+                    "played",
+                    "poor"
+                ],
+                "type": "string",
+                "description": "* `mint` - Mint\n* `near_mint` - Near Mint\n* `excellent` - Excellent\n* `good` - Good\n* `light_played` - Light Played\n* `played` - Played\n* `poor` - Poor"
+            },
+            "EditionEnum": {
+                "enum": [
+                    "first",
+                    "unlimited",
+                    "limited"
+                ],
+                "type": "string",
+                "description": "* `first` - 1st Edition\n* `unlimited` - Unlimited\n* `limited` - Limited"
+            },
+            "ImportBatch": {
+                "type": "object",
+                "description": "One import's history record + per-status row counts. The counts are *derived* — the\nmodel deliberately does not denormalize them (DECISIONS 2026-05-25 slice 1) — and are\nsupplied by the viewset's queryset annotation, so a summary can't drift from its rows.\n``rows_needs_review`` counts every still-PENDING row (== ``ImportRow.needs_review``): a\npending row is, by construction, one the auto-path left for a human or a re-sync —\nmatch-uncertain, freshness-gated, or a changed-duplicate cost conflict alike.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "source_format": {
+                        "$ref": "#/components/schemas/SourceFormatEnum"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/ImportBatchStatusEnum"
+                    },
+                    "original_filename": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "rows_total": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "rows_materialized": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "rows_skipped": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "rows_pending": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "rows_error": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "rows_needs_review": {
+                        "type": "integer",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "id",
+                    "original_filename",
+                    "rows_error",
+                    "rows_materialized",
+                    "rows_needs_review",
+                    "rows_pending",
+                    "rows_skipped",
+                    "rows_total",
+                    "source_format",
+                    "updated_at"
+                ]
+            },
+            "ImportBatchStatusEnum": {
+                "enum": [
+                    "pending",
+                    "processing",
+                    "review",
+                    "completed",
+                    "failed"
+                ],
+                "type": "string",
+                "description": "* `pending` - Pending\n* `processing` - Processing\n* `review` - Review\n* `completed` - Completed\n* `failed` - Failed"
+            },
+            "ImportRow": {
+                "type": "object",
+                "description": "One staged row for the review queue. ``matched_printing`` is nested read-only (a human\nre-points it via the ``override`` action, not by writing this field); ``needs_review`` reads\nthe ``ImportRow.needs_review`` property (still PENDING → needs a human/re-sync), the one\ndefinition the count and ``?needs_review`` filter also use, so they can't drift.\n\n``allow_null=True`` on ``matched_printing`` is required (Codex slice 2 round 5): the model\nFK is nullable and UNMATCHED rows ship ``matched_printing=None`` as a normal state — without\nit the OpenAPI schema declares the property non-null and the generated TS client crashes a\nreview UI dereferencing ``row.matched_printing.card_name`` on an unmatched row (which is\nprecisely the row the reviewer most needs to act on). Same bug class as\n``Portfolio.latest_snapshot`` (round 1), different shape: that one used\n``@extend_schema_field(Class)``; this one is a direct nested serializer assignment. Both\nshapes need explicit nullability.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "batch": {
+                        "type": "integer"
+                    },
+                    "row_number": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 0
+                    },
+                    "raw_data": {},
+                    "normalized_data": {
+                        "nullable": true
+                    },
+                    "matched_printing": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MatchedPrinting"
+                            }
+                        ],
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "match_confidence": {
+                        "$ref": "#/components/schemas/MatchConfidenceEnum"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/ImportRowStatusEnum"
+                    },
+                    "error_message": {
+                        "type": "string"
+                    },
+                    "needs_review": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "batch",
+                    "created_at",
+                    "id",
+                    "matched_printing",
+                    "needs_review",
+                    "raw_data",
+                    "row_number",
+                    "updated_at"
+                ]
+            },
+            "ImportRowOverrideRequest": {
+                "type": "object",
+                "description": "Input for the ``override`` action: the ``CardPrinting`` a reviewer chooses for a row.\n``PrimaryKeyRelatedField`` validates the printing exists (an unknown id → 400).",
+                "properties": {
+                    "printing": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "printing"
+                ]
+            },
+            "ImportRowStatusEnum": {
+                "enum": [
+                    "pending",
+                    "materialized",
+                    "skipped",
+                    "error"
+                ],
+                "type": "string",
+                "description": "* `pending` - Pending\n* `materialized` - Materialized\n* `skipped` - Skipped\n* `error` - Error"
+            },
+            "LanguageEnum": {
+                "enum": [
+                    "en",
+                    "fr",
+                    "de",
+                    "it",
+                    "es",
+                    "pt",
+                    "ja",
+                    "ko"
+                ],
+                "type": "string",
+                "description": "* `en` - English\n* `fr` - French\n* `de` - German\n* `it` - Italian\n* `es` - Spanish\n* `pt` - Portuguese\n* `ja` - Japanese\n* `ko` - Korean"
+            },
+            "MatchConfidenceEnum": {
+                "enum": [
+                    "exact",
+                    "high",
+                    "medium",
+                    "low",
+                    "unmatched"
+                ],
+                "type": "string",
+                "description": "* `exact` - Exact\n* `high` - High\n* `medium` - Medium\n* `low` - Low\n* `unmatched` - Unmatched"
+            },
+            "MatchedPrinting": {
+                "type": "object",
+                "description": "Read-only nested view of a row's ``matched_printing`` for the review UI. Surfaces\n``is_multi_variant`` so a reviewer sees that the matcher downgraded a known multi-variant\nplaceholder to MEDIUM (and can weigh it before approving — the auto-path's gate is the\nhuman here; DECISIONS 2026-05-27).",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "card_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "set_code": {
+                        "type": "string",
+                        "maxLength": 32
+                    },
+                    "set_rarity": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "variant_label": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 128
+                    },
+                    "is_multi_variant": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "card_name",
+                    "id",
+                    "set_code",
+                    "set_rarity"
+                ]
+            },
+            "PaginatedCardListList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CardList"
+                        }
+                    }
+                }
+            },
+            "PaginatedCardPrintingList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CardPrinting"
+                        }
+                    }
+                }
+            },
+            "PaginatedCollectionItemListList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CollectionItemList"
+                        }
+                    }
+                }
+            },
+            "PaginatedCollectionLotList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CollectionLot"
+                        }
+                    }
+                }
+            },
+            "PaginatedImportBatchList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ImportBatch"
+                        }
+                    }
+                }
+            },
+            "PaginatedImportRowList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ImportRow"
+                        }
+                    }
+                }
+            },
+            "PaginatedPortfolioList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Portfolio"
+                        }
+                    }
+                }
+            },
+            "PaginatedPortfolioValueSnapshotList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PortfolioValueSnapshot"
+                        }
+                    }
+                }
+            },
+            "PaginatedPriceSnapshotList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PriceSnapshot"
+                        }
+                    }
+                }
+            },
+            "Portfolio": {
+                "type": "object",
+                "description": "A portfolio + its latest ``PortfolioValueSnapshot`` inline (NULL when a\nportfolio has never been valued). Slice 5's portfolio summary shows\ntoday's value at a glance without a second round-trip; the value-history\nchart consumes ``/api/portfolio/snapshots/?portfolio=&from=&to=``.\n\nN+1 risk on list is bounded by portfolio count (single digits in practice\n— Yubel Deck, Long-term hold, etc.). If portfolios ever scale, switch this\nto a correlated subquery / prefetched-singleton.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "latest_snapshot": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PortfolioValueSnapshot"
+                            }
+                        ],
+                        "nullable": true,
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "id",
+                    "latest_snapshot",
+                    "name"
+                ]
+            },
+            "PortfolioValueSnapshot": {
+                "type": "object",
+                "description": "Append-only daily valuation row (DECISIONS 2026-05-22).\n\n``unrealized_gain`` is nullable — NULL means partial coverage and the difference\nof two different subsets isn't a gain (DECISIONS 2026-05-25 slice 4a). The three\ncoverage counts say how much of the portfolio each total covers; the derived\n``*_complete`` / ``is_complete`` flags read off the model properties (so they\ncan't drift from the counts). Consumers must handle NULL ``unrealized_gain``.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "portfolio": {
+                        "type": "integer"
+                    },
+                    "snapshot_date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "market_value": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,12}(?:\\.\\d{0,2})?$"
+                    },
+                    "liquidation_value": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,12}(?:\\.\\d{0,2})?$"
+                    },
+                    "cost_basis": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,12}(?:\\.\\d{0,2})?$"
+                    },
+                    "unrealized_gain": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,12}(?:\\.\\d{0,2})?$",
+                        "nullable": true
+                    },
+                    "total_card_count": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 0
+                    },
+                    "priced_card_count": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 0
+                    },
+                    "costed_card_count": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 0
+                    },
+                    "market_value_complete": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "cost_basis_complete": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "is_complete": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "valuation_method": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "valuation_version": {
+                        "type": "integer",
+                        "maximum": 32767,
+                        "minimum": 0
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "cost_basis",
+                    "cost_basis_complete",
+                    "costed_card_count",
+                    "created_at",
+                    "id",
+                    "is_complete",
+                    "liquidation_value",
+                    "market_value",
+                    "market_value_complete",
+                    "portfolio",
+                    "priced_card_count",
+                    "snapshot_date",
+                    "total_card_count",
+                    "valuation_method",
+                    "valuation_version"
+                ]
+            },
+            "PriceSnapshot": {
+                "type": "object",
+                "description": "One provider's price for a printing+edition on a given day (append-only —\nDECISIONS 2026-05-18). Every price point is nullable: a provider may report\nonly some, so a consumer treats NULL distinctly from 0 (the same fake-zero\navoidance pattern as ``CollectionLot.unit_cost`` and the slice-4a coverage\nfields). ``confidence`` is the multi-source scoring placeholder (1.0 today —\none trusted source). ``source_subtype_name`` keeps the provider's raw subtype\ntext (e.g. TCGCSV ``\"1st Edition\"``) for audit if the edition normalisation\nrule ever changes.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "printing": {
+                        "type": "integer"
+                    },
+                    "edition": {
+                        "$ref": "#/components/schemas/EditionEnum"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/SourceEnum"
+                    },
+                    "snapshot_date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "low_price": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "nullable": true
+                    },
+                    "mid_price": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "nullable": true
+                    },
+                    "high_price": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "nullable": true
+                    },
+                    "market_price": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "nullable": true
+                    },
+                    "direct_low_price": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "nullable": true
+                    },
+                    "confidence": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "source_subtype_name": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 64
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "edition",
+                    "id",
+                    "printing",
+                    "snapshot_date",
+                    "source"
+                ]
+            },
+            "SourceEnum": {
+                "enum": [
+                    "tcgcsv"
+                ],
+                "type": "string",
+                "description": "* `tcgcsv` - TCGCSV"
+            },
+            "SourceFormatEnum": {
+                "enum": [
+                    "dragon_shield"
+                ],
+                "type": "string",
+                "description": "* `dragon_shield` - Dragon Shield"
+            }
+        },
+        "securitySchemes": {
+            "cookieAuth": {
+                "type": "apiKey",
+                "in": "cookie",
+                "name": "sessionid"
+            }
+        }
+    }
+}
