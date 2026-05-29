@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint format typecheck migrate migrate-up shell superuser up down logs ps build clean frontend-install frontend-lint frontend-build frontend-snapshot-schema frontend-gen-api
+.PHONY: help install dev test lint format typecheck migrate migrate-up shell superuser up down logs ps build clean frontend-install frontend-lint frontend-build frontend-test frontend-snapshot-schema frontend-gen-api
 
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
@@ -28,6 +28,7 @@ help:
 	@echo "  frontend-install        npm ci in frontend/"
 	@echo "  frontend-lint           Run frontend eslint"
 	@echo "  frontend-build          Run next build (type-check + bundle)"
+	@echo "  frontend-test           Run frontend unit tests (Vitest)"
 	@echo "  frontend-snapshot-schema  Snapshot OpenAPI schema to frontend/openapi.json"
 	@echo "  frontend-gen-api        Regenerate the TypeScript API client from openapi.json"
 
@@ -93,6 +94,9 @@ frontend-lint:
 
 frontend-build:
 	$(FRONTEND) npm run build
+
+frontend-test:
+	$(FRONTEND) npm run test
 
 # Snapshot the OpenAPI schema for the @hey-api/openapi-ts client generator.
 # Uses test_postgres settings so integer field bounds match PROD (postgres):
