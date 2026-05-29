@@ -6,6 +6,10 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 # OpenAPI schema is recon material for a private app — log into /admin/ first.
 api_patterns: list[URLPattern | URLResolver] = [
     path("", include("apps.core.urls")),
+    path("cards/", include("apps.cards.urls")),
+    path("collection/", include("apps.collection.urls")),
+    path("portfolio/", include("apps.portfolio.urls")),
+    path("pricing/", include("apps.pricing.urls")),
     path("imports/", include("apps.imports.urls")),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),

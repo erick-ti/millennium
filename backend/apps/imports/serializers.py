@@ -60,9 +60,19 @@ class ImportRowSerializer(serializers.ModelSerializer[ImportRow]):
     """One staged row for the review queue. ``matched_printing`` is nested read-only (a human
     re-points it via the ``override`` action, not by writing this field); ``needs_review`` reads
     the ``ImportRow.needs_review`` property (still PENDING → needs a human/re-sync), the one
-    definition the count and ``?needs_review`` filter also use, so they can't drift."""
+    definition the count and ``?needs_review`` filter also use, so they can't drift.
 
-    matched_printing = MatchedPrintingSerializer(read_only=True)
+    ``allow_null=True`` on ``matched_printing`` is required (Codex slice 2 round 5): the model
+    FK is nullable and UNMATCHED rows ship ``matched_printing=None`` as a normal state — without
+    it the OpenAPI schema declares the property non-null and the generated TS client crashes a
+    review UI dereferencing ``row.matched_printing.card_name`` on an unmatched row (which is
+    precisely the row the reviewer most needs to act on). Same bug class as
+    ``Portfolio.latest_snapshot`` (round 1), different shape: that one used
+    ``@extend_schema_field(Class)``; this one is a direct nested serializer assignment. Both
+    shapes need explicit nullability.
+    """
+
+    matched_printing = MatchedPrintingSerializer(read_only=True, allow_null=True)
     needs_review = serializers.BooleanField(read_only=True)
 
     class Meta:
