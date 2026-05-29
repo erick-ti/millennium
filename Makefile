@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint format typecheck migrate migrate-up shell superuser up down logs ps build clean frontend-install frontend-lint frontend-build
+.PHONY: help install dev test lint format typecheck migrate migrate-up shell superuser up down logs ps build clean frontend-install frontend-lint frontend-build frontend-snapshot-schema frontend-gen-api
 
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
@@ -25,9 +25,11 @@ help:
 	@echo "  ps                 docker compose ps"
 	@echo "  build              Rebuild backend image"
 	@echo "  clean              Remove caches and .venv"
-	@echo "  frontend-install   npm ci in frontend/"
-	@echo "  frontend-lint      Run frontend eslint"
-	@echo "  frontend-build     Run next build (type-check + bundle)"
+	@echo "  frontend-install        npm ci in frontend/"
+	@echo "  frontend-lint           Run frontend eslint"
+	@echo "  frontend-build          Run next build (type-check + bundle)"
+	@echo "  frontend-snapshot-schema  Snapshot OpenAPI schema to frontend/openapi.json"
+	@echo "  frontend-gen-api        Regenerate the TypeScript API client from openapi.json"
 
 install:
 	$(BACKEND) uv sync --group dev
@@ -91,3 +93,18 @@ frontend-lint:
 
 frontend-build:
 	$(FRONTEND) npm run build
+
+# Snapshot the OpenAPI schema for the @hey-api/openapi-ts client generator.
+# Uses the test settings (sqlite, no Redis) so it runs offline without the
+# compose stack — drf-spectacular generates from code, not DB queries.
+# --validate fails fast on schema warnings, the same gate test_schema.py
+# enforces in CI (DECISIONS 2026-05-27 Phase 4 slice 2).
+frontend-snapshot-schema:
+	$(BACKEND) uv run python manage.py spectacular --settings config.settings.test --format openapi-json --validate --file ../frontend/openapi.json
+	@echo "✓ Schema → frontend/openapi.json"
+
+# Regenerate the typed TS client from the snapshot. Commits the output under
+# frontend/src/lib/api/ so PR diffs show the API surface change (the schema
+# acquisition decision — committed snapshot + committed generated client).
+frontend-gen-api:
+	$(FRONTEND) npm run gen:api
