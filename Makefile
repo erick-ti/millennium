@@ -95,12 +95,16 @@ frontend-build:
 	$(FRONTEND) npm run build
 
 # Snapshot the OpenAPI schema for the @hey-api/openapi-ts client generator.
-# Uses the test settings (sqlite, no Redis) so it runs offline without the
-# compose stack — drf-spectacular generates from code, not DB queries.
-# --validate fails fast on schema warnings, the same gate test_schema.py
-# enforces in CI (DECISIONS 2026-05-27 Phase 4 slice 2).
+# Uses test_postgres settings so integer field bounds match PROD (postgres):
+# drf-spectacular derives a field's maximum/minimum/format from the DB backend's
+# integer_field_range, and sqlite reports int64 for every integer while postgres
+# reports true per-type ranges (smallint/int/bigint). The sqlite snapshot would
+# ship wrong bounds in the committed client. Still runs OFFLINE — no Docker, no
+# DB, no Redis: spectacular generates from code and integer_field_range is a pure
+# lookup, so the postgres ENGINE need not be reachable. --validate fails fast on
+# schema warnings (DECISIONS 2026-05-27 Phase 4 slice 2 round 8).
 frontend-snapshot-schema:
-	$(BACKEND) uv run python manage.py spectacular --settings config.settings.test --format openapi-json --validate --file ../frontend/openapi.json
+	$(BACKEND) uv run python manage.py spectacular --settings config.settings.test_postgres --format openapi-json --validate --file ../frontend/openapi.json
 	@echo "✓ Schema → frontend/openapi.json"
 
 # Regenerate the typed TS client from the snapshot. Commits the output under

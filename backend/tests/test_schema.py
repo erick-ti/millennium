@@ -17,8 +17,22 @@ from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
 from django.core.management import call_command
+from django.db import connection
 from drf_spectacular.generators import SchemaGenerator
 from rest_framework import serializers
+
+# The committed frontend/openapi.json is snapshotted under config.settings.test_postgres
+# (prod's backend). drf-spectacular derives a field's integer maximum/minimum/format from
+# connection.ops.integer_field_range: sqlite reports int64 for EVERY integer, postgres
+# reports true per-type ranges (smallint/int/bigint). So a sqlite-generated live schema
+# can't equal the postgres-generated snapshot — gate the exact-equality check on postgres
+# (the prod backend), the same posture nulls_distinct / advisory-lock tests take
+# (CLAUDE.md; DECISIONS 2026-05-27 slice 2 round 8). Nullability / clean-schema checks are
+# backend-independent and run everywhere.
+postgres_only = pytest.mark.skipif(
+    connection.vendor != "postgresql",
+    reason="integer field bounds in the schema are Postgres-specific; snapshot is generated under postgres",
+)
 
 
 @pytest.mark.django_db
@@ -69,6 +83,7 @@ def _is_nullable(field_schema: dict[str, Any]) -> bool:
     return False
 
 
+@postgres_only
 def test_committed_openapi_snapshot_matches_live_schema() -> None:
     """The committed ``frontend/openapi.json`` is what the TS client is
     generated from (DECISIONS 2026-05-27 Phase 4 slice 2). A serializer / view
@@ -77,12 +92,18 @@ def test_committed_openapi_snapshot_matches_live_schema() -> None:
     pass while slice 3+ UI compiles against the stale contract.
 
     This gates the schema → snapshot half of drift coverage. The client →
-    snapshot half is gated by the ``.github/workflows/frontend.yml`` step that
-    regenerates the client and diffs ``src/lib/api/generated/`` (the Python
-    side has no Node toolchain to do that cheaply). Both gates exist because
-    they cover orthogonal failure modes: a dev who refreshes the snapshot but
-    forgets ``make frontend-gen-api`` slips past this test but is caught by CI.
-    Codex adversarial review of slice 2, round 2, 2026-05-27.
+    snapshot half is gated by the snapshot→client step in the required
+    ``tests.yml`` job (regenerate the client + ``git status --porcelain`` on
+    ``src/lib/api/generated/``). Both gates exist because they cover orthogonal
+    failure modes: a dev who refreshes the snapshot but forgets
+    ``make frontend-gen-api`` slips past this test but is caught by that step.
+
+    Postgres-only: the snapshot is generated under ``test_postgres`` (prod's
+    backend) for correct integer field bounds; on sqlite the live schema would
+    report int64 for every integer and never match (round 8). The required CI
+    ``tests`` job runs on postgres, so the gate is enforced there; ``make test``
+    (sqlite) skips it. Codex adversarial review of slice 2, round 2 (+ round 8),
+    2026-05-27.
     """
     live = _generate_schema()
     snapshot_path = Path(settings.BASE_DIR).parent / "frontend" / "openapi.json"
