@@ -48,7 +48,7 @@ A personal Yu-Gi-Oh collection portfolio tracker that treats a card collection l
 
 1. **Condition adjustment factors** — **resolved 2026-05-25** (slice 4b): the valuation engine applies a hardcoded, version-tagged DS-condition→factor table (NM 1.00 → Poor 0.40); see DECISIONS 2026-05-25. (Was: multipliers for LP/MP/HP/DMG when only product-level pricing is available.)
 2. **Valuation coverage representation** — **resolved 2026-05-25** (slice 4a): `portfolio_value_snapshots` carries card-quantity coverage counts (`total/priced/costed_card_count`) + a nullable `unrealized_gain` set iff fully covered (CHECK `gain_iff_complete`); unknowns are excluded from totals, never zeroed. See DECISIONS 2026-05-25. (Was: how partial/unknown inputs are recorded so a rolled-up total doesn't silently look complete.)
-3. **OpenAPI client generation tooling.** openapi-typescript-codegen vs orval vs alternatives. Phase 4-blocking.
+3. **OpenAPI client generation tooling** — **resolved 2026-05-27** (Phase 4 slice 1): `@hey-api/openapi-ts` (the actively-maintained successor to the deprecated `openapi-typescript-codegen` originally listed; TanStack Query plugin available). See DECISIONS 2026-05-27. (Was: openapi-typescript-codegen vs orval vs alternatives. Phase 4-blocking.)
 
 ## Architecture direction
 
