@@ -72,8 +72,35 @@ def test_card_list_returns_paginated_shape(client: APIClient) -> None:
     assert {"count", "next", "previous", "results"} <= set(body)
     # Ordered by name; "Ash" < "Nibiru".
     [first, second] = body["results"]
-    assert first == {"id": ash.id, "passcode": 14558127, "name": "Ash Blossom & Joyous Spring"}
-    assert second == {"id": nibiru.id, "passcode": 27204311, "name": "Nibiru, the Primal Being"}
+    assert first == {
+        "id": ash.id,
+        "passcode": 14558127,
+        "name": "Ash Blossom & Joyous Spring",
+        "printings_count": 0,
+    }
+    assert second == {
+        "id": nibiru.id,
+        "passcode": 27204311,
+        "name": "Nibiru, the Primal Being",
+        "printings_count": 0,
+    }
+
+
+@pytest.mark.django_db
+def test_card_list_includes_printings_count(client: APIClient) -> None:
+    """The slice-4 /cards table renders a per-card printing count (a
+    ``Count("printings")`` annotation on the viewset, not a stored field). A
+    card with no printings reads 0."""
+    ash = _card()  # gets two printings
+    _printing(ash, set_code="L5DD-ENC09", set_rarity="Common")
+    _printing(ash, set_code="MAMA-EN036", set_rarity="Ultra Rare")
+    nibiru = _card(name="Nibiru, the Primal Being", passcode=27204311)  # no printings
+
+    resp = client.get(reverse("cards:card-list"))
+
+    assert resp.status_code == status.HTTP_200_OK
+    counts = {row["id"]: row["printings_count"] for row in resp.data["results"]}
+    assert counts == {ash.id: 2, nibiru.id: 0}
 
 
 @pytest.mark.django_db
@@ -89,6 +116,9 @@ def test_card_detail_nests_printings(client: APIClient) -> None:
     assert resp.status_code == status.HTTP_200_OK
     assert resp.data["id"] == card.id
     assert resp.data["name"] == "Ash Blossom & Joyous Spring"
+    # The annotation is present on retrieve too (CardDetailSerializer inherits
+    # the field), so detail can't AttributeError on a missing attribute.
+    assert resp.data["printings_count"] == 2
     nested_ids = {p["id"] for p in resp.data["printings"]}
     assert nested_ids == {p1.id, p2.id}
     # Detail printings carry the same fields as the flat printings endpoint.

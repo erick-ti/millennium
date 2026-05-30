@@ -36,9 +36,15 @@ class CardListSerializer(serializers.ModelSerializer[Card]):
     """Card identity in list shape — ``normalized_name`` is deliberately omitted
     (it's an internal lookup index, not API surface — DECISIONS 2026-05-18)."""
 
+    # Number of printings for this card, from the viewset's
+    # ``Count("printings")`` annotation (not a stored field). The slice-4 /cards
+    # table renders it; a Count can't be NULL, so no ``allow_null``. Inherited by
+    # CardDetailSerializer — the viewset annotates both list and retrieve.
+    printings_count = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = Card
-        fields = ["id", "passcode", "name"]
+        fields = ["id", "passcode", "name", "printings_count"]
 
 
 class CardDetailSerializer(CardListSerializer):
