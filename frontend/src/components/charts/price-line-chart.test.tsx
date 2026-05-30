@@ -67,4 +67,52 @@ describe("PriceLineChart", () => {
     const { container } = render(<PriceLineChart data={[]} />);
     expect(container.querySelector("svg")).toBeTruthy();
   });
+
+  it("labels the value column 'Market price' by default", () => {
+    render(<PriceLineChart data={data} />);
+    expect(
+      screen.getByRole("columnheader", { name: "Market price" }),
+    ).toBeInTheDocument();
+  });
+
+  it("uses a custom seriesLabel for the value column", () => {
+    // Slice 5 reuses this pure chart for a portfolio value series; the series
+    // name must change from the card-price default, not silently mislabel.
+    render(<PriceLineChart data={data} seriesLabel="Portfolio value" />);
+    expect(
+      screen.getByRole("columnheader", { name: "Portfolio value" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: "Market price" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("marks partial-coverage points in the accessible table when points carry coverage", () => {
+    // A coverage-carrying (aggregate) series exposes a Coverage column so a
+    // coverage-driven dip isn't read as a real value move (Codex adversarial
+    // review, 2026-05-29).
+    render(
+      <PriceLineChart
+        seriesLabel="Portfolio value"
+        data={[
+          { date: "2026-05-10", price: 10, complete: true },
+          { date: "2026-05-11", price: 6, complete: false },
+        ]}
+      />,
+    );
+    expect(
+      screen.getByRole("columnheader", { name: "Coverage" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Partial coverage")).toBeInTheDocument();
+    expect(screen.getByText("Complete")).toBeInTheDocument();
+  });
+
+  it("omits the coverage column for a coverage-agnostic series (card prices)", () => {
+    // `data` carries no `complete` flag → the card price chart keeps its
+    // original 2-column table, unchanged.
+    render(<PriceLineChart data={data} />);
+    expect(
+      screen.queryByRole("columnheader", { name: "Coverage" }),
+    ).not.toBeInTheDocument();
+  });
 });
