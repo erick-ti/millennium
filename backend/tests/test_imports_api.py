@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -492,3 +493,124 @@ def test_approve_materializes_the_current_printing_not_a_stale_override() -> Non
     assert CollectionItem.objects.filter(printing=p_new).exists()
     assert not CollectionItem.objects.filter(printing=p_old).exists()
     assert fresh.matched_printing_id == p_new.pk
+
+
+# --- upload (slice 6: POST /api/imports/batches/) -------------------------------
+
+_DS_HEADER = (
+    "Folder Name,Quantity,Trade Quantity,Card Name,Set Code,Set Name,Card Number,"
+    "Rarity,Condition,Printing,Language,Price Bought,Date Bought,LOW,MID,MARKET"
+)
+_DS_ROW = (
+    "Yubel Deck,3,0,Ash Blossom & Joyous Spring,L5DD,\"Legendary 5D's Decks\","
+    "L5DD-ENC09,C,NearMint,1st Edition,English,0.68,2024-01-15,0.50,0.60,0.68"
+)
+
+
+def _ds_upload(name: str = "collection.csv") -> SimpleUploadedFile:
+    # utf-8-sig encoding prepends a BOM (Excel "CSV UTF-8" saves do this) so the upload
+    # exercises the view's utf-8-sig decode, not just plain utf-8.
+    body = f'"sep=,"\n{_DS_HEADER}\n{_DS_ROW}\n'.encode("utf-8-sig")
+    return SimpleUploadedFile(name, body, content_type="text/csv")
+
+
+@pytest.mark.django_db
+def test_upload_runs_import_and_returns_batch_with_counts(client: APIClient) -> None:
+    """A valid DS CSV is parsed, staged, and returned as the created batch with derived
+    counts. No printings/reconciliation exist, so the lone row is UNMATCHED → PENDING →
+    the batch lands in REVIEW (not COMPLETED)."""
+    resp = client.post(
+        reverse("imports:importbatch-list"), {"file": _ds_upload()}, format="multipart"
+    )
+
+    assert resp.status_code == status.HTTP_201_CREATED
+    assert resp.data["status"] == ImportStatus.REVIEW.value
+    assert resp.data["original_filename"] == "collection.csv"
+    assert resp.data["rows_total"] == 1
+    assert resp.data["rows_pending"] == 1
+    assert resp.data["rows_needs_review"] == 1
+    assert ImportBatch.objects.count() == 1
+    assert ImportRow.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_upload_of_non_dragon_shield_file_records_a_failed_batch(client: APIClient) -> None:
+    """A file that isn't a DS export is a recorded outcome, not a request error: run_import
+    writes a FAILED batch (durable history), so the upload returns 201 with status=failed and
+    the UI branches on it — rather than discarding the attempt with a 4xx."""
+    bad = SimpleUploadedFile("notes.csv", b"alpha,beta\n1,2\n", content_type="text/csv")
+
+    resp = client.post(reverse("imports:importbatch-list"), {"file": bad}, format="multipart")
+
+    assert resp.status_code == status.HTTP_201_CREATED
+    assert resp.data["status"] == ImportStatus.FAILED.value
+    assert resp.data["rows_total"] == 0
+
+
+@pytest.mark.django_db
+def test_upload_without_a_file_is_400(client: APIClient) -> None:
+    resp = client.post(reverse("imports:importbatch-list"), {}, format="multipart")
+
+    assert resp.status_code == status.HTTP_400_BAD_REQUEST
+    assert "file" in resp.data
+    assert ImportBatch.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_upload_over_the_size_cap_is_400(
+    client: APIClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Oversized files are rejected before run_import runs (bounding sync request time).
+    Patch the cap tiny so a normal fixture exceeds it without allocating megabytes."""
+    monkeypatch.setattr("apps.imports.views.MAX_UPLOAD_BYTES", 8)
+
+    resp = client.post(
+        reverse("imports:importbatch-list"), {"file": _ds_upload()}, format="multipart"
+    )
+
+    assert resp.status_code == status.HTTP_400_BAD_REQUEST
+    assert "file" in resp.data
+    assert ImportBatch.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_upload_over_the_row_cap_is_400(
+    client: APIClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Rows are bounded (not just bytes) so a pathologically large export can't outlast the
+    request worker mid-import. Patch the cap to 1 so the fixture (sep hint + header + a data
+    row) exceeds it, and assert no batch is written."""
+    monkeypatch.setattr("apps.imports.views.MAX_UPLOAD_ROWS", 1)
+
+    resp = client.post(
+        reverse("imports:importbatch-list"), {"file": _ds_upload()}, format="multipart"
+    )
+
+    assert resp.status_code == status.HTTP_400_BAD_REQUEST
+    assert "file" in resp.data
+    assert ImportBatch.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_upload_requires_authentication() -> None:
+    anon = APIClient()
+    resp = anon.post(
+        reverse("imports:importbatch-list"), {"file": _ds_upload()}, format="multipart"
+    )
+    assert resp.status_code == status.HTTP_403_FORBIDDEN
+    assert ImportBatch.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_upload_truncates_an_overlong_filename(client: APIClient) -> None:
+    """A crafted >255-char filename must not 500 (original_filename is CharField(255); on
+    Postgres an unbounded name would DataError inside run_import before the audit row exists).
+    The view truncates at the import boundary, so the batch is recorded with a <=255 name.
+    Truncation is in app code (not the DB column), so this holds on sqlite too."""
+    long_name = "A" * 300 + ".csv"
+    upload = _ds_upload(long_name)
+
+    resp = client.post(reverse("imports:importbatch-list"), {"file": upload}, format="multipart")
+
+    assert resp.status_code == status.HTTP_201_CREATED
+    assert len(resp.data["original_filename"]) <= 255

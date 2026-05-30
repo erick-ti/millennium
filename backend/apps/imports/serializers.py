@@ -98,3 +98,12 @@ class ImportRowOverrideSerializer(serializers.Serializer[ImportRow]):
     ``PrimaryKeyRelatedField`` validates the printing exists (an unknown id → 400)."""
 
     printing = serializers.PrimaryKeyRelatedField(queryset=CardPrinting.objects.all())
+
+
+class ImportUploadSerializer(serializers.Serializer[ImportBatch]):
+    """Input for the batch upload (slice 6): a Dragon Shield CSV file. ``FileField`` makes a
+    missing/empty file a clean 400, and (with ``MultiPartParser`` on the viewset) drives
+    drf-spectacular to emit a ``multipart/form-data`` request body in the schema/TS client.
+    The view decodes the file as utf-8-sig and hands the text to ``run_import``."""
+
+    file = serializers.FileField(help_text="A Dragon Shield CSV export.")
