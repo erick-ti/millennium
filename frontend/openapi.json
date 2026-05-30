@@ -1131,6 +1131,10 @@
                         "type": "string",
                         "maxLength": 255
                     },
+                    "printings_count": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
                     "printings": {
                         "type": "array",
                         "items": {
@@ -1142,7 +1146,8 @@
                 "required": [
                     "id",
                     "name",
-                    "printings"
+                    "printings",
+                    "printings_count"
                 ]
             },
             "CardList": {
@@ -1163,11 +1168,16 @@
                     "name": {
                         "type": "string",
                         "maxLength": 255
+                    },
+                    "printings_count": {
+                        "type": "integer",
+                        "readOnly": true
                     }
                 },
                 "required": [
                     "id",
-                    "name"
+                    "name",
+                    "printings_count"
                 ]
             },
             "CardPrinting": {

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from django.db.models import QuerySet
+from django.db.models import Count, QuerySet
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import viewsets
@@ -27,7 +27,11 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet[Card]):
     def get_queryset(self) -> QuerySet[Card]:
         # Card.name isn't unique after normalization (DECISIONS 2026-05-18), so
         # the surrogate id is the stable tiebreaker for deterministic pagination.
-        qs = Card.objects.all().order_by("name", "id")
+        # printings_count (slice 4 /cards table) is annotated for BOTH actions:
+        # CardDetailSerializer inherits the field from CardListSerializer, so a
+        # retrieve must also carry the annotation or serialization would
+        # AttributeError on the missing attribute. Count never yields NULL.
+        qs = Card.objects.annotate(printings_count=Count("printings")).order_by("name", "id")
         if self.action == "retrieve":
             qs = qs.prefetch_related("printings")
         return qs

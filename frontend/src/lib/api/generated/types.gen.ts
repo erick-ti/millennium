@@ -13,6 +13,7 @@ export type CardDetail = {
     readonly id: number;
     passcode?: number | null;
     name: string;
+    readonly printings_count: number;
     readonly printings: Array<CardPrinting>;
 };
 
@@ -24,6 +25,7 @@ export type CardList = {
     readonly id: number;
     passcode?: number | null;
     name: string;
+    readonly printings_count: number;
 };
 
 /**

@@ -12,8 +12,10 @@ import {
   collectionItemsListOptions,
   portfolioPortfoliosListOptions,
 } from "@/lib/api";
-import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
+import { PaginationControls } from "@/components/ui/pagination-controls";
+import { QueryErrorState } from "@/components/ui/query-error-state";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
 
 // DRF serves one fixed page size globally (PageNumberPagination, PAGE_SIZE=100).
 // Used only to render "page X of Y" — Prev/Next enablement is driven by the
@@ -154,38 +156,20 @@ export default function CollectionPage() {
 
       <div className="mt-6">
         {itemsQuery.isPending ? (
-          <TableSkeleton columnCount={columns.length} />
+          <TableSkeleton columnCount={columns.length} label="Loading collection" />
         ) : itemsQuery.isError ? (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-6">
-            <p className="text-sm font-medium text-destructive">
-              Couldn&apos;t load your collection.
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              This usually means you aren&apos;t signed in (sign-in lands in a
-              later slice), but it can also happen if the server is unreachable.
-            </p>
-            <div className="mt-3 flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => itemsQuery.refetch()}
-              >
-                Retry
-              </Button>
-              {/* keepPreviousData drops the kept page on error, so a failure on
-                  page >1 would otherwise strand the user on a dead-end card.
-                  Give them a way back to a page known to exist. */}
-              {page > 1 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
-                >
-                  Back to page {page - 1}
-                </Button>
-              )}
-            </div>
-          </div>
+          <QueryErrorState
+            title="Couldn't load your collection."
+            onRetry={() => itemsQuery.refetch()}
+            // keepPreviousData drops the kept page on error, so a failure on
+            // page >1 would otherwise strand the user on a dead-end card.
+            backLabel={page > 1 ? `Back to page ${page - 1}` : undefined}
+            onBack={
+              page > 1
+                ? () => setPage((current) => Math.max(1, current - 1))
+                : undefined
+            }
+          />
         ) : (
           <div
             aria-busy={isPaging}
@@ -197,73 +181,18 @@ export default function CollectionPage() {
               emptyMessage={emptyMessage}
             />
 
-            {count > 0 && (
-              <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-                {/* Live region so the new page is announced after a turn — the
-                    skeleton's role="status" only fires on the initial load,
-                    not on keepPreviousData page changes. */}
-                <span role="status" aria-live="polite">
-                  Page {page} of {totalPages} · {count}{" "}
-                  {count === 1 ? "item" : "items"}
-                </span>
-                <div className="flex items-center gap-2">
-                  {/* Disable only at the true boundaries — NOT on isPaging.
-                      Disabling the focused button mid-turn would blur focus to
-                      <body> (a keyboard-focus trap); the onClick guard instead
-                      no-ops a click while a fetch is in flight, preserving both
-                      focus and the double-click protection. */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!hasPrev}
-                    onClick={() => {
-                      if (isPaging) return;
-                      setPage((current) => Math.max(1, current - 1));
-                    }}
-                  >
-                    Prev
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!hasNext}
-                    onClick={() => {
-                      if (isPaging) return;
-                      setPage((current) => current + 1);
-                    }}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            )}
+            <PaginationControls
+              page={page}
+              totalPages={totalPages}
+              count={count}
+              noun="item"
+              isPaging={isPaging}
+              hasPrev={hasPrev}
+              hasNext={hasNext}
+              onPageChange={setPage}
+            />
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-function TableSkeleton({ columnCount }: { columnCount: number }) {
-  return (
-    <div
-      role="status"
-      aria-busy="true"
-      aria-label="Loading collection"
-      className="overflow-hidden rounded-lg border border-border"
-    >
-      <div className="h-10 border-b border-border bg-muted/30" />
-      <div className="divide-y divide-border">
-        {Array.from({ length: 8 }).map((_, rowIndex) => (
-          <div key={rowIndex} className="flex gap-3 px-3 py-2.5">
-            {Array.from({ length: columnCount }).map((_, cellIndex) => (
-              <div
-                key={cellIndex}
-                className="h-4 flex-1 animate-pulse rounded bg-muted"
-              />
-            ))}
-          </div>
-        ))}
       </div>
     </div>
   );
