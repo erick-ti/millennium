@@ -16,13 +16,24 @@ from apps.cards.serializers import (
 
 
 @extend_schema_view(
-    list=extend_schema(summary="List cards"),
+    list=extend_schema(
+        summary="List / search cards",
+        parameters=[
+            OpenApiParameter(
+                "search",
+                OpenApiTypes.STR,
+                description="Case-insensitive substring match on card name.",
+            ),
+        ],
+    ),
     retrieve=extend_schema(summary="Retrieve one card (with printings inline)"),
 )
 class CardViewSet(viewsets.ReadOnlyModelViewSet[Card]):
-    """Read-only catalog of card identities. List returns ``{id, passcode, name}``;
-    retrieve nests printings (a card has at most a handful — DECISIONS 2026-05-18)
-    so slice 4's card-detail view loads in one round-trip."""
+    """Read-only catalog of card identities. List returns ``{id, passcode, name}``
+    and is ``?search=``-filterable by name (the slice-6 import-review override picker
+    finds a card by name → lists its printings); retrieve nests printings (a card has
+    at most a handful — DECISIONS 2026-05-18) so slice 4's card-detail view loads in
+    one round-trip."""
 
     def get_queryset(self) -> QuerySet[Card]:
         # Card.name isn't unique after normalization (DECISIONS 2026-05-18), so
@@ -33,7 +44,16 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet[Card]):
         # AttributeError on the missing attribute. Count never yields NULL.
         qs = Card.objects.annotate(printings_count=Count("printings")).order_by("name", "id")
         if self.action == "retrieve":
-            qs = qs.prefetch_related("printings")
+            return qs.prefetch_related("printings")
+        # Filtering is a list-only concern: get_object() runs the queryset through
+        # filter_queryset too, so a stray ?search= on a retrieve would 404 it (the
+        # slice-5 import lesson). An empty/whitespace search is a cleared box, not a
+        # filter — ignore it rather than returning zero rows.
+        if self.action != "list":
+            return qs
+        search = self.request.query_params.get("search")
+        if search is not None and search.strip():
+            qs = qs.filter(name__icontains=search.strip())
         return qs
 
     def get_serializer_class(self) -> type[BaseSerializer[Card]]:
