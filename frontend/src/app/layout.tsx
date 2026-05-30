@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { CsrfBootstrap } from "@/components/csrf-bootstrap";
 import { Nav } from "@/components/nav";
 import { Providers } from "@/components/providers";
 
@@ -31,6 +32,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <Providers>
+          <CsrfBootstrap />
           <Nav />
           <main className="flex-1">{children}</main>
         </Providers>
