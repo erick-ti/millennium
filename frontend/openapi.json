@@ -9,8 +9,8 @@
         "/api/cards/cards/": {
             "get": {
                 "operationId": "cards_cards_list",
-                "description": "Read-only catalog of card identities. List returns ``{id, passcode, name}``;\nretrieve nests printings (a card has at most a handful — DECISIONS 2026-05-18)\nso slice 4's card-detail view loads in one round-trip.",
-                "summary": "List cards",
+                "description": "Read-only catalog of card identities. List returns ``{id, passcode, name}``\nand is ``?search=``-filterable by name (the slice-6 import-review override picker\nfinds a card by name → lists its printings); retrieve nests printings (a card has\nat most a handful — DECISIONS 2026-05-18) so slice 4's card-detail view loads in\none round-trip.",
+                "summary": "List / search cards",
                 "parameters": [
                     {
                         "name": "page",
@@ -20,6 +20,14 @@
                         "schema": {
                             "type": "integer"
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "search",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Case-insensitive substring match on card name."
                     }
                 ],
                 "tags": [
@@ -47,7 +55,7 @@
         "/api/cards/cards/{id}/": {
             "get": {
                 "operationId": "cards_cards_retrieve",
-                "description": "Read-only catalog of card identities. List returns ``{id, passcode, name}``;\nretrieve nests printings (a card has at most a handful — DECISIONS 2026-05-18)\nso slice 4's card-detail view loads in one round-trip.",
+                "description": "Read-only catalog of card identities. List returns ``{id, passcode, name}``\nand is ``?search=``-filterable by name (the slice-6 import-review override picker\nfinds a card by name → lists its printings); retrieve nests printings (a card has\nat most a handful — DECISIONS 2026-05-18) so slice 4's card-detail view loads in\none round-trip.",
                 "summary": "Retrieve one card (with printings inline)",
                 "parameters": [
                     {
@@ -350,6 +358,24 @@
                 }
             }
         },
+        "/api/csrf/": {
+            "get": {
+                "operationId": "csrf_retrieve",
+                "description": "Seed the ``csrftoken`` cookie (slice 6, DECISIONS 2026-05-29).\n\nDjango sets the cookie only when a request *uses* the token (``get_token``);\nwith ``CSRF_USE_SESSIONS=False`` and an all-JSON API that never renders a\nform, nothing here was setting it — so the SPA had no token to send on its\nfirst POST. The frontend GETs this on load; ``CsrfViewMiddleware`` then writes\nthe (non-HttpOnly) cookie, and ``proxy.ts`` copies it into ``X-CSRFToken`` on\nunsafe requests. ``AllowAny`` + no auth: a not-yet-signed-in browser must be\nable to seed the cookie, and a CSRF cookie leaks nothing (it's a per-session\nsecret the client already holds). Safe method → no CSRF *enforcement* here.",
+                "summary": "Seed the CSRF cookie",
+                "tags": [
+                    "csrf"
+                ],
+                "security": [
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "description": "csrftoken cookie set"
+                    }
+                }
+            }
+        },
         "/api/health/": {
             "get": {
                 "operationId": "health_retrieve",
@@ -371,7 +397,7 @@
         "/api/imports/batches/": {
             "get": {
                 "operationId": "imports_batches_list",
-                "description": "Import history: list/retrieve batches with derived per-status row counts. Read-only —\nbatches are created by ``run_import`` (the ``import_dragon_shield`` command); the review\nsurface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly.",
+                "description": "Import history + upload. List/retrieve batches with derived per-status row counts, and\nPOST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import (slice 6). The review\nsurface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly. Defining\n``create`` makes the router bind POST on the collection route (no separate mixin needed).",
                 "summary": "List import batches with per-status row counts",
                 "parameters": [
                     {
@@ -404,12 +430,58 @@
                         "description": ""
                     }
                 }
+            },
+            "post": {
+                "operationId": "imports_batches_create",
+                "description": "Upload a Dragon Shield CSV and run the import synchronously (DECISIONS 2026-05-29).\n\nDecode the file as utf-8-sig (mirroring the ``import_dragon_shield`` command — Excel\n\"CSV UTF-8\" saves prepend a BOM), hand the text to ``run_import``, and return the created\nbatch with its derived row counts. A file that isn't a recognized DS export is **not** a\nrequest error: ``run_import`` records a FAILED ``ImportBatch`` (a durable history row), so\nthis returns **201 with status=failed** and the frontend branches on ``batch.status``.\nOnly a missing / oversized / non-text file is a **400**. Synchronous (not Celery) is fine\nat single-user few-thousand-row scale; ``MAX_UPLOAD_BYTES`` bounds the request time, and\n``run_import`` returns a JSON-native result so a future Celery promotion is a drop-in.",
+                "summary": "Upload a Dragon Shield CSV → run the import",
+                "tags": [
+                    "imports"
+                ],
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImportUploadRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImportBatch"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
             }
         },
         "/api/imports/batches/{id}/": {
             "get": {
                 "operationId": "imports_batches_retrieve",
-                "description": "Import history: list/retrieve batches with derived per-status row counts. Read-only —\nbatches are created by ``run_import`` (the ``import_dragon_shield`` command); the review\nsurface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly.",
+                "description": "Import history + upload. List/retrieve batches with derived per-status row counts, and\nPOST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import (slice 6). The review\nsurface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly. Defining\n``create`` makes the router bind POST on the collection route (no separate mixin needed).",
                 "summary": "Retrieve one import batch",
                 "parameters": [
                     {
@@ -1620,6 +1692,20 @@
                 ],
                 "type": "string",
                 "description": "* `pending` - Pending\n* `materialized` - Materialized\n* `skipped` - Skipped\n* `error` - Error"
+            },
+            "ImportUploadRequest": {
+                "type": "object",
+                "description": "Input for the batch upload (slice 6): a Dragon Shield CSV file. ``FileField`` makes a\nmissing/empty file a clean 400, and (with ``MultiPartParser`` on the viewset) drives\ndrf-spectacular to emit a ``multipart/form-data`` request body in the schema/TS client.\nThe view decodes the file as utf-8-sig and hands the text to ``run_import``.",
+                "properties": {
+                    "file": {
+                        "type": "string",
+                        "format": "binary",
+                        "description": "A Dragon Shield CSV export."
+                    }
+                },
+                "required": [
+                    "file"
+                ]
             },
             "LanguageEnum": {
                 "enum": [

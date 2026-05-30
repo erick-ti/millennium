@@ -212,3 +212,46 @@ def test_printing_detail_ignores_query_param_filters(client: APIClient) -> None:
 
     assert resp.status_code == status.HTTP_200_OK
     assert resp.data["id"] == printing.id
+
+
+# --- card name search (slice 6 override picker) ---------------------------------
+
+
+@pytest.mark.django_db
+def test_card_list_search_filters_by_name_case_insensitively(client: APIClient) -> None:
+    """?search= is a case-insensitive substring on name — the override picker finds a card
+    by name, then lists its printings via ?card=."""
+    _card(name="Ash Blossom & Joyous Spring", passcode=14558127)
+    _card(name="Ghost Ogre & Snow Rabbit", passcode=59438930)
+    _card(name="Dark Magician", passcode=46986414)
+
+    resp = client.get(reverse("cards:card-list"), {"search": "blossom"})
+
+    assert resp.status_code == status.HTTP_200_OK
+    names = [row["name"] for row in resp.data["results"]]
+    assert names == ["Ash Blossom & Joyous Spring"]
+
+
+@pytest.mark.django_db
+def test_card_list_blank_search_returns_all(client: APIClient) -> None:
+    """A cleared search box sends ?search= — treat empty/whitespace as 'no filter', not
+    'match nothing'."""
+    _card(name="Ash Blossom & Joyous Spring", passcode=14558127)
+    _card(name="Dark Magician", passcode=46986414)
+
+    resp = client.get(reverse("cards:card-list"), {"search": "   "})
+
+    assert resp.status_code == status.HTTP_200_OK
+    assert resp.data["count"] == 2
+
+
+@pytest.mark.django_db
+def test_card_detail_ignores_search_param(client: APIClient) -> None:
+    """Detail must not run the list-only search filter — a stray ?search= shouldn't 404 a
+    retrieve via filter_queryset (the list-only-guard convention)."""
+    card = _card(name="Dark Magician", passcode=46986414)
+
+    resp = client.get(reverse("cards:card-detail", args=[card.pk]), {"search": "blossom"})
+
+    assert resp.status_code == status.HTTP_200_OK
+    assert resp.data["id"] == card.pk

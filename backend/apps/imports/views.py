@@ -1,26 +1,51 @@
 from __future__ import annotations
 
+from typing import Any
+
 from django.db.models import Count, Q, QuerySet
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
-from rest_framework import status, viewsets
+from rest_framework import parsers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.serializers import BaseSerializer
 
 from apps.imports.models import ImportBatch, ImportRow, MatchConfidence, RowStatus
 from apps.imports.serializers import (
     ImportBatchSerializer,
     ImportRowOverrideSerializer,
     ImportRowSerializer,
+    ImportUploadSerializer,
 )
 from apps.imports.sync import (
     ImportRowNotActionable,
     approve_row,
     override_row,
     reject_row,
+    run_import,
 )
+
+# Cap the synchronous upload's content size (slice 6, DECISIONS 2026-05-29). This bounds the
+# inline import's PARSE/PROCESS time and rejects an oversized file after receipt -- it does NOT
+# bound receive-side memory: the parser has already buffered the whole body by the time create()
+# runs, so a true receive guard would be a front-proxy body limit. A full personal DS export is a
+# few thousand rows / well under a MB, so 10 MB is generous headroom. The file part is exempt from
+# DATA_UPLOAD_MAX_MEMORY_SIZE (that governs non-file form fields). NOTE: this cap must stay BELOW
+# the frontend's Next proxy buffer (experimental.proxyClientMaxBodySize, currently 20 MB in
+# next.config.ts) so the proxy never silently truncates a file this endpoint would accept -- the
+# proxy forwards an over-buffer body as a truncated prefix with no error (Codex review 2026-05-30).
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+
+# Bound the synchronous import by ROW COUNT, not just bytes (Codex review 2026-05-30). The byte
+# cap doesn't bound the per-row DB work / request duration, and run_import runs inline in the
+# request, so a pathologically large export could outlast a worker/proxy timeout and leave a
+# stuck PROCESSING batch. A real personal collection is a few thousand rows; 50k is well above
+# any plausible collection (so it never rejects a legitimate import) while keeping the bound
+# deterministic. Enforced at the HTTP boundary only -- the management command imports a trusted
+# local file and is uncapped. Counted via newlines (a cheap upper bound: lines >= data rows).
+MAX_UPLOAD_ROWS = 50_000
 
 # The "needs a human" set is exactly the still-PENDING rows (== ImportRow.needs_review): a
 # pending row is one the auto-path couldn't finish — a sub-EXACT match, a freshness-gated EXACT
@@ -49,19 +74,72 @@ def _with_row_counts(batches: QuerySet[ImportBatch]) -> QuerySet[ImportBatch]:
 @extend_schema_view(
     list=extend_schema(summary="List import batches with per-status row counts"),
     retrieve=extend_schema(summary="Retrieve one import batch"),
+    create=extend_schema(
+        request=ImportUploadSerializer,
+        responses={201: ImportBatchSerializer, 400: OpenApiTypes.OBJECT},
+        summary="Upload a Dragon Shield CSV → run the import",
+    ),
 )
 class ImportBatchViewSet(viewsets.ReadOnlyModelViewSet[ImportBatch]):
-    """Import history: list/retrieve batches with derived per-status row counts. Read-only —
-    batches are created by ``run_import`` (the ``import_dragon_shield`` command); the review
-    surface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly."""
+    """Import history + upload. List/retrieve batches with derived per-status row counts, and
+    POST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import (slice 6). The review
+    surface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly. Defining
+    ``create`` makes the router bind POST on the collection route (no separate mixin needed)."""
 
     serializer_class = ImportBatchSerializer
+    # Upload is multipart; list/retrieve are GET (no body), so a viewset-wide MultiPartParser is
+    # harmless for them and lets drf-spectacular emit multipart/form-data for create.
+    parser_classes = [parsers.MultiPartParser]
 
     def get_queryset(self) -> QuerySet[ImportBatch]:
         # Explicit order_by, not just Meta.ordering: the count annotations add a GROUP BY, which
         # flips QuerySet.ordered to False (Meta ordering still applies in SQL, but the paginator
         # only trusts an explicit order_by) — without it DRF emits UnorderedObjectListWarning.
         return _with_row_counts(ImportBatch.objects.all()).order_by("-created_at", "-id")
+
+    def get_serializer_class(self) -> type[BaseSerializer[Any]]:
+        if self.action == "create":
+            return ImportUploadSerializer
+        return ImportBatchSerializer
+
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Upload a Dragon Shield CSV and run the import synchronously (DECISIONS 2026-05-29).
+
+        Decode the file as utf-8-sig (mirroring the ``import_dragon_shield`` command — Excel
+        "CSV UTF-8" saves prepend a BOM), hand the text to ``run_import``, and return the created
+        batch with its derived row counts. A file that isn't a recognized DS export is **not** a
+        request error: ``run_import`` records a FAILED ``ImportBatch`` (a durable history row), so
+        this returns **201 with status=failed** and the frontend branches on ``batch.status``.
+        Only a missing / oversized / non-text file is a **400**. Synchronous (not Celery) is fine
+        at single-user few-thousand-row scale; ``MAX_UPLOAD_BYTES`` bounds the request time, and
+        ``run_import`` returns a JSON-native result so a future Celery promotion is a drop-in."""
+        input_serializer = ImportUploadSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        upload = input_serializer.validated_data["file"]
+        if upload.size > MAX_UPLOAD_BYTES:
+            mb = MAX_UPLOAD_BYTES // (1024 * 1024)
+            raise ValidationError({"file": [f"file exceeds the {mb} MB upload limit"]})
+        try:
+            content = upload.read().decode("utf-8-sig")
+        except UnicodeDecodeError as exc:
+            raise ValidationError({"file": ["file must be UTF-8-encoded text"]}) from exc
+        # Reject by row count before the inline import runs, so a pathologically large file can't
+        # outlast the request worker mid-import (newline count is a cheap upper bound on rows).
+        if content.count("\n") > MAX_UPLOAD_ROWS:
+            raise ValidationError(
+                {"file": [f"file has too many rows (limit {MAX_UPLOAD_ROWS:,})"]}
+            )
+        # original_filename is CharField(max_length=255); a crafted multipart filename can
+        # exceed that and (on Postgres) would raise DataError inside run_import's first write,
+        # BEFORE the FAILED-batch audit row is created -- an unhandled 500 that breaks the
+        # "durable batch record" contract. Truncate at the import boundary. (sqlite silently
+        # ignores the column bound, so we truncate in app code rather than rely on the DB.)
+        filename = upload.name[:255]
+        result = run_import(content, filename=filename)
+        # The serializer reads the annotated count attributes, so re-fetch through the same
+        # annotation rather than serializing the bare run_import batch instance.
+        batch = _with_row_counts(ImportBatch.objects.filter(pk=result.batch_id)).get()
+        return Response(ImportBatchSerializer(batch).data, status=status.HTTP_201_CREATED)
 
 
 @extend_schema_view(

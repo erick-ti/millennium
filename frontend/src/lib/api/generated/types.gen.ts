@@ -217,6 +217,19 @@ export type ImportRowOverrideRequest = {
 export type ImportRowStatusEnum = 'pending' | 'materialized' | 'skipped' | 'error';
 
 /**
+ * Input for the batch upload (slice 6): a Dragon Shield CSV file. ``FileField`` makes a
+ * missing/empty file a clean 400, and (with ``MultiPartParser`` on the viewset) drives
+ * drf-spectacular to emit a ``multipart/form-data`` request body in the schema/TS client.
+ * The view decodes the file as utf-8-sig and hands the text to ``run_import``.
+ */
+export type ImportUploadRequest = {
+    /**
+     * A Dragon Shield CSV export.
+     */
+    file: Blob | File;
+};
+
+/**
  * * `en` - English
  * * `fr` - French
  * * `de` - German
@@ -668,6 +681,10 @@ export type CardsCardsListData = {
          * A page number within the paginated result set.
          */
         page?: number;
+        /**
+         * Case-insensitive substring match on card name.
+         */
+        search?: string;
     };
     url: '/api/cards/cards/';
 };
@@ -824,6 +841,20 @@ export type CollectionLotsRetrieveResponses = {
 
 export type CollectionLotsRetrieveResponse = CollectionLotsRetrieveResponses[keyof CollectionLotsRetrieveResponses];
 
+export type CsrfRetrieveData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/csrf/';
+};
+
+export type CsrfRetrieveResponses = {
+    /**
+     * csrftoken cookie set
+     */
+    200: unknown;
+};
+
 export type HealthRetrieveData = {
     body?: never;
     path?: never;
@@ -855,6 +886,27 @@ export type ImportsBatchesListResponses = {
 };
 
 export type ImportsBatchesListResponse = ImportsBatchesListResponses[keyof ImportsBatchesListResponses];
+
+export type ImportsBatchesCreateData = {
+    body: ImportUploadRequest;
+    path?: never;
+    query?: never;
+    url: '/api/imports/batches/';
+};
+
+export type ImportsBatchesCreateErrors = {
+    400: {
+        [key: string]: unknown;
+    };
+};
+
+export type ImportsBatchesCreateError = ImportsBatchesCreateErrors[keyof ImportsBatchesCreateErrors];
+
+export type ImportsBatchesCreateResponses = {
+    201: ImportBatch;
+};
+
+export type ImportsBatchesCreateResponse = ImportsBatchesCreateResponses[keyof ImportsBatchesCreateResponses];
 
 export type ImportsBatchesRetrieveData = {
     body?: never;

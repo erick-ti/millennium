@@ -3,8 +3,8 @@
 import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { cardsCardsList, cardsCardsRetrieve, cardsPrintingsList, cardsPrintingsRetrieve, collectionItemsList, collectionItemsRetrieve, collectionLotsList, collectionLotsRetrieve, healthRetrieve, importsBatchesList, importsBatchesRetrieve, importsRowsApproveCreate, importsRowsList, importsRowsOverrideCreate, importsRowsRejectCreate, importsRowsRetrieve, type Options, portfolioPortfoliosList, portfolioPortfoliosRetrieve, portfolioSnapshotsList, portfolioSnapshotsRetrieve, pricingSnapshotsLatestRetrieve, pricingSnapshotsList, pricingSnapshotsRetrieve } from '../sdk.gen';
-import type { CardsCardsListData, CardsCardsListResponse, CardsCardsRetrieveData, CardsCardsRetrieveResponse, CardsPrintingsListData, CardsPrintingsListResponse, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponse, CollectionItemsListData, CollectionItemsListResponse, CollectionItemsRetrieveData, CollectionItemsRetrieveResponse, CollectionLotsListData, CollectionLotsListResponse, CollectionLotsRetrieveData, CollectionLotsRetrieveResponse, HealthRetrieveData, ImportsBatchesListData, ImportsBatchesListResponse, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponse, ImportsRowsApproveCreateData, ImportsRowsApproveCreateError, ImportsRowsApproveCreateResponse, ImportsRowsListData, ImportsRowsListResponse, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateError, ImportsRowsOverrideCreateResponse, ImportsRowsRejectCreateData, ImportsRowsRejectCreateError, ImportsRowsRejectCreateResponse, ImportsRowsRetrieveData, ImportsRowsRetrieveResponse, PortfolioPortfoliosListData, PortfolioPortfoliosListResponse, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponse, PortfolioSnapshotsListData, PortfolioSnapshotsListResponse, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponse, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveError, PricingSnapshotsLatestRetrieveResponse, PricingSnapshotsListData, PricingSnapshotsListResponse, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponse } from '../types.gen';
+import { cardsCardsList, cardsCardsRetrieve, cardsPrintingsList, cardsPrintingsRetrieve, collectionItemsList, collectionItemsRetrieve, collectionLotsList, collectionLotsRetrieve, csrfRetrieve, healthRetrieve, importsBatchesCreate, importsBatchesList, importsBatchesRetrieve, importsRowsApproveCreate, importsRowsList, importsRowsOverrideCreate, importsRowsRejectCreate, importsRowsRetrieve, type Options, portfolioPortfoliosList, portfolioPortfoliosRetrieve, portfolioSnapshotsList, portfolioSnapshotsRetrieve, pricingSnapshotsLatestRetrieve, pricingSnapshotsList, pricingSnapshotsRetrieve } from '../sdk.gen';
+import type { CardsCardsListData, CardsCardsListResponse, CardsCardsRetrieveData, CardsCardsRetrieveResponse, CardsPrintingsListData, CardsPrintingsListResponse, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponse, CollectionItemsListData, CollectionItemsListResponse, CollectionItemsRetrieveData, CollectionItemsRetrieveResponse, CollectionLotsListData, CollectionLotsListResponse, CollectionLotsRetrieveData, CollectionLotsRetrieveResponse, CsrfRetrieveData, HealthRetrieveData, ImportsBatchesCreateData, ImportsBatchesCreateError, ImportsBatchesCreateResponse, ImportsBatchesListData, ImportsBatchesListResponse, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponse, ImportsRowsApproveCreateData, ImportsRowsApproveCreateError, ImportsRowsApproveCreateResponse, ImportsRowsListData, ImportsRowsListResponse, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateError, ImportsRowsOverrideCreateResponse, ImportsRowsRejectCreateData, ImportsRowsRejectCreateError, ImportsRowsRejectCreateResponse, ImportsRowsRetrieveData, ImportsRowsRetrieveResponse, PortfolioPortfoliosListData, PortfolioPortfoliosListResponse, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponse, PortfolioSnapshotsListData, PortfolioSnapshotsListResponse, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponse, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveError, PricingSnapshotsLatestRetrieveResponse, PricingSnapshotsListData, PricingSnapshotsListResponse, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -42,11 +42,13 @@ const createQueryKey = <TOptions extends Options>(id: string, options?: TOptions
 export const cardsCardsListQueryKey = (options?: Options<CardsCardsListData>) => createQueryKey('cardsCardsList', options);
 
 /**
- * List cards
+ * List / search cards
  *
- * Read-only catalog of card identities. List returns ``{id, passcode, name}``;
- * retrieve nests printings (a card has at most a handful — DECISIONS 2026-05-18)
- * so slice 4's card-detail view loads in one round-trip.
+ * Read-only catalog of card identities. List returns ``{id, passcode, name}``
+ * and is ``?search=``-filterable by name (the slice-6 import-review override picker
+ * finds a card by name → lists its printings); retrieve nests printings (a card has
+ * at most a handful — DECISIONS 2026-05-18) so slice 4's card-detail view loads in
+ * one round-trip.
  */
 export const cardsCardsListOptions = (options?: Options<CardsCardsListData>) => queryOptions<CardsCardsListResponse, DefaultError, CardsCardsListResponse, ReturnType<typeof cardsCardsListQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -93,11 +95,13 @@ const createInfiniteParams = <K extends Pick<QueryKey<Options>[0], 'body' | 'hea
 export const cardsCardsListInfiniteQueryKey = (options?: Options<CardsCardsListData>): QueryKey<Options<CardsCardsListData>> => createQueryKey('cardsCardsList', options, true);
 
 /**
- * List cards
+ * List / search cards
  *
- * Read-only catalog of card identities. List returns ``{id, passcode, name}``;
- * retrieve nests printings (a card has at most a handful — DECISIONS 2026-05-18)
- * so slice 4's card-detail view loads in one round-trip.
+ * Read-only catalog of card identities. List returns ``{id, passcode, name}``
+ * and is ``?search=``-filterable by name (the slice-6 import-review override picker
+ * finds a card by name → lists its printings); retrieve nests printings (a card has
+ * at most a handful — DECISIONS 2026-05-18) so slice 4's card-detail view loads in
+ * one round-trip.
  */
 export const cardsCardsListInfiniteOptions = (options?: Options<CardsCardsListData>) => infiniteQueryOptions<CardsCardsListResponse, DefaultError, InfiniteData<CardsCardsListResponse>, QueryKey<Options<CardsCardsListData>>, number | Pick<QueryKey<Options<CardsCardsListData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
 // @ts-ignore
@@ -126,9 +130,11 @@ export const cardsCardsRetrieveQueryKey = (options: Options<CardsCardsRetrieveDa
 /**
  * Retrieve one card (with printings inline)
  *
- * Read-only catalog of card identities. List returns ``{id, passcode, name}``;
- * retrieve nests printings (a card has at most a handful — DECISIONS 2026-05-18)
- * so slice 4's card-detail view loads in one round-trip.
+ * Read-only catalog of card identities. List returns ``{id, passcode, name}``
+ * and is ``?search=``-filterable by name (the slice-6 import-review override picker
+ * finds a card by name → lists its printings); retrieve nests printings (a card has
+ * at most a handful — DECISIONS 2026-05-18) so slice 4's card-detail view loads in
+ * one round-trip.
  */
 export const cardsCardsRetrieveOptions = (options: Options<CardsCardsRetrieveData>) => queryOptions<CardsCardsRetrieveResponse, DefaultError, CardsCardsRetrieveResponse, ReturnType<typeof cardsCardsRetrieveQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -371,6 +377,35 @@ export const collectionLotsRetrieveOptions = (options: Options<CollectionLotsRet
     queryKey: collectionLotsRetrieveQueryKey(options)
 });
 
+export const csrfRetrieveQueryKey = (options?: Options<CsrfRetrieveData>) => createQueryKey('csrfRetrieve', options);
+
+/**
+ * Seed the CSRF cookie
+ *
+ * Seed the ``csrftoken`` cookie (slice 6, DECISIONS 2026-05-29).
+ *
+ * Django sets the cookie only when a request *uses* the token (``get_token``);
+ * with ``CSRF_USE_SESSIONS=False`` and an all-JSON API that never renders a
+ * form, nothing here was setting it — so the SPA had no token to send on its
+ * first POST. The frontend GETs this on load; ``CsrfViewMiddleware`` then writes
+ * the (non-HttpOnly) cookie, and ``proxy.ts`` copies it into ``X-CSRFToken`` on
+ * unsafe requests. ``AllowAny`` + no auth: a not-yet-signed-in browser must be
+ * able to seed the cookie, and a CSRF cookie leaks nothing (it's a per-session
+ * secret the client already holds). Safe method → no CSRF *enforcement* here.
+ */
+export const csrfRetrieveOptions = (options?: Options<CsrfRetrieveData>) => queryOptions<unknown, DefaultError, unknown, ReturnType<typeof csrfRetrieveQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await csrfRetrieve({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: csrfRetrieveQueryKey(options)
+});
+
 export const healthRetrieveQueryKey = (options?: Options<HealthRetrieveData>) => createQueryKey('healthRetrieve', options);
 
 /**
@@ -396,9 +431,10 @@ export const importsBatchesListQueryKey = (options?: Options<ImportsBatchesListD
 /**
  * List import batches with per-status row counts
  *
- * Import history: list/retrieve batches with derived per-status row counts. Read-only —
- * batches are created by ``run_import`` (the ``import_dragon_shield`` command); the review
- * surface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly.
+ * Import history + upload. List/retrieve batches with derived per-status row counts, and
+ * POST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import (slice 6). The review
+ * surface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly. Defining
+ * ``create`` makes the router bind POST on the collection route (no separate mixin needed).
  */
 export const importsBatchesListOptions = (options?: Options<ImportsBatchesListData>) => queryOptions<ImportsBatchesListResponse, DefaultError, ImportsBatchesListResponse, ReturnType<typeof importsBatchesListQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -418,9 +454,10 @@ export const importsBatchesListInfiniteQueryKey = (options?: Options<ImportsBatc
 /**
  * List import batches with per-status row counts
  *
- * Import history: list/retrieve batches with derived per-status row counts. Read-only —
- * batches are created by ``run_import`` (the ``import_dragon_shield`` command); the review
- * surface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly.
+ * Import history + upload. List/retrieve batches with derived per-status row counts, and
+ * POST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import (slice 6). The review
+ * surface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly. Defining
+ * ``create`` makes the router bind POST on the collection route (no separate mixin needed).
  */
 export const importsBatchesListInfiniteOptions = (options?: Options<ImportsBatchesListData>) => infiniteQueryOptions<ImportsBatchesListResponse, DefaultError, InfiniteData<ImportsBatchesListResponse>, QueryKey<Options<ImportsBatchesListData>>, number | Pick<QueryKey<Options<ImportsBatchesListData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
 // @ts-ignore
@@ -444,14 +481,43 @@ export const importsBatchesListInfiniteOptions = (options?: Options<ImportsBatch
     queryKey: importsBatchesListInfiniteQueryKey(options)
 });
 
+/**
+ * Upload a Dragon Shield CSV → run the import
+ *
+ * Upload a Dragon Shield CSV and run the import synchronously (DECISIONS 2026-05-29).
+ *
+ * Decode the file as utf-8-sig (mirroring the ``import_dragon_shield`` command — Excel
+ * "CSV UTF-8" saves prepend a BOM), hand the text to ``run_import``, and return the created
+ * batch with its derived row counts. A file that isn't a recognized DS export is **not** a
+ * request error: ``run_import`` records a FAILED ``ImportBatch`` (a durable history row), so
+ * this returns **201 with status=failed** and the frontend branches on ``batch.status``.
+ * Only a missing / oversized / non-text file is a **400**. Synchronous (not Celery) is fine
+ * at single-user few-thousand-row scale; ``MAX_UPLOAD_BYTES`` bounds the request time, and
+ * ``run_import`` returns a JSON-native result so a future Celery promotion is a drop-in.
+ */
+export const importsBatchesCreateMutation = (options?: Partial<Options<ImportsBatchesCreateData>>): UseMutationOptions<ImportsBatchesCreateResponse, ImportsBatchesCreateError, Options<ImportsBatchesCreateData>> => {
+    const mutationOptions: UseMutationOptions<ImportsBatchesCreateResponse, ImportsBatchesCreateError, Options<ImportsBatchesCreateData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await importsBatchesCreate({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
 export const importsBatchesRetrieveQueryKey = (options: Options<ImportsBatchesRetrieveData>) => createQueryKey('importsBatchesRetrieve', options);
 
 /**
  * Retrieve one import batch
  *
- * Import history: list/retrieve batches with derived per-status row counts. Read-only —
- * batches are created by ``run_import`` (the ``import_dragon_shield`` command); the review
- * surface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly.
+ * Import history + upload. List/retrieve batches with derived per-status row counts, and
+ * POST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import (slice 6). The review
+ * surface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly. Defining
+ * ``create`` makes the router bind POST on the collection route (no separate mixin needed).
  */
 export const importsBatchesRetrieveOptions = (options: Options<ImportsBatchesRetrieveData>) => queryOptions<ImportsBatchesRetrieveResponse, DefaultError, ImportsBatchesRetrieveResponse, ReturnType<typeof importsBatchesRetrieveQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {

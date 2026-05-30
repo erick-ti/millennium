@@ -6,6 +6,18 @@ import type { NextConfig } from "next";
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
 const nextConfig: NextConfig = {
+  // With proxy.ts present on /api/*, Next 16 buffers each proxied request body in memory up
+  // to `proxyClientMaxBodySize` (default 10MB) and — per the Next docs — SILENTLY forwards
+  // only the truncated prefix on overflow (no error). The import upload's backend cap
+  // (MAX_UPLOAD_BYTES = 10MB, apps/imports/views.py) equals that default, so a near-10MB CSV
+  // plus multipart overhead could be truncated before Django sees it → a malformed/partial
+  // import instead of a clean 400. Set the proxy buffer comfortably ABOVE the backend cap so
+  // the backend's size check is authoritative: any file ≤10MB arrives intact (clean accept or
+  // 400), and anything large enough to truncate here is still >10MB → backend 400. Keep this
+  // > MAX_UPLOAD_BYTES + multipart overhead if either cap changes. (Codex review 2026-05-30.)
+  experimental: {
+    proxyClientMaxBodySize: "20mb",
+  },
   // Django's APPEND_SLASH=True (default) canonicalizes /api/foo → /api/foo/.
   // With Next's default trailingSlash:false the two would round-trip forever
   // (Next strips, Django 308 adds, browser refetches, Next strips, …). We

@@ -13,27 +13,24 @@
  * show every API surface change (the user-settled schema-acquisition strategy).
  *
  * ─────────────────────────────────────────────────────────────────────────
- * SLICE 2 SCOPE: READ-ONLY operations only.
+ * WRITES ARE LIVE (slice 6) — but the barrel is still an explicit allowlist.
  * ─────────────────────────────────────────────────────────────────────────
  *
- * The three import-review write helpers — `importsRowsApproveCreate`,
- * `importsRowsOverrideCreate`, `importsRowsRejectCreate` — and their
- * TanStack Query mutation variants (`*Mutation`) require the X-CSRFToken
- * injection layer that slice 6 will wire into `frontend/src/proxy.ts`
- * (DECISIONS slice 2 fork 4). They are deliberately NOT re-exported here
- * because calling any of them today would 403 against Django's CSRF check
- * (Codex slice 2 round 6, 2026-05-27).
+ * Slice 6 wired `X-CSRFToken` injection in `frontend/src/proxy.ts`, so the
+ * import write helpers (`importsRowsApproveCreate` / `OverrideCreate` /
+ * `RejectCreate`, `importsBatchesCreate`) + their `*Mutation` variants are now
+ * re-exported and safe to call through the same-origin proxy.
  *
- * If a consumer genuinely needs a write helper before slice 6, import
- * directly from `@/lib/api/generated/sdk.gen` — the explicit reach into the
- * gen tree makes the unsafe-without-CSRF status visible at the call site.
- *
- * When slice 6 wires CSRF, REVERT this file to:
- *
- *     export * from "./generated";
- *     export { client } from "./generated/client.gen";
- *
- * That's the one-commit unwiring; remove this comment block too.
+ * We deliberately do NOT collapse this to `export * from "./generated"` (the
+ * slice-2 comment's suggested one-line revert): hey-api still generates the
+ * `*InfiniteOptions` / `*InfiniteQueryKey` helpers with TanStack v5's required
+ * `initialPageParam` / `getNextPageParam` suppressed by `// @ts-ignore`, so they
+ * compile but can't paginate past page 1 (Codex slice 2 round 7). They remain
+ * filtered out below until a project-owned wrapper derives `getNextPageParam`
+ * from DRF's `next` field — and the views ship page-number navigation, so that
+ * wrapper isn't needed yet. The allowlist is the durable shape; adding a new
+ * read endpoint means adding its name here (a missing name is a loud TS error
+ * at the call site, not a silent gap).
  *
  * ─────────────────────────────────────────────────────────────────────────
  *
@@ -41,17 +38,13 @@
  * implementation detail of the codegen target.
  */
 
-// ─── Types (safe; typing doesn't fire requests, including types for writes
-//      so a consumer reaching into ./generated/sdk.gen for slice 6 prep has
-//      everything they need) ─────────────────────────────────────────────
+// ─── Types (safe; typing doesn't fire requests) ───────────────────────────
 export type * from "./generated/types.gen";
 
-// ─── SDK functions: READ operations only ──────────────────────────────────
-// Writes (`importsRowsApproveCreate`, `importsRowsOverrideCreate`,
-// `importsRowsRejectCreate`, plus the `Options` shape they share) are
-// deliberately omitted; same posture for the TanStack mutation helpers
-// below. `type Options` is shared between read and write SDK functions and
-// is type-only, so it's safe to re-export here.
+// ─── SDK functions: reads + the slice-6 import writes ──────────────────────
+// `csrfRetrieve` seeds the CSRF cookie (called once on app load). The four
+// import write fns (`importsBatchesCreate` upload + approve/override/reject)
+// are now CSRF-safe via `proxy.ts`. `type Options` is shared and type-only.
 export {
   cardsCardsList,
   cardsCardsRetrieve,
@@ -61,10 +54,15 @@ export {
   collectionItemsRetrieve,
   collectionLotsList,
   collectionLotsRetrieve,
+  csrfRetrieve,
   healthRetrieve,
+  importsBatchesCreate,
   importsBatchesList,
   importsBatchesRetrieve,
+  importsRowsApproveCreate,
   importsRowsList,
+  importsRowsOverrideCreate,
+  importsRowsRejectCreate,
   importsRowsRetrieve,
   type Options,
   portfolioPortfoliosList,
@@ -76,26 +74,12 @@ export {
   pricingSnapshotsRetrieve,
 } from "./generated/sdk.gen";
 
-// ─── TanStack Query helpers: READ operations, page-number form only ───────
-// Each read SDK function generates {Name}Options + {Name}QueryKey (the
-// queryOptions form for `useQuery`) — page-number pagination via
-// `options.query.page`, which is what DRF's PageNumberPagination serves.
-//
-// The {Name}InfiniteOptions + {Name}InfiniteQueryKey variants (for
-// `useInfiniteQuery`) are deliberately NOT re-exported (Codex slice 2
-// round 7, 2026-05-27): hey-api generates them with only `queryFn`/`queryKey`
-// and suppresses TanStack v5's REQUIRED `initialPageParam` + `getNextPageParam`
-// with `// @ts-ignore`. They compile at the call site (the suppression is
-// inside the generated file, and `infiniteQueryOptions<T>()` returns a
-// "complete"-typed object), then can't paginate past page 1 at runtime —
-// `getNextPageParam` is undefined so `hasNextPage` is always false. A UI that
-// genuinely wants infinite scroll must add a project-owned wrapper that derives
-// `getNextPageParam` from DRF's `next` field; that's a slice-3+ UX decision
-// (page-number navigation via the regular *Options helpers + `placeholderData:
-// keepPreviousData` is the likely TanStack-Table pattern, not infinite scroll).
-//
-// Mutation helpers (`*Mutation`) for the three import writes are also
-// deliberately omitted — same CSRF reason as the SDK writes above.
+// ─── TanStack Query helpers ────────────────────────────────────────────────
+// Read `*Options` + `*QueryKey` (page-number form — `options.query.page`, what
+// DRF's PageNumberPagination serves) and the slice-6 import write `*Mutation`
+// helpers. The `*InfiniteOptions` / `*InfiniteQueryKey` variants stay omitted
+// (broken past page 1 — see the header note); add a project-owned wrapper if
+// infinite scroll is ever wanted.
 export {
   cardsCardsListOptions,
   cardsCardsListQueryKey,
@@ -113,14 +97,20 @@ export {
   collectionLotsListQueryKey,
   collectionLotsRetrieveOptions,
   collectionLotsRetrieveQueryKey,
+  csrfRetrieveOptions,
+  csrfRetrieveQueryKey,
   healthRetrieveOptions,
   healthRetrieveQueryKey,
+  importsBatchesCreateMutation,
   importsBatchesListOptions,
   importsBatchesListQueryKey,
   importsBatchesRetrieveOptions,
   importsBatchesRetrieveQueryKey,
+  importsRowsApproveCreateMutation,
   importsRowsListOptions,
   importsRowsListQueryKey,
+  importsRowsOverrideCreateMutation,
+  importsRowsRejectCreateMutation,
   importsRowsRetrieveOptions,
   importsRowsRetrieveQueryKey,
   portfolioPortfoliosListOptions,
