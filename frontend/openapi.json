@@ -6,6 +6,104 @@
         "description": "Yu-Gi-Oh collection portfolio tracker"
     },
     "paths": {
+        "/api/auth/login/": {
+            "post": {
+                "operationId": "auth_login_create",
+                "description": "Establish a session for valid credentials (Phase 5 auth slice).\n\n``AllowAny`` + no authenticators so an anonymous browser can reach it (the\n``HealthView``/``CsrfView`` precedent — every other endpoint stays\n``IsAuthenticated``). The credential check + status choice live in\n``LoginSerializer`` (a failure is a generic 400, see its docstring).\n\n``csrf_protect`` re-arms CSRF on this POST: DRF marks every ``APIView``\n``csrf_exempt`` because CSRF normally runs inside\n``SessionAuthentication.enforce_csrf`` — which an *anonymous* request never\nreaches (it returns before the check). So without this decorator the login\nPOST would be silently CSRF-naked. The ``csrftoken`` is already seeded by\n``GET /api/csrf/`` on app load and echoed via ``proxy.ts``'s ``X-CSRFToken``\n(slice 6), so this composes with zero new frontend plumbing.",
+                "summary": "Log in (establish a session cookie)",
+                "tags": [
+                    "auth"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LoginRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LoginRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LoginRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/User"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Missing fields or invalid credentials"
+                    },
+                    "429": {
+                        "description": "Too many login attempts — retry later"
+                    }
+                }
+            }
+        },
+        "/api/auth/logout/": {
+            "post": {
+                "operationId": "auth_logout_create",
+                "description": "Clear the session (Phase 5 auth slice).\n\nPOST (an unsafe method) deliberately, so it travels the *authenticated* CSRF\npath: the caller is authenticated, so ``SessionAuthentication.enforce_csrf``\nruns and ``proxy.ts`` already injects ``X-CSRFToken`` — no ``csrf_protect``\nneeded here (unlike login). Inherits the global ``IsAuthenticated``, so an\nanonymous logout 403s like everything else. Returns 200 with a body (not 204)\nso the generated TS client has a typed, non-void response to branch on.",
+                "summary": "Log out (clear the session)",
+                "tags": [
+                    "auth"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Logged out"
+                    }
+                }
+            }
+        },
+        "/api/auth/me/": {
+            "get": {
+                "operationId": "auth_me_retrieve",
+                "description": "The current authenticated user (Phase 5 auth slice).\n\nInherits the global ``IsAuthenticated``, so an anonymous request → **403**\n(DRF's session-auth posture: ``authenticate_header`` is ``None``, so a 401\ndowngrades to 403). The SPA's ``AuthProvider`` reads that 403 as \"not signed\nin\" — it is the expected anonymous signal, not an error to surface.",
+                "summary": "Current authenticated user",
+                "tags": [
+                    "auth"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/User"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/cards/cards/": {
             "get": {
                 "operationId": "cards_cards_list",
@@ -1721,6 +1819,26 @@
                 "type": "string",
                 "description": "* `en` - English\n* `fr` - French\n* `de` - German\n* `it` - Italian\n* `es` - Spanish\n* `pt` - Portuguese\n* `ja` - Japanese\n* `ko` - Korean"
             },
+            "LoginRequest": {
+                "type": "object",
+                "description": "Validate credentials and resolve the user (Phase 5 auth slice).\n\nThe credential check lives here (not the view) so a failure raises\n``ValidationError`` → **400**, not 401: the ``LoginView`` runs with\n``authentication_classes = []``, so DRF has no authenticator to mint a\n``WWW-Authenticate`` header and would *downgrade* an ``AuthenticationFailed``\n401 to 403 — colliding with the \"no session\" 403 the SPA treats as \"sign in\".\nA single generic message for both wrong-username and wrong-password avoids\nusername enumeration.",
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "minLength": 1
+                    },
+                    "password": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "minLength": 1
+                    }
+                },
+                "required": [
+                    "password",
+                    "username"
+                ]
+            },
             "MatchConfidenceEnum": {
                 "enum": [
                     "exact",
@@ -2259,6 +2377,32 @@
                 ],
                 "type": "string",
                 "description": "* `dragon_shield` - Dragon Shield"
+            },
+            "User": {
+                "type": "object",
+                "description": "The current user, least-disclosure (Phase 5 auth slice).\n\nOnly ``id``/``username``/``email`` — never ``is_staff``/``is_superuser``/\n``last_login``/permissions. The frontend nav shows the username and there are\nno admin affordances this slice; the schema is treated as recon material\n(Invariant 7 posture), so we expose the minimum the SPA needs.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "username": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "readOnly": true,
+                        "title": "Email address"
+                    }
+                },
+                "required": [
+                    "email",
+                    "id",
+                    "username"
+                ]
             }
         },
         "securitySchemes": {

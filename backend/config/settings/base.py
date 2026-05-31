@@ -169,6 +169,25 @@ REST_FRAMEWORK = {
     # environment-sensitive value (Invariant 2) — a framework default, safe in base.
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 100,
+    # Login is the one anonymous credential surface (every other endpoint is
+    # IsAuthenticated), so it's the only brute-force target. LoginView applies a
+    # ScopedRateThrottle("login"); the rate is app config, not an env secret
+    # (Invariant 2 — like PAGE_SIZE), and needs a real cache (prod/dev: Redis;
+    # test: LocMem). This is a best-effort SPEED BUMP, not the security boundary
+    # (the password + AUTH_PASSWORD_VALIDATORS are): DRF's cache throttle is
+    # non-atomic (get→check→set), so a concurrent burst can exceed the window.
+    # Accepted for a single-user app — atomic rate-limiting / account lockout is a
+    # deliberate non-goal (Codex 2026-05-30); revisit only if it goes multi-user.
+    "DEFAULT_THROTTLE_RATES": {"login": "5/min"},
+    # NUM_PROXIES=0 makes DRF derive the throttle identity from REMOTE_ADDR and
+    # IGNORE the client-supplied X-Forwarded-For. Without it, DRF's default
+    # (NUM_PROXIES=None) keys on the *entire XFF header* (throttling.py get_ident),
+    # so a client rotating X-Forwarded-For gets a fresh bucket per request and the
+    # rate limit never bites (Codex 2026-05-30). With it, the key is the connecting
+    # proxy's IP — one global, unspoofable bucket, which is exactly right for a
+    # single-user app: it caps *total* login attempts/min (CSRF can't stop a direct
+    # client). The edge proxy should also strip/overwrite inbound XFF (deploy note).
+    "NUM_PROXIES": 0,
 }
 
 SPECTACULAR_SETTINGS = {

@@ -41,11 +41,15 @@
 // ─── Types (safe; typing doesn't fire requests) ───────────────────────────
 export type * from "./generated/types.gen";
 
-// ─── SDK functions: reads + the slice-6 import writes ──────────────────────
+// ─── SDK functions: reads + the slice-6 import writes + auth (slice: login) ──
 // `csrfRetrieve` seeds the CSRF cookie (called once on app load). The four
 // import write fns (`importsBatchesCreate` upload + approve/override/reject)
-// are now CSRF-safe via `proxy.ts`. `type Options` is shared and type-only.
+// and the auth writes (`authLoginCreate` / `authLogoutCreate`) are CSRF-safe
+// via `proxy.ts`. The `/api/auth/me` session probe is consumed via its
+// `*Options` helper below, not the bare fn. `type Options` is shared/type-only.
 export {
+  authLoginCreate,
+  authLogoutCreate,
   cardsCardsList,
   cardsCardsRetrieve,
   cardsPrintingsList,
@@ -81,6 +85,8 @@ export {
 // (broken past page 1 — see the header note); add a project-owned wrapper if
 // infinite scroll is ever wanted.
 export {
+  authMeRetrieveOptions,
+  authMeRetrieveQueryKey,
   cardsCardsListOptions,
   cardsCardsListQueryKey,
   cardsCardsRetrieveOptions,
