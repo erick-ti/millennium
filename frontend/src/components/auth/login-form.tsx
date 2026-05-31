@@ -1,0 +1,135 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { authLoginCreate, authMeRetrieveQueryKey } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/components/auth-provider";
+import { seedCsrf } from "@/lib/csrf";
+
+/**
+ * Only a same-site relative path is a safe post-login destination (open-redirect
+ * guard). Must reject anything the WHATWG URL parser would resolve off-origin: a
+ * scheme-relative `//host`, AND a backslash variant `/\host` or `/\\host` (the
+ * URL parser treats `\` like `/` in the authority, so `new URL("/\\evil.com",
+ * origin)` resolves to `https://evil.com`). Accept only a leading `/` NOT
+ * followed by another `/` or `\`.
+ */
+function safeNext(next: string | null): string {
+  if (next && /^\/(?![/\\])/.test(next)) return next;
+  return "/";
+}
+
+// Use the bare SDK fn (not the *Mutation helper) so we read response.status: a
+// 400 is bad credentials (shown inline), a 403 is a missing/stale CSRF cookie
+// (re-seed + retry). Login is AllowAny, so a 403 is never "no session".
+async function submitLogin(credentials: {
+  username: string;
+  password: string;
+}): Promise<void> {
+  const { data, response } = await authLoginCreate({ body: credentials });
+  if (data) return;
+  if (response?.status === 403) {
+    seedCsrf();
+    throw new Error("Your session check expired — please try again.");
+  }
+  if (response?.status === 400) {
+    throw new Error("Incorrect username or password.");
+  }
+  if (response?.status === 429) {
+    throw new Error("Too many sign-in attempts. Please wait a minute and try again.");
+  }
+  throw new Error(
+    response
+      ? `Sign-in failed (HTTP ${response.status}).`
+      : "Sign-in failed: could not reach the server.",
+  );
+}
+
+export function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const { isAuthenticated } = useAuth();
+  const next = safeNext(searchParams.get("next"));
+
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+
+  const mutation = useMutation({
+    mutationFn: submitLogin,
+    onSuccess: async () => {
+      // Refresh the session probe so the nav reflects the signed-in user, then go.
+      await queryClient.invalidateQueries({ queryKey: authMeRetrieveQueryKey() });
+      router.replace(next);
+    },
+  });
+
+  // Already signed in (e.g. navigated to /login manually, or just logged in) →
+  // bounce to the target. Navigation is a side effect, so it lives in an effect.
+  useEffect(() => {
+    if (isAuthenticated) router.replace(next);
+  }, [isAuthenticated, next, router]);
+
+  return (
+    <div className="mx-auto flex max-w-sm flex-col gap-6 px-6 py-16">
+      <div>
+        <h1 className="text-lg font-semibold tracking-tight text-foreground">
+          Sign in to Millennium
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Enter your account credentials to continue.
+        </p>
+      </div>
+
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          mutation.mutate({ username, password });
+        }}
+      >
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium text-foreground">Username</span>
+          <input
+            name="username"
+            type="text"
+            autoComplete="username"
+            autoFocus
+            required
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+            disabled={mutation.isPending}
+            className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium text-foreground">Password</span>
+          <input
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            disabled={mutation.isPending}
+            className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
+          />
+        </label>
+
+        <Button type="submit" disabled={mutation.isPending}>
+          {mutation.isPending ? "Signing in…" : "Sign in"}
+        </Button>
+
+        {mutation.isError ? (
+          <p role="alert" className="text-sm text-destructive">
+            {mutation.error.message}
+          </p>
+        ) : null}
+      </form>
+    </div>
+  );
+}

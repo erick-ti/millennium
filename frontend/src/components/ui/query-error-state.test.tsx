@@ -5,13 +5,13 @@ import { describe, expect, it, vi } from "vitest";
 import { QueryErrorState } from "./query-error-state";
 
 describe("QueryErrorState", () => {
-  it("renders the title + default not-signed-in copy and a working Retry", async () => {
+  it("renders the title + default unreachable/session-expired copy and a working Retry", async () => {
     const user = userEvent.setup();
     const onRetry = vi.fn();
     render(<QueryErrorState title="Couldn't load X." onRetry={onRetry} />);
 
     expect(screen.getByText("Couldn't load X.")).toBeInTheDocument();
-    expect(screen.getByText(/aren't signed in/i)).toBeInTheDocument();
+    expect(screen.getByText(/session expired/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /retry/i }));
     expect(onRetry).toHaveBeenCalledTimes(1);
@@ -49,6 +49,6 @@ describe("QueryErrorState", () => {
       />,
     );
     expect(screen.getByText("Something specific happened.")).toBeInTheDocument();
-    expect(screen.queryByText(/aren't signed in/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/session expired/i)).not.toBeInTheDocument();
   });
 });

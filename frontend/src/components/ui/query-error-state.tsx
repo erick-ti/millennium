@@ -2,11 +2,11 @@
 
 import { Button } from "@/components/ui/button";
 
-// The read-API is IsAuthenticated and the frontend has no sign-in yet, so the
-// overwhelmingly common load failure is an anonymous 403. Shared so the copy
-// (and the slice-6 sign-in work that retires it) lives in one place.
+// An anonymous 403 now redirects to /login globally (the auth slice), so this
+// panel is for network / transient failures — with a sign-in mention as the
+// fallback wording for an expired session. Shared so the copy lives in one place.
 const DEFAULT_DESCRIPTION =
-  "This usually means you aren't signed in (sign-in lands in a later slice), but it can also happen if the server is unreachable.";
+  "This usually means the server is unreachable or your session expired. Try again, or sign in if you were signed out.";
 
 interface QueryErrorStateProps {
   /** The headline, e.g. "Couldn't load your collection." */

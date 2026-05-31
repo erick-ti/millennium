@@ -1,4 +1,9 @@
+"use client";
+
 import Link from "next/link";
+
+import { useAuth } from "@/components/auth-provider";
+import { LogoutButton } from "@/components/auth/logout-button";
 
 const routes: Array<{ href: string; label: string }> = [
   { href: "/collection", label: "Collection" },
@@ -8,6 +13,8 @@ const routes: Array<{ href: string; label: string }> = [
 ];
 
 export function Nav() {
+  const { user, isAuthenticated } = useAuth();
+
   return (
     <nav className="border-b border-border bg-background">
       <div className="mx-auto flex max-w-6xl items-center gap-8 px-6 py-3">
@@ -29,6 +36,12 @@ export function Nav() {
             </li>
           ))}
         </ul>
+        {isAuthenticated ? (
+          <div className="ml-auto flex items-center gap-3 text-sm">
+            <span className="text-muted-foreground">{user?.username}</span>
+            <LogoutButton />
+          </div>
+        ) : null}
       </div>
     </nav>
   );
