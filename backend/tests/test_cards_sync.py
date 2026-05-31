@@ -104,6 +104,84 @@ def test_sync_updates_changed_name() -> None:
 
 
 @pytest.mark.django_db
+def test_sync_creates_card_with_archetype() -> None:
+    """Phase 5: a created card persists the provider's archetype."""
+    record = CardMetadata(passcode=89631139, name="Blue-Eyes White Dragon", archetype="Blue-Eyes")
+
+    result = sync_cards_from_metadata(FakeMetadataProvider([record]))
+
+    assert result.cards_created == 1
+    assert Card.objects.get(passcode=89631139).archetype == "Blue-Eyes"
+
+
+@pytest.mark.django_db
+def test_sync_updates_changed_archetype() -> None:
+    """An archetype change (added/corrected/withdrawn) is a real metadata update — it
+    counts and writes like a rename, so the next scheduled sync backfills existing cards."""
+    sync_cards_from_metadata(FakeMetadataProvider([CardMetadata(passcode=1, name="X")]))  # None
+    tagged = CardMetadata(passcode=1, name="X", archetype="Newly Tagged")
+
+    result = sync_cards_from_metadata(FakeMetadataProvider([tagged]))
+
+    assert result.cards_updated == 1
+    assert result.cards_unchanged == 0
+    assert Card.objects.get(passcode=1).archetype == "Newly Tagged"
+
+
+@pytest.mark.django_db
+def test_sync_unchanged_when_archetype_same() -> None:
+    """An unchanged archetype performs no write (the idempotency contract — updated_at
+    stays meaningful)."""
+    record = CardMetadata(passcode=1, name="X", archetype="Stable")
+    sync_cards_from_metadata(FakeMetadataProvider([record]))
+
+    result = sync_cards_from_metadata(FakeMetadataProvider([record]))
+
+    assert result.cards_updated == 0
+    assert result.cards_unchanged == 1
+
+
+def _seed_tagged_cards(n: int, archetype: str = "Blue-Eyes") -> None:
+    """Seed ``n`` already-archetyped cards (bulk_create bypasses save(), so
+    normalized_name is set explicitly — the withdrawal guard only reads passcode/archetype)."""
+    Card.objects.bulk_create(
+        Card(passcode=i, name=f"Card {i}", normalized_name=f"card {i}", archetype=archetype)
+        for i in range(1, n + 1)
+    )
+
+
+@pytest.mark.django_db
+def test_sync_rejects_mass_archetype_withdrawal_before_writing() -> None:
+    """The withdrawal guard is a pure pre-write check: a fetch that would null archetype
+    on many currently-tagged cards raises BEFORE the write loop, so the tags survive."""
+    _seed_tagged_cards(40)
+    # A re-fetch of all 40 with the archetype key gone → 40 withdrawals.
+    records = [CardMetadata(passcode=i, name=f"Card {i}") for i in range(1, 41)]
+
+    with pytest.raises(ValueError, match="archetype"):
+        sync_cards_from_metadata(FakeMetadataProvider(records), archetype_withdrawal_tolerance=0.05)
+
+    assert Card.objects.exclude(archetype__isnull=True).count() == 40  # nothing nulled
+
+
+@pytest.mark.django_db
+def test_sync_allows_small_archetype_correction() -> None:
+    """A handful of legit withdrawals (below the absolute floor) are applied, not blocked
+    — the guard targets mass loss, not routine errata."""
+    _seed_tagged_cards(40)
+    # 37 unchanged (still tagged) + 3 legitimate withdrawals.
+    records = [
+        CardMetadata(passcode=i, name=f"Card {i}", archetype="Blue-Eyes" if i > 3 else None)
+        for i in range(1, 41)
+    ]
+
+    result = sync_cards_from_metadata(FakeMetadataProvider(records), archetype_withdrawal_tolerance=0.05)
+
+    assert result.cards_updated == 3  # the 3 withdrawals applied
+    assert Card.objects.exclude(archetype__isnull=True).count() == 37
+
+
+@pytest.mark.django_db
 def test_sync_card_without_printings() -> None:
     unreleased = CardMetadata(passcode=999, name="Unreleased Card")
 
@@ -226,6 +304,60 @@ def test_run_ygoprodeck_sync_guard_rejects_shrunk_fetch() -> None:
     assert Card.objects.count() == 0  # rejected at fetch, before the write loop
     failed = SyncRun.objects.get(kind=SyncKind.YGOPRODECK_METADATA, status=SyncStatus.FAILED)
     assert "floor" in failed.error
+
+
+@pytest.mark.django_db
+def test_run_ygoprodeck_sync_records_archetype_coverage_telemetry() -> None:
+    """A SUCCESS run records its non-null archetype count in the SyncRun detail (coverage
+    telemetry). With no currently-tagged cards there are no withdrawals, so the run isn't
+    blocked."""
+    record_run(SyncKind.YGOPRODECK_METADATA, SyncStatus.SUCCESS, card_count=2)  # clears card floor
+    payload: dict[str, object] = {
+        "data": [
+            {"id": 1, "name": "Blue-Eyes White Dragon", "archetype": "Blue-Eyes", "card_sets": []},
+            {"id": 2, "name": "Kaibaman", "archetype": "Blue-Eyes", "card_sets": []},
+            {"id": 3, "name": "Pot of Greed", "card_sets": []},  # no archetype
+        ]
+    }
+
+    result = run_ygoprodeck_sync(fetch=_fetch(payload))
+
+    assert result is not None
+    assert result.archetype_count == 2
+    run = SyncRun.objects.get(
+        kind=SyncKind.YGOPRODECK_METADATA, status=SyncStatus.SUCCESS, card_count=3
+    )
+    assert run.detail["archetype_count"] == 2
+
+
+@pytest.mark.django_db
+def test_run_ygoprodeck_sync_rejects_partial_archetype_withdrawal() -> None:
+    """The round-2 Codex case: a PARTIAL key-drop that leaves >50% of cards tagged (so an
+    aggregate count floor would pass) is still rejected by the withdrawal guard, recorded
+    FAILED, and every existing tag survives."""
+    record_run(SyncKind.YGOPRODECK_METADATA, SyncStatus.SUCCESS, card_count=60)  # clears card floor
+    _seed_tagged_cards(60)
+    # All 60 cards still present (clears the card floor) but archetype dropped for 30 — 30
+    # remain tagged, which a 50% aggregate-count floor would have let through. (At n=60 the
+    # absolute floor of 25 is the active threshold; 30 > 25.)
+    payload: dict[str, object] = {
+        "data": [
+            {
+                "id": i,
+                "name": f"Card {i}",
+                "card_sets": [],
+                **({"archetype": "Blue-Eyes"} if i > 30 else {}),
+            }
+            for i in range(1, 61)
+        ]
+    }
+
+    with pytest.raises(ValueError, match="archetype"):
+        run_ygoprodeck_sync(fetch=_fetch(payload))
+
+    assert Card.objects.exclude(archetype__isnull=True).count() == 60  # all tags intact
+    failed = SyncRun.objects.get(kind=SyncKind.YGOPRODECK_METADATA, status=SyncStatus.FAILED)
+    assert "archetype" in failed.error
 
 
 @pytest.mark.django_db

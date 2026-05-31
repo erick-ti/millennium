@@ -54,7 +54,9 @@ class SyncRun(TimeStampedModel):
     # Fetch cardinality, by dimension. Which apply depends on `kind` — metadata fills
     # card/printing counts, pricing fills product/price-row counts — so each is nullable
     # and the other kind's (and a pre-fetch failure's) are left NULL. The guard reads
-    # only the dimension relevant to a kind off its latest SUCCESS row.
+    # only the dimension relevant to a kind off its latest SUCCESS row. (Archetype
+    # coverage is per-run telemetry kept in `detail`, not a guarded count dimension —
+    # the Phase 5 archetype guard reads the live tagged set, not a SyncRun baseline.)
     card_count = models.PositiveIntegerField(null=True, blank=True)
     printing_count = models.PositiveIntegerField(null=True, blank=True)
     product_count = models.PositiveIntegerField(null=True, blank=True)

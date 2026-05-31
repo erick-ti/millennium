@@ -158,6 +158,15 @@ describe("CardDetail", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows the archetype in the header when the card has one", async () => {
+    stubCard({ ...CARD, archetype: "Dark Magician" });
+    renderDetail();
+
+    // The archetype renders as a single "<archetype> · " prefix text node — the
+    // h1 (bare "Dark Magician", no "·") doesn't match, so this is unambiguous.
+    expect(await screen.findByText(/Dark Magician ·/)).toBeInTheDocument();
+  });
+
   it("renders the header, printings, the default edition, and the chart", async () => {
     renderDetail();
 

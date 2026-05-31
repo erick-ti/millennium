@@ -241,10 +241,18 @@ CELERY_BEAT_SCHEDULE: dict[str, Any] = {
 # catalog. Metadata card count is ~monotonic (Konami never un-releases), so a
 # tight bound is safe; TCGCSV price-row coverage fluctuates day-to-day (a product
 # has a price row only when TCGplayer reports one), so prices need more slack.
+# Archetype (Phase 5) is guarded differently — not by a fetch-count floor but by the
+# WITHDRAWAL it would cause: it's a single OPTIONAL field, so a degraded fetch (the key
+# dropped for some or all cards) would null existing tags. An aggregate count floor lets
+# a *partial* loss slip under it (Codex adversarial review), so the sync instead fails
+# closed when ONE run would null archetype on more than this FRACTION of the currently
+# tagged cards. A small absolute floor (in cards/sync.py) keeps early/small states and
+# legitimate handful-of-card corrections from tripping it.
 # ---------------------------------------------------------------------------
 
 SYNC_GUARD_METADATA_TOLERANCE = env.float("SYNC_GUARD_METADATA_TOLERANCE", default=0.02)
 SYNC_GUARD_PRICING_TOLERANCE = env.float("SYNC_GUARD_PRICING_TOLERANCE", default=0.10)
+SYNC_GUARD_ARCHETYPE_TOLERANCE = env.float("SYNC_GUARD_ARCHETYPE_TOLERANCE", default=0.05)
 
 # ---------------------------------------------------------------------------
 # Logging — structlog + stdlib bridge

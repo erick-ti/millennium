@@ -4,7 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CardList, PaginatedCardListList } from "@/lib/api";
-import { cardsCardsListOptions } from "@/lib/api";
+import {
+  cardsCardsArchetypesRetrieveOptions,
+  cardsCardsListOptions,
+} from "@/lib/api";
 
 import CardsPage from "./page";
 
@@ -29,9 +32,11 @@ vi.mock("next/link", () => ({
 // resolve from the real module (vi.mock is runtime-only).
 vi.mock("@/lib/api", () => ({
   cardsCardsListOptions: vi.fn(),
+  cardsCardsArchetypesRetrieveOptions: vi.fn(),
 }));
 
 const cardsOptions = vi.mocked(cardsCardsListOptions);
+const archetypesOptions = vi.mocked(cardsCardsArchetypesRetrieveOptions);
 
 type CardsPage = PaginatedCardListList;
 
@@ -40,6 +45,7 @@ function makeCard(overrides: Partial<CardList> = {}): CardList {
     id: 1,
     passcode: 14558127,
     name: "Ash Blossom & Joyous Spring",
+    archetype: null,
     printings_count: 2,
     ...overrides,
   };
@@ -55,6 +61,16 @@ function stubCards(impl: (page: number) => CardsPage) {
   });
 }
 
+function stubArchetypes(values: string[]) {
+  archetypesOptions.mockImplementation(
+    () =>
+      ({
+        queryKey: [{ _id: "cardsCardsArchetypesRetrieve" }],
+        queryFn: async () => values,
+      }) as unknown as ReturnType<typeof cardsCardsArchetypesRetrieveOptions>,
+  );
+}
+
 function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -68,6 +84,10 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Default: no archetypes (the filter shows only "All archetypes"). Tests that
+  // exercise the filter override this. clearAllMocks keeps implementations, so
+  // re-stub each test for a clean default.
+  stubArchetypes([]);
 });
 
 describe("CardsPage", () => {
@@ -167,5 +187,62 @@ describe("CardsPage", () => {
     expect(cardsOptions).toHaveBeenCalledWith({ query: { page: 2 } });
     expect(screen.getByRole("button", { name: /next/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /prev/i })).toBeEnabled();
+  });
+
+  it("renders the archetype column, with an em-dash for cards that have none", async () => {
+    stubCards(() => ({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        makeCard({ id: 1, name: "Blue-Eyes White Dragon", archetype: "Blue-Eyes" }),
+        makeCard({ id: 2, name: "Pot of Greed", archetype: null }),
+      ],
+    }));
+    renderPage();
+
+    expect(
+      await screen.findByRole("cell", { name: "Blue-Eyes" }),
+    ).toBeInTheDocument();
+    // A null archetype renders the em-dash fallback, never an empty string.
+    expect(screen.getByRole("cell", { name: "—" })).toBeInTheDocument();
+  });
+
+  it("filters by archetype, requesting the param and resetting to page 1", async () => {
+    stubArchetypes(["Blue-Eyes", "Sky Striker"]);
+    stubCards(() => ({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [
+        makeCard({ id: 1, name: "Blue-Eyes White Dragon", archetype: "Blue-Eyes" }),
+      ],
+    }));
+    const user = userEvent.setup();
+    renderPage();
+
+    // Table loaded + dropdown populated (the archetypes query resolved, which
+    // also enables the select).
+    await screen.findByRole("link", { name: "Blue-Eyes White Dragon" });
+    await screen.findByRole("option", { name: "Sky Striker" });
+
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: /filter by archetype/i }),
+      "Sky Striker",
+    );
+
+    expect(cardsOptions).toHaveBeenCalledWith({
+      query: { page: 1, archetype: "Sky Striker" },
+    });
+  });
+
+  it("disables the archetype filter while archetypes are loading or empty", async () => {
+    // Default beforeEach stub returns [] → the filter has nothing to offer.
+    stubCards(() => ({ count: 0, next: null, previous: null, results: [] }));
+    renderPage();
+
+    expect(
+      await screen.findByRole("combobox", { name: /filter by archetype/i }),
+    ).toBeDisabled();
   });
 });

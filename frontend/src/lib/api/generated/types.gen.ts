@@ -13,6 +13,7 @@ export type CardDetail = {
     readonly id: number;
     passcode?: number | null;
     name: string;
+    archetype?: string | null;
     readonly printings_count: number;
     readonly printings: Array<CardPrinting>;
 };
@@ -25,6 +26,7 @@ export type CardList = {
     readonly id: number;
     passcode?: number | null;
     name: string;
+    archetype?: string | null;
     readonly printings_count: number;
 };
 
@@ -452,6 +454,7 @@ export type User = {
 export type CardDetailWritable = {
     passcode?: number | null;
     name: string;
+    archetype?: string | null;
 };
 
 /**
@@ -461,6 +464,7 @@ export type CardDetailWritable = {
 export type CardListWritable = {
     passcode?: number | null;
     name: string;
+    archetype?: string | null;
 };
 
 /**
@@ -765,6 +769,10 @@ export type CardsCardsListData = {
     path?: never;
     query?: {
         /**
+         * Exact-match filter by Yu-Gi-Oh archetype (e.g. "Blue-Eyes").
+         */
+        archetype?: string;
+        /**
          * A page number within the paginated result set.
          */
         page?: number;
@@ -799,6 +807,19 @@ export type CardsCardsRetrieveResponses = {
 };
 
 export type CardsCardsRetrieveResponse = CardsCardsRetrieveResponses[keyof CardsCardsRetrieveResponses];
+
+export type CardsCardsArchetypesRetrieveData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/cards/cards/archetypes/';
+};
+
+export type CardsCardsArchetypesRetrieveResponses = {
+    200: Array<string>;
+};
+
+export type CardsCardsArchetypesRetrieveResponse = CardsCardsArchetypesRetrieveResponses[keyof CardsCardsArchetypesRetrieveResponses];
 
 export type CardsPrintingsListData = {
     body?: never;

@@ -84,6 +84,11 @@ def _normalize_card(raw: dict[str, Any]) -> tuple[CardMetadata | None, int]:
         # (Passcode-less TCGCSV-only entities such as Tokens arrive via pricing.)
         return None, 0
     printings, skipped = _normalize_printings(raw.get("card_sets") or [])
+    # Archetype is optional upstream (~40% of cards have none): absent → None,
+    # never "". Decode entities + trim like the name (an archetype is display
+    # prose), then coerce a blank to None so it can't become a bogus "" group.
+    archetype_raw = raw.get("archetype")
+    archetype = html.unescape(str(archetype_raw)).strip() or None if archetype_raw else None
     return (
         CardMetadata(
             # YGOPRODeck serves HTML-encoded names (e.g. "The Fallen &amp; The
@@ -93,6 +98,7 @@ def _normalize_card(raw: dict[str, Any]) -> tuple[CardMetadata | None, int]:
             # own unescape on the derived normalized_name.
             passcode=int(passcode),
             name=html.unescape(str(name)).strip(),
+            archetype=archetype,
             printings=printings,
         ),
         skipped,

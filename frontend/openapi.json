@@ -111,6 +111,14 @@
                 "summary": "List / search cards",
                 "parameters": [
                     {
+                        "in": "query",
+                        "name": "archetype",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Exact-match filter by Yu-Gi-Oh archetype (e.g. \"Blue-Eyes\")."
+                    },
+                    {
                         "name": "page",
                         "required": false,
                         "in": "query",
@@ -180,6 +188,36 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/CardDetail"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/cards/cards/archetypes/": {
+            "get": {
+                "operationId": "cards_cards_archetypes_retrieve",
+                "description": "Every distinct non-null archetype, sorted — the source for the /cards archetype filter dropdown. Not paginated (a few hundred at most).",
+                "summary": "List distinct archetypes",
+                "tags": [
+                    "cards"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
                                 }
                             }
                         },
@@ -1301,6 +1339,11 @@
                         "type": "string",
                         "maxLength": 255
                     },
+                    "archetype": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 255
+                    },
                     "printings_count": {
                         "type": "integer",
                         "readOnly": true
@@ -1337,6 +1380,11 @@
                     },
                     "name": {
                         "type": "string",
+                        "maxLength": 255
+                    },
+                    "archetype": {
+                        "type": "string",
+                        "nullable": true,
                         "maxLength": 255
                     },
                     "printings_count": {

@@ -50,6 +50,7 @@ export type * from "./generated/types.gen";
 export {
   authLoginCreate,
   authLogoutCreate,
+  cardsCardsArchetypesRetrieve,
   cardsCardsList,
   cardsCardsRetrieve,
   cardsPrintingsList,
@@ -87,6 +88,8 @@ export {
 export {
   authMeRetrieveOptions,
   authMeRetrieveQueryKey,
+  cardsCardsArchetypesRetrieveOptions,
+  cardsCardsArchetypesRetrieveQueryKey,
   cardsCardsListOptions,
   cardsCardsListQueryKey,
   cardsCardsRetrieveOptions,

@@ -44,7 +44,11 @@ class CardListSerializer(serializers.ModelSerializer[Card]):
 
     class Meta:
         model = Card
-        fields = ["id", "passcode", "name", "printings_count"]
+        # ``archetype`` is an IMPLICIT ModelSerializer field over a nullable model
+        # column, so ModelSerializer auto-derives ``allow_null=True`` — the
+        # class-level schema gate needs no manual annotation (unlike the explicit
+        # nullable-field shapes). NULL is "no archetype", surfaced to the UI as such.
+        fields = ["id", "passcode", "name", "archetype", "printings_count"]
 
 
 class CardDetailSerializer(CardListSerializer):

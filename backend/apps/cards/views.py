@@ -4,7 +4,10 @@ from django.db.models import Count, QuerySet
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
+from rest_framework.request import Request
+from rest_framework.response import Response
 from rest_framework.serializers import BaseSerializer
 
 from apps.cards.models import Card, CardPrinting
@@ -23,6 +26,11 @@ from apps.cards.serializers import (
                 "search",
                 OpenApiTypes.STR,
                 description="Case-insensitive substring match on card name.",
+            ),
+            OpenApiParameter(
+                "archetype",
+                OpenApiTypes.STR,
+                description='Exact-match filter by Yu-Gi-Oh archetype (e.g. "Blue-Eyes").',
             ),
         ],
     ),
@@ -54,10 +62,38 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet[Card]):
         search = self.request.query_params.get("search")
         if search is not None and search.strip():
             qs = qs.filter(name__icontains=search.strip())
+        # Exact-match archetype facet (Phase 5). An empty/whitespace value is a
+        # cleared dropdown, not "match the empty archetype" — ignore it (the
+        # search-box convention); NULL archetypes have no selectable value.
+        archetype = self.request.query_params.get("archetype")
+        if archetype is not None and archetype.strip():
+            qs = qs.filter(archetype=archetype.strip())
         return qs
 
     def get_serializer_class(self) -> type[BaseSerializer[Card]]:
         return CardDetailSerializer if self.action == "retrieve" else CardListSerializer
+
+    @extend_schema(
+        summary="List distinct archetypes",
+        description=(
+            "Every distinct non-null archetype, sorted — the source for the "
+            "/cards archetype filter dropdown. Not paginated (a few hundred at most)."
+        ),
+        responses={200: {"type": "array", "items": {"type": "string"}}},
+    )
+    @action(detail=False, methods=["get"], url_path="archetypes")
+    def archetypes(self, request: Request) -> Response:
+        # A flat sorted list of distinct archetypes for the filter dropdown. Reads
+        # Card.objects directly (not get_queryset) to skip the printings_count
+        # annotation + name ordering, which are irrelevant to a distinct-archetype
+        # scan. NULLs excluded — "no archetype" isn't a filterable value.
+        values = (
+            Card.objects.exclude(archetype__isnull=True)
+            .order_by("archetype")
+            .values_list("archetype", flat=True)
+            .distinct()
+        )
+        return Response(list(values))
 
 
 @extend_schema_view(
