@@ -242,6 +242,22 @@ export type ImportUploadRequest = {
 export type LanguageEnum = 'en' | 'fr' | 'de' | 'it' | 'es' | 'pt' | 'ja' | 'ko';
 
 /**
+ * Validate credentials and resolve the user (Phase 5 auth slice).
+ *
+ * The credential check lives here (not the view) so a failure raises
+ * ``ValidationError`` → **400**, not 401: the ``LoginView`` runs with
+ * ``authentication_classes = []``, so DRF has no authenticator to mint a
+ * ``WWW-Authenticate`` header and would *downgrade* an ``AuthenticationFailed``
+ * 401 to 403 — colliding with the "no session" 403 the SPA treats as "sign in".
+ * A single generic message for both wrong-username and wrong-password avoids
+ * username enumeration.
+ */
+export type LoginRequest = {
+    username: string;
+    password: string;
+};
+
+/**
  * * `exact` - Exact
  * * `high` - High
  * * `medium` - Medium
@@ -407,6 +423,26 @@ export type SourceEnum = 'tcgcsv';
  * * `dragon_shield` - Dragon Shield
  */
 export type SourceFormatEnum = 'dragon_shield';
+
+/**
+ * The current user, least-disclosure (Phase 5 auth slice).
+ *
+ * Only ``id``/``username``/``email`` — never ``is_staff``/``is_superuser``/
+ * ``last_login``/permissions. The frontend nav shows the username and there are
+ * no admin affordances this slice; the schema is treated as recon material
+ * (Invariant 7 posture), so we expose the minimum the SPA needs.
+ */
+export type User = {
+    readonly id: number;
+    /**
+     * Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.
+     */
+    readonly username: string;
+    /**
+     * Email address
+     */
+    readonly email: string;
+};
 
 /**
  * Card detail nests its printings (most cards have at most a handful, so the
@@ -672,6 +708,57 @@ export type PriceSnapshotWritable = {
     confidence?: number;
     source_subtype_name?: string | null;
 };
+
+export type AuthLoginCreateData = {
+    body: LoginRequest;
+    path?: never;
+    query?: never;
+    url: '/api/auth/login/';
+};
+
+export type AuthLoginCreateErrors = {
+    /**
+     * Missing fields or invalid credentials
+     */
+    400: unknown;
+    /**
+     * Too many login attempts — retry later
+     */
+    429: unknown;
+};
+
+export type AuthLoginCreateResponses = {
+    200: User;
+};
+
+export type AuthLoginCreateResponse = AuthLoginCreateResponses[keyof AuthLoginCreateResponses];
+
+export type AuthLogoutCreateData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/auth/logout/';
+};
+
+export type AuthLogoutCreateResponses = {
+    /**
+     * Logged out
+     */
+    200: unknown;
+};
+
+export type AuthMeRetrieveData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/auth/me/';
+};
+
+export type AuthMeRetrieveResponses = {
+    200: User;
+};
+
+export type AuthMeRetrieveResponse = AuthMeRetrieveResponses[keyof AuthMeRetrieveResponses];
 
 export type CardsCardsListData = {
     body?: never;

@@ -3,8 +3,66 @@
 import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { cardsCardsList, cardsCardsRetrieve, cardsPrintingsList, cardsPrintingsRetrieve, collectionItemsList, collectionItemsRetrieve, collectionLotsList, collectionLotsRetrieve, csrfRetrieve, healthRetrieve, importsBatchesCreate, importsBatchesList, importsBatchesRetrieve, importsRowsApproveCreate, importsRowsList, importsRowsOverrideCreate, importsRowsRejectCreate, importsRowsRetrieve, type Options, portfolioPortfoliosList, portfolioPortfoliosRetrieve, portfolioSnapshotsList, portfolioSnapshotsRetrieve, pricingSnapshotsLatestRetrieve, pricingSnapshotsList, pricingSnapshotsRetrieve } from '../sdk.gen';
-import type { CardsCardsListData, CardsCardsListResponse, CardsCardsRetrieveData, CardsCardsRetrieveResponse, CardsPrintingsListData, CardsPrintingsListResponse, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponse, CollectionItemsListData, CollectionItemsListResponse, CollectionItemsRetrieveData, CollectionItemsRetrieveResponse, CollectionLotsListData, CollectionLotsListResponse, CollectionLotsRetrieveData, CollectionLotsRetrieveResponse, CsrfRetrieveData, HealthRetrieveData, ImportsBatchesCreateData, ImportsBatchesCreateError, ImportsBatchesCreateResponse, ImportsBatchesListData, ImportsBatchesListResponse, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponse, ImportsRowsApproveCreateData, ImportsRowsApproveCreateError, ImportsRowsApproveCreateResponse, ImportsRowsListData, ImportsRowsListResponse, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateError, ImportsRowsOverrideCreateResponse, ImportsRowsRejectCreateData, ImportsRowsRejectCreateError, ImportsRowsRejectCreateResponse, ImportsRowsRetrieveData, ImportsRowsRetrieveResponse, PortfolioPortfoliosListData, PortfolioPortfoliosListResponse, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponse, PortfolioSnapshotsListData, PortfolioSnapshotsListResponse, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponse, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveError, PricingSnapshotsLatestRetrieveResponse, PricingSnapshotsListData, PricingSnapshotsListResponse, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponse } from '../types.gen';
+import { authLoginCreate, authLogoutCreate, authMeRetrieve, cardsCardsList, cardsCardsRetrieve, cardsPrintingsList, cardsPrintingsRetrieve, collectionItemsList, collectionItemsRetrieve, collectionLotsList, collectionLotsRetrieve, csrfRetrieve, healthRetrieve, importsBatchesCreate, importsBatchesList, importsBatchesRetrieve, importsRowsApproveCreate, importsRowsList, importsRowsOverrideCreate, importsRowsRejectCreate, importsRowsRetrieve, type Options, portfolioPortfoliosList, portfolioPortfoliosRetrieve, portfolioSnapshotsList, portfolioSnapshotsRetrieve, pricingSnapshotsLatestRetrieve, pricingSnapshotsList, pricingSnapshotsRetrieve } from '../sdk.gen';
+import type { AuthLoginCreateData, AuthLoginCreateResponse, AuthLogoutCreateData, AuthMeRetrieveData, AuthMeRetrieveResponse, CardsCardsListData, CardsCardsListResponse, CardsCardsRetrieveData, CardsCardsRetrieveResponse, CardsPrintingsListData, CardsPrintingsListResponse, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponse, CollectionItemsListData, CollectionItemsListResponse, CollectionItemsRetrieveData, CollectionItemsRetrieveResponse, CollectionLotsListData, CollectionLotsListResponse, CollectionLotsRetrieveData, CollectionLotsRetrieveResponse, CsrfRetrieveData, HealthRetrieveData, ImportsBatchesCreateData, ImportsBatchesCreateError, ImportsBatchesCreateResponse, ImportsBatchesListData, ImportsBatchesListResponse, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponse, ImportsRowsApproveCreateData, ImportsRowsApproveCreateError, ImportsRowsApproveCreateResponse, ImportsRowsListData, ImportsRowsListResponse, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateError, ImportsRowsOverrideCreateResponse, ImportsRowsRejectCreateData, ImportsRowsRejectCreateError, ImportsRowsRejectCreateResponse, ImportsRowsRetrieveData, ImportsRowsRetrieveResponse, PortfolioPortfoliosListData, PortfolioPortfoliosListResponse, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponse, PortfolioSnapshotsListData, PortfolioSnapshotsListResponse, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponse, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveError, PricingSnapshotsLatestRetrieveResponse, PricingSnapshotsListData, PricingSnapshotsListResponse, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponse } from '../types.gen';
+
+/**
+ * Log in (establish a session cookie)
+ *
+ * Establish a session for valid credentials (Phase 5 auth slice).
+ *
+ * ``AllowAny`` + no authenticators so an anonymous browser can reach it (the
+ * ``HealthView``/``CsrfView`` precedent — every other endpoint stays
+ * ``IsAuthenticated``). The credential check + status choice live in
+ * ``LoginSerializer`` (a failure is a generic 400, see its docstring).
+ *
+ * ``csrf_protect`` re-arms CSRF on this POST: DRF marks every ``APIView``
+ * ``csrf_exempt`` because CSRF normally runs inside
+ * ``SessionAuthentication.enforce_csrf`` — which an *anonymous* request never
+ * reaches (it returns before the check). So without this decorator the login
+ * POST would be silently CSRF-naked. The ``csrftoken`` is already seeded by
+ * ``GET /api/csrf/`` on app load and echoed via ``proxy.ts``'s ``X-CSRFToken``
+ * (slice 6), so this composes with zero new frontend plumbing.
+ */
+export const authLoginCreateMutation = (options?: Partial<Options<AuthLoginCreateData>>): UseMutationOptions<AuthLoginCreateResponse, DefaultError, Options<AuthLoginCreateData>> => {
+    const mutationOptions: UseMutationOptions<AuthLoginCreateResponse, DefaultError, Options<AuthLoginCreateData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await authLoginCreate({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Log out (clear the session)
+ *
+ * Clear the session (Phase 5 auth slice).
+ *
+ * POST (an unsafe method) deliberately, so it travels the *authenticated* CSRF
+ * path: the caller is authenticated, so ``SessionAuthentication.enforce_csrf``
+ * runs and ``proxy.ts`` already injects ``X-CSRFToken`` — no ``csrf_protect``
+ * needed here (unlike login). Inherits the global ``IsAuthenticated``, so an
+ * anonymous logout 403s like everything else. Returns 200 with a body (not 204)
+ * so the generated TS client has a typed, non-void response to branch on.
+ */
+export const authLogoutCreateMutation = (options?: Partial<Options<AuthLogoutCreateData>>): UseMutationOptions<unknown, DefaultError, Options<AuthLogoutCreateData>> => {
+    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<AuthLogoutCreateData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await authLogoutCreate({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -38,6 +96,31 @@ const createQueryKey = <TOptions extends Options>(id: string, options?: TOptions
     }
     return [params];
 };
+
+export const authMeRetrieveQueryKey = (options?: Options<AuthMeRetrieveData>) => createQueryKey('authMeRetrieve', options);
+
+/**
+ * Current authenticated user
+ *
+ * The current authenticated user (Phase 5 auth slice).
+ *
+ * Inherits the global ``IsAuthenticated``, so an anonymous request → **403**
+ * (DRF's session-auth posture: ``authenticate_header`` is ``None``, so a 401
+ * downgrades to 403). The SPA's ``AuthProvider`` reads that 403 as "not signed
+ * in" — it is the expected anonymous signal, not an error to surface.
+ */
+export const authMeRetrieveOptions = (options?: Options<AuthMeRetrieveData>) => queryOptions<AuthMeRetrieveResponse, DefaultError, AuthMeRetrieveResponse, ReturnType<typeof authMeRetrieveQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await authMeRetrieve({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: authMeRetrieveQueryKey(options)
+});
 
 export const cardsCardsListQueryKey = (options?: Options<CardsCardsListData>) => createQueryKey('cardsCardsList', options);
 

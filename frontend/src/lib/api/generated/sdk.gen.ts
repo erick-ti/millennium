@@ -2,7 +2,7 @@
 
 import { type Client, formDataBodySerializer, type Options as Options2, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { CardsCardsListData, CardsCardsListResponses, CardsCardsRetrieveData, CardsCardsRetrieveResponses, CardsPrintingsListData, CardsPrintingsListResponses, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponses, CollectionItemsListData, CollectionItemsListResponses, CollectionItemsRetrieveData, CollectionItemsRetrieveResponses, CollectionLotsListData, CollectionLotsListResponses, CollectionLotsRetrieveData, CollectionLotsRetrieveResponses, CsrfRetrieveData, CsrfRetrieveResponses, HealthRetrieveData, HealthRetrieveResponses, ImportsBatchesCreateData, ImportsBatchesCreateErrors, ImportsBatchesCreateResponses, ImportsBatchesListData, ImportsBatchesListResponses, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponses, ImportsRowsApproveCreateData, ImportsRowsApproveCreateErrors, ImportsRowsApproveCreateResponses, ImportsRowsListData, ImportsRowsListResponses, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateErrors, ImportsRowsOverrideCreateResponses, ImportsRowsRejectCreateData, ImportsRowsRejectCreateErrors, ImportsRowsRejectCreateResponses, ImportsRowsRetrieveData, ImportsRowsRetrieveResponses, PortfolioPortfoliosListData, PortfolioPortfoliosListResponses, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponses, PortfolioSnapshotsListData, PortfolioSnapshotsListResponses, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponses, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveErrors, PricingSnapshotsLatestRetrieveResponses, PricingSnapshotsListData, PricingSnapshotsListResponses, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponses } from './types.gen';
+import type { AuthLoginCreateData, AuthLoginCreateErrors, AuthLoginCreateResponses, AuthLogoutCreateData, AuthLogoutCreateResponses, AuthMeRetrieveData, AuthMeRetrieveResponses, CardsCardsListData, CardsCardsListResponses, CardsCardsRetrieveData, CardsCardsRetrieveResponses, CardsPrintingsListData, CardsPrintingsListResponses, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponses, CollectionItemsListData, CollectionItemsListResponses, CollectionItemsRetrieveData, CollectionItemsRetrieveResponses, CollectionLotsListData, CollectionLotsListResponses, CollectionLotsRetrieveData, CollectionLotsRetrieveResponses, CsrfRetrieveData, CsrfRetrieveResponses, HealthRetrieveData, HealthRetrieveResponses, ImportsBatchesCreateData, ImportsBatchesCreateErrors, ImportsBatchesCreateResponses, ImportsBatchesListData, ImportsBatchesListResponses, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponses, ImportsRowsApproveCreateData, ImportsRowsApproveCreateErrors, ImportsRowsApproveCreateResponses, ImportsRowsListData, ImportsRowsListResponses, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateErrors, ImportsRowsOverrideCreateResponses, ImportsRowsRejectCreateData, ImportsRowsRejectCreateErrors, ImportsRowsRejectCreateResponses, ImportsRowsRetrieveData, ImportsRowsRetrieveResponses, PortfolioPortfoliosListData, PortfolioPortfoliosListResponses, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponses, PortfolioSnapshotsListData, PortfolioSnapshotsListResponses, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponses, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveErrors, PricingSnapshotsLatestRetrieveResponses, PricingSnapshotsListData, PricingSnapshotsListResponses, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -17,6 +17,75 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
      */
     meta?: Record<string, unknown>;
 };
+
+/**
+ * Log in (establish a session cookie)
+ *
+ * Establish a session for valid credentials (Phase 5 auth slice).
+ *
+ * ``AllowAny`` + no authenticators so an anonymous browser can reach it (the
+ * ``HealthView``/``CsrfView`` precedent — every other endpoint stays
+ * ``IsAuthenticated``). The credential check + status choice live in
+ * ``LoginSerializer`` (a failure is a generic 400, see its docstring).
+ *
+ * ``csrf_protect`` re-arms CSRF on this POST: DRF marks every ``APIView``
+ * ``csrf_exempt`` because CSRF normally runs inside
+ * ``SessionAuthentication.enforce_csrf`` — which an *anonymous* request never
+ * reaches (it returns before the check). So without this decorator the login
+ * POST would be silently CSRF-naked. The ``csrftoken`` is already seeded by
+ * ``GET /api/csrf/`` on app load and echoed via ``proxy.ts``'s ``X-CSRFToken``
+ * (slice 6), so this composes with zero new frontend plumbing.
+ */
+export const authLoginCreate = <ThrowOnError extends boolean = false>(options: Options<AuthLoginCreateData, ThrowOnError>) => (options.client ?? client).post<AuthLoginCreateResponses, AuthLoginCreateErrors, ThrowOnError>({
+    url: '/api/auth/login/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Log out (clear the session)
+ *
+ * Clear the session (Phase 5 auth slice).
+ *
+ * POST (an unsafe method) deliberately, so it travels the *authenticated* CSRF
+ * path: the caller is authenticated, so ``SessionAuthentication.enforce_csrf``
+ * runs and ``proxy.ts`` already injects ``X-CSRFToken`` — no ``csrf_protect``
+ * needed here (unlike login). Inherits the global ``IsAuthenticated``, so an
+ * anonymous logout 403s like everything else. Returns 200 with a body (not 204)
+ * so the generated TS client has a typed, non-void response to branch on.
+ */
+export const authLogoutCreate = <ThrowOnError extends boolean = false>(options?: Options<AuthLogoutCreateData, ThrowOnError>) => (options?.client ?? client).post<AuthLogoutCreateResponses, unknown, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'sessionid',
+            type: 'apiKey'
+        }],
+    url: '/api/auth/logout/',
+    ...options
+});
+
+/**
+ * Current authenticated user
+ *
+ * The current authenticated user (Phase 5 auth slice).
+ *
+ * Inherits the global ``IsAuthenticated``, so an anonymous request → **403**
+ * (DRF's session-auth posture: ``authenticate_header`` is ``None``, so a 401
+ * downgrades to 403). The SPA's ``AuthProvider`` reads that 403 as "not signed
+ * in" — it is the expected anonymous signal, not an error to surface.
+ */
+export const authMeRetrieve = <ThrowOnError extends boolean = false>(options?: Options<AuthMeRetrieveData, ThrowOnError>) => (options?.client ?? client).get<AuthMeRetrieveResponses, unknown, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'sessionid',
+            type: 'apiKey'
+        }],
+    url: '/api/auth/me/',
+    ...options
+});
 
 /**
  * List / search cards
