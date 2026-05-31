@@ -11,6 +11,7 @@ api_patterns: list[URLPattern | URLResolver] = [
     path("portfolio/", include("apps.portfolio.urls")),
     path("pricing/", include("apps.pricing.urls")),
     path("imports/", include("apps.imports.urls")),
+    path("valuation/", include("apps.valuation.urls")),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
 ]

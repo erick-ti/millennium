@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
@@ -82,7 +83,9 @@ def _base_price(snapshot: PriceSnapshot | None) -> Decimal | None:
     return None
 
 
-def _latest_price_map(*, on_or_before: date) -> dict[tuple[int, str], PriceSnapshot]:
+def _latest_price_map(
+    *, on_or_before: date, printing_ids: Collection[int] | None = None
+) -> dict[tuple[int, str], PriceSnapshot]:
     """Map ``(printing_id, edition)`` -> its latest *usable* TCGCSV snapshot on or
     before the day (usable = has a market/mid/low base price; see ``_USABLE_PRICE``).
     A correlated subquery picks each group's max ``snapshot_date`` among usable rows
@@ -91,7 +94,14 @@ def _latest_price_map(*, on_or_before: date) -> dict[tuple[int, str], PriceSnaps
     ``DISTINCT ON``, which ``make test``'s sqlite can't run) and bounded to one row per
     printing+edition. Filtering to usable rows means a newer high-only / direct-low-only
     snapshot doesn't mask an older usable price. ``on_or_before`` lets a past day be
-    valued with the prices that existed then."""
+    valued with the prices that existed then.
+
+    ``printing_ids`` (optional) restricts the outer scan to those printings — the
+    collection-scoped "biggest movers" caller passes its owned set so it doesn't
+    materialise the whole catalog's latest map twice (one per anchor); the
+    correlated subquery is already scoped per printing via ``OuterRef``, so the
+    outer filter is enough. ``None`` (the default) keeps the catalog-wide behaviour
+    ``value_all_portfolios`` relies on."""
     latest_date = (
         PriceSnapshot.objects.filter(
             _USABLE_PRICE,
@@ -109,6 +119,8 @@ def _latest_price_map(*, on_or_before: date) -> dict[tuple[int, str], PriceSnaps
         snapshot_date__lte=on_or_before,
         snapshot_date=Subquery(latest_date),
     )
+    if printing_ids is not None:
+        latest = latest.filter(printing_id__in=printing_ids)
     return {(snap.printing_id, snap.edition): snap for snap in latest}
 
 
