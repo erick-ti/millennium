@@ -29,6 +29,12 @@ _SYNC_LOCK_IDS: dict[SyncKind, int] = {
 # task on the same-day get_or_create snapshot path.
 _VALUATION_LOCK_ID = 3
 
+# Alerts (Phase 5) isn't a SyncKind either -- it does no fetch and records its own AlertRun
+# -- so it takes the next id beside the others (1 = metadata, 2 = pricing, 3 = valuation,
+# 4 = alerts). The lock serializes alert-evaluation passes so a manual `run_alerts` can't
+# race the scheduled task on the same-day get_or_create AlertEvent path.
+_ALERTS_LOCK_ID = 4
+
 
 @contextmanager
 def advisory_lock(lock_id: int) -> Iterator[bool]:
@@ -77,4 +83,11 @@ def sync_lock(kind: SyncKind) -> Iterator[bool]:
 def valuation_lock() -> Iterator[bool]:
     """``advisory_lock`` for the valuation pass -- serializes concurrent valuations."""
     with advisory_lock(_VALUATION_LOCK_ID) as acquired:
+        yield acquired
+
+
+@contextmanager
+def alerts_lock() -> Iterator[bool]:
+    """``advisory_lock`` for the alert-evaluation pass -- serializes concurrent runs."""
+    with advisory_lock(_ALERTS_LOCK_ID) as acquired:
         yield acquired

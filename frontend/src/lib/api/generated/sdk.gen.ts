@@ -2,7 +2,7 @@
 
 import { type Client, formDataBodySerializer, type Options as Options2, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AuthLoginCreateData, AuthLoginCreateErrors, AuthLoginCreateResponses, AuthLogoutCreateData, AuthLogoutCreateResponses, AuthMeRetrieveData, AuthMeRetrieveResponses, CardsCardsArchetypesRetrieveData, CardsCardsArchetypesRetrieveResponses, CardsCardsListData, CardsCardsListResponses, CardsCardsRetrieveData, CardsCardsRetrieveResponses, CardsPrintingsListData, CardsPrintingsListResponses, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponses, CollectionItemsListData, CollectionItemsListResponses, CollectionItemsRetrieveData, CollectionItemsRetrieveResponses, CollectionLotsListData, CollectionLotsListResponses, CollectionLotsRetrieveData, CollectionLotsRetrieveResponses, CsrfRetrieveData, CsrfRetrieveResponses, HealthRetrieveData, HealthRetrieveResponses, ImportsBatchesCreateData, ImportsBatchesCreateErrors, ImportsBatchesCreateResponses, ImportsBatchesListData, ImportsBatchesListResponses, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponses, ImportsRowsApproveCreateData, ImportsRowsApproveCreateErrors, ImportsRowsApproveCreateResponses, ImportsRowsListData, ImportsRowsListResponses, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateErrors, ImportsRowsOverrideCreateResponses, ImportsRowsRejectCreateData, ImportsRowsRejectCreateErrors, ImportsRowsRejectCreateResponses, ImportsRowsRetrieveData, ImportsRowsRetrieveResponses, PortfolioPortfoliosListData, PortfolioPortfoliosListResponses, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponses, PortfolioSnapshotsListData, PortfolioSnapshotsListResponses, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponses, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveErrors, PricingSnapshotsLatestRetrieveResponses, PricingSnapshotsListData, PricingSnapshotsListResponses, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponses, ValuationMoversListData, ValuationMoversListResponses } from './types.gen';
+import type { AlertsEventsListData, AlertsEventsListResponses, AlertsRulesCreateData, AlertsRulesCreateErrors, AlertsRulesCreateResponses, AlertsRulesListData, AlertsRulesListResponses, AuthLoginCreateData, AuthLoginCreateErrors, AuthLoginCreateResponses, AuthLogoutCreateData, AuthLogoutCreateResponses, AuthMeRetrieveData, AuthMeRetrieveResponses, CardsCardsArchetypesRetrieveData, CardsCardsArchetypesRetrieveResponses, CardsCardsListData, CardsCardsListResponses, CardsCardsRetrieveData, CardsCardsRetrieveResponses, CardsPrintingsListData, CardsPrintingsListResponses, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponses, CollectionItemsListData, CollectionItemsListResponses, CollectionItemsRetrieveData, CollectionItemsRetrieveResponses, CollectionLotsListData, CollectionLotsListResponses, CollectionLotsRetrieveData, CollectionLotsRetrieveResponses, CsrfRetrieveData, CsrfRetrieveResponses, HealthRetrieveData, HealthRetrieveResponses, ImportsBatchesCreateData, ImportsBatchesCreateErrors, ImportsBatchesCreateResponses, ImportsBatchesListData, ImportsBatchesListResponses, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponses, ImportsRowsApproveCreateData, ImportsRowsApproveCreateErrors, ImportsRowsApproveCreateResponses, ImportsRowsListData, ImportsRowsListResponses, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateErrors, ImportsRowsOverrideCreateResponses, ImportsRowsRejectCreateData, ImportsRowsRejectCreateErrors, ImportsRowsRejectCreateResponses, ImportsRowsRetrieveData, ImportsRowsRetrieveResponses, PortfolioPortfoliosListData, PortfolioPortfoliosListResponses, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponses, PortfolioSnapshotsListData, PortfolioSnapshotsListResponses, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponses, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveErrors, PricingSnapshotsLatestRetrieveResponses, PricingSnapshotsListData, PricingSnapshotsListResponses, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponses, ValuationMoversListData, ValuationMoversListResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -17,6 +17,62 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
      */
     meta?: Record<string, unknown>;
 };
+
+/**
+ * The price-alert feed (newest first)
+ *
+ * The in-app alert feed: append-only ``AlertEvent`` rows recorded by the daily
+ * evaluation, newest first. LIST-ONLY (a feed, like ``MoversViewSet`` — there is no
+ * per-event detail view, so no retrieve endpoint is exposed) and read-only (events are
+ * written only by ``run_alerts``). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const alertsEventsList = <ThrowOnError extends boolean = false>(options?: Options<AlertsEventsListData, ThrowOnError>) => (options?.client ?? client).get<AlertsEventsListResponses, unknown, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'sessionid',
+            type: 'apiKey'
+        }],
+    url: '/api/alerts/events/',
+    ...options
+});
+
+/**
+ * List price-alert rules
+ *
+ * List + create price-alert rules. Create is the minimal write surface for this slice
+ * (edit/delete/mute UI deferred); the global CSRF + session auth apply (``proxy.ts``
+ * injects ``X-CSRFToken``). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const alertsRulesList = <ThrowOnError extends boolean = false>(options?: Options<AlertsRulesListData, ThrowOnError>) => (options?.client ?? client).get<AlertsRulesListResponses, unknown, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'sessionid',
+            type: 'apiKey'
+        }],
+    url: '/api/alerts/rules/',
+    ...options
+});
+
+/**
+ * Create a price-alert rule
+ *
+ * List + create price-alert rules. Create is the minimal write surface for this slice
+ * (edit/delete/mute UI deferred); the global CSRF + session auth apply (``proxy.ts``
+ * injects ``X-CSRFToken``). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const alertsRulesCreate = <ThrowOnError extends boolean = false>(options: Options<AlertsRulesCreateData, ThrowOnError>) => (options.client ?? client).post<AlertsRulesCreateResponses, AlertsRulesCreateErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'sessionid',
+            type: 'apiKey'
+        }],
+    url: '/api/alerts/rules/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Log in (establish a session cookie)

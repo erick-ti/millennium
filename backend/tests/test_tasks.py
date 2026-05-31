@@ -6,6 +6,8 @@ import pytest
 from celery.schedules import crontab
 from django.conf import settings
 
+from apps.alerts.evaluation import AlertEvaluationResult
+from apps.alerts.tasks import compute_alerts
 from apps.cards.sync import SyncResult
 from apps.cards.tasks import sync_ygoprodeck_metadata
 from apps.pricing.ingestion import IngestResult
@@ -24,20 +26,25 @@ def test_beat_schedule_runs_all_daily_jobs() -> None:
         "ygoprodeck-metadata-daily",
         "tcgcsv-pricing-daily",
         "valuation-daily",
+        "alerts-daily",
     }
     meta = schedule["ygoprodeck-metadata-daily"]
     price = schedule["tcgcsv-pricing-daily"]
     valuation = schedule["valuation-daily"]
+    alerts = schedule["alerts-daily"]
     assert meta["schedule"] == crontab(hour=2, minute=0)
     assert price["schedule"] == crontab(hour=3, minute=0)
     assert valuation["schedule"] == crontab(hour=4, minute=0)
-    # Ordering: metadata seeds the printings pricing reconciles against, and valuation
-    # reads the prices pricing writes -- so each is slotted after the one it depends on
-    # (valuation's dependency is also enforced *hard* in run_valuation, not just here).
+    assert alerts["schedule"] == crontab(hour=5, minute=0)
+    # Ordering: metadata seeds the printings pricing reconciles against; valuation reads the
+    # prices pricing writes; alerts reads the same prices for its move delta -- so each is
+    # slotted after the one it depends on (valuation's + alerts' pricing dependency is also
+    # enforced *hard* in run_valuation / run_alerts, not just here).
     assert (
         min(meta["schedule"].hour)
         < min(price["schedule"].hour)
         < min(valuation["schedule"].hour)
+        < min(alerts["schedule"].hour)
     )
 
 
@@ -49,10 +56,12 @@ def test_beat_schedule_task_names_match_registered_tasks() -> None:
     assert sync_ygoprodeck_metadata.name == "cards.sync_ygoprodeck_metadata"
     assert sync_tcgcsv_pricing.name == "pricing.sync_tcgcsv_pricing"
     assert value_portfolios.name == "valuation.value_portfolios"
+    assert compute_alerts.name == "alerts.compute_alerts"
     assert scheduled == {
         sync_ygoprodeck_metadata.name,
         sync_tcgcsv_pricing.name,
         value_portfolios.name,
+        compute_alerts.name,
     }
 
 
@@ -95,10 +104,12 @@ def test_tasks_report_skip_when_orchestration_skips(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr("apps.cards.tasks.run_ygoprodeck_sync", lambda **_kw: None)
     monkeypatch.setattr("apps.pricing.tasks.run_tcgcsv_sync", lambda **_kw: None)
     monkeypatch.setattr("apps.valuation.tasks.run_valuation", lambda: None)
+    monkeypatch.setattr("apps.alerts.tasks.run_alerts", lambda: None)
 
     assert sync_ygoprodeck_metadata() == {"skipped": True}
     assert sync_tcgcsv_pricing() == {"skipped": True}
     assert value_portfolios() == {"skipped": True}
+    assert compute_alerts() == {"skipped": True}
 
 
 def test_valuation_task_returns_run_counts(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -112,4 +123,18 @@ def test_valuation_task_returns_run_counts(monkeypatch: pytest.MonkeyPatch) -> N
     assert result["portfolios_seen"] == 2
     assert result["snapshots_created"] == 2
     assert result["holdings_valued"] == 3
+    json.dumps(result)  # the result backend serializes as JSON
+
+
+def test_alerts_task_returns_run_counts(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "apps.alerts.tasks.run_alerts",
+        lambda: AlertEvaluationResult(rules_evaluated=2, events_created=4, events_existing=1),
+    )
+
+    result = compute_alerts()
+
+    assert result["rules_evaluated"] == 2
+    assert result["events_created"] == 4
+    assert result["events_existing"] == 1
     json.dumps(result)  # the result backend serializes as JSON

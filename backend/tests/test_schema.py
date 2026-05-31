@@ -272,3 +272,18 @@ def test_mover_row_nullable_fields_are_nullable_in_schema() -> None:
     for name in ("pct_change", "variant_label"):
         field = mover["properties"][name]
         assert _is_nullable(field), f"MoverRow.{name} must be nullable in schema, got: {field}"
+
+
+def test_alert_event_variant_label_is_nullable_in_schema() -> None:
+    """``AlertEventSerializer.variant_label`` uses ``source="printing.variant_label"``, so
+    the class-level gate above SKIPS it (``AlertEvent._meta.get_field("variant_label")``
+    raises FieldDoesNotExist — the field lives on ``CardPrinting``). A no-variant printing
+    has a null ``variant_label``, so the schema must declare it nullable or the generated TS
+    client types it non-null and the /alerts feed crashes on a normal null. Pinned by hand
+    here (the ``MoverRow.variant_label`` precedent) since the auto-gate can't reach it; only
+    ``allow_null=True`` on the serializer field otherwise protects it (Phase 5 slice 4
+    adversarial review, the Codex slice-2 round-5 bug class)."""
+    schema = _generate_schema()
+    event = schema["components"]["schemas"]["AlertEvent"]
+    field = event["properties"]["variant_label"]
+    assert _is_nullable(field), f"AlertEvent.variant_label must be nullable, got: {field}"

@@ -6,6 +6,146 @@
         "description": "Yu-Gi-Oh collection portfolio tracker"
     },
     "paths": {
+        "/api/alerts/events/": {
+            "get": {
+                "operationId": "alerts_events_list",
+                "description": "The in-app alert feed: append-only ``AlertEvent`` rows recorded by the daily\nevaluation, newest first. LIST-ONLY (a feed, like ``MoversViewSet`` — there is no\nper-event detail view, so no retrieve endpoint is exposed) and read-only (events are\nwritten only by ``run_alerts``). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
+                "summary": "The price-alert feed (newest first)",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "rule",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Filter the feed to one rule's events."
+                    }
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedAlertEventList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/alerts/rules/": {
+            "get": {
+                "operationId": "alerts_rules_list",
+                "description": "List + create price-alert rules. Create is the minimal write surface for this slice\n(edit/delete/mute UI deferred); the global CSRF + session auth apply (``proxy.ts``\ninjects ``X-CSRFToken``). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
+                "summary": "List price-alert rules",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedAlertRuleList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "alerts_rules_create",
+                "description": "List + create price-alert rules. Create is the minimal write surface for this slice\n(edit/delete/mute UI deferred); the global CSRF + session auth apply (``proxy.ts``\ninjects ``X-CSRFToken``). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
+                "summary": "Create a price-alert rule",
+                "tags": [
+                    "alerts"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AlertRuleRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AlertRuleRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AlertRuleRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AlertRule"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/auth/login/": {
             "post": {
                 "operationId": "auth_login_create",
@@ -1449,6 +1589,200 @@
     },
     "components": {
         "schemas": {
+            "AlertEvent": {
+                "type": "object",
+                "description": "One alert-feed row: the fired rule's fire-time snapshot + the moved printing's\nidentity + the move. The ``rule_*`` columns are the immutable snapshot (so the feed\nrenders faithfully even if the live rule was later edited); the printing identity is\npulled via ``source=\"printing.*\"`` (those declared fields are skipped by the schema\nnullability gate, which only maps 1:1 model fields, so ``variant_label`` sets\n``allow_null=True`` explicitly). Money fields serialize as strings (DecimalField — the\nPriceSnapshot convention) so the frontend's ``parseDecimal`` keeps values exact.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "rule": {
+                        "type": "integer"
+                    },
+                    "rule_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "rule_threshold_pct": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,4}(?:\\.\\d{0,2})?$"
+                    },
+                    "rule_window_days": {
+                        "type": "integer",
+                        "maximum": 32767,
+                        "minimum": 0
+                    },
+                    "rule_direction": {
+                        "type": "string",
+                        "maxLength": 8
+                    },
+                    "printing": {
+                        "type": "integer"
+                    },
+                    "card_id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "card_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "set_code": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "set_rarity": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "variant_label": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "edition": {
+                        "$ref": "#/components/schemas/EditionEnum"
+                    },
+                    "triggered_on": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "start_price": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "end_price": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "pct_change": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,14}(?:\\.\\d{0,2})?$"
+                    },
+                    "dollar_change": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "card_id",
+                    "card_name",
+                    "created_at",
+                    "dollar_change",
+                    "edition",
+                    "end_price",
+                    "id",
+                    "pct_change",
+                    "printing",
+                    "rule",
+                    "rule_direction",
+                    "rule_name",
+                    "rule_threshold_pct",
+                    "rule_window_days",
+                    "set_code",
+                    "set_rarity",
+                    "start_price",
+                    "triggered_on",
+                    "variant_label"
+                ]
+            },
+            "AlertRule": {
+                "type": "object",
+                "description": "A price-alert rule — read AND create. ``id``/timestamps are read-only, so a POST\nbody carries only ``name``/``threshold_pct``/``window_days``/``direction``/``is_active``\nand the 201 echoes the saved rule (id + timestamps). With\n``COMPONENT_SPLIT_REQUEST=True`` (SPECTACULAR_SETTINGS) drf-spectacular emits separate\nrequest/response schemas from this one class, so no second create-serializer is needed.\n\n``window_days``/``direction`` are ChoiceFields auto-derived from the model's ``choices``\n(an off-menu value → 400). ``threshold_pct`` positivity is the model's DB CHECK; validate\nit here too so a non-positive value is a clean 400, not an IntegrityError 500.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "threshold_pct": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,4}(?:\\.\\d{0,2})?$"
+                    },
+                    "window_days": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WindowDaysEnum"
+                            }
+                        ],
+                        "minimum": 0,
+                        "maximum": 32767
+                    },
+                    "direction": {
+                        "$ref": "#/components/schemas/DirectionEnum"
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "id",
+                    "name",
+                    "threshold_pct",
+                    "updated_at"
+                ]
+            },
+            "AlertRuleRequest": {
+                "type": "object",
+                "description": "A price-alert rule — read AND create. ``id``/timestamps are read-only, so a POST\nbody carries only ``name``/``threshold_pct``/``window_days``/``direction``/``is_active``\nand the 201 echoes the saved rule (id + timestamps). With\n``COMPONENT_SPLIT_REQUEST=True`` (SPECTACULAR_SETTINGS) drf-spectacular emits separate\nrequest/response schemas from this one class, so no second create-serializer is needed.\n\n``window_days``/``direction`` are ChoiceFields auto-derived from the model's ``choices``\n(an off-menu value → 400). ``threshold_pct`` positivity is the model's DB CHECK; validate\nit here too so a non-positive value is a clean 400, not an IntegrityError 500.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                    },
+                    "threshold_pct": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,4}(?:\\.\\d{0,2})?$"
+                    },
+                    "window_days": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WindowDaysEnum"
+                            }
+                        ],
+                        "minimum": 0,
+                        "maximum": 32767
+                    },
+                    "direction": {
+                        "$ref": "#/components/schemas/DirectionEnum"
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "name",
+                    "threshold_pct"
+                ]
+            },
             "CardDetail": {
                 "type": "object",
                 "description": "Card detail nests its printings (most cards have at most a handful, so the\nnested payload stays small). The flat ``/api/cards/printings/?card={id}``\nendpoint remains available for filterable browsing.",
@@ -1792,6 +2126,15 @@
                 "type": "string",
                 "description": "* `mint` - Mint\n* `near_mint` - Near Mint\n* `excellent` - Excellent\n* `good` - Good\n* `light_played` - Light Played\n* `played` - Played\n* `poor` - Poor"
             },
+            "DirectionEnum": {
+                "enum": [
+                    "up",
+                    "down",
+                    "any"
+                ],
+                "type": "string",
+                "description": "* `up` - Up\n* `down` - Down\n* `any` - Any direction"
+            },
             "EditionEnum": {
                 "enum": [
                     "first",
@@ -2133,6 +2476,68 @@
                     "start_price",
                     "variant_label"
                 ]
+            },
+            "PaginatedAlertEventList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AlertEvent"
+                        }
+                    }
+                }
+            },
+            "PaginatedAlertRuleList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AlertRule"
+                        }
+                    }
+                }
             },
             "PaginatedCardListList": {
                 "type": "object",
@@ -2682,6 +3087,15 @@
                     "id",
                     "username"
                 ]
+            },
+            "WindowDaysEnum": {
+                "enum": [
+                    7,
+                    30,
+                    90
+                ],
+                "type": "integer",
+                "description": "* `7` - 7 days\n* `30` - 30 days\n* `90` - 90 days"
             }
         },
         "securitySchemes": {

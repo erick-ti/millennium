@@ -19,7 +19,9 @@
  * Slice 6 wired `X-CSRFToken` injection in `frontend/src/proxy.ts`, so the
  * import write helpers (`importsRowsApproveCreate` / `OverrideCreate` /
  * `RejectCreate`, `importsBatchesCreate`) + their `*Mutation` variants are now
- * re-exported and safe to call through the same-origin proxy.
+ * re-exported and safe to call through the same-origin proxy. Phase 5 adds the
+ * price-alert rule-create write (`alertsRulesCreate` + `alertsRulesCreateMutation`)
+ * on the same path.
  *
  * We deliberately do NOT collapse this to `export * from "./generated"` (the
  * slice-2 comment's suggested one-line revert): hey-api still generates the
@@ -48,6 +50,9 @@ export type * from "./generated/types.gen";
 // via `proxy.ts`. The `/api/auth/me` session probe is consumed via its
 // `*Options` helper below, not the bare fn. `type Options` is shared/type-only.
 export {
+  alertsEventsList,
+  alertsRulesCreate,
+  alertsRulesList,
   authLoginCreate,
   authLogoutCreate,
   cardsCardsArchetypesRetrieve,
@@ -87,6 +92,11 @@ export {
 // (broken past page 1 — see the header note); add a project-owned wrapper if
 // infinite scroll is ever wanted.
 export {
+  alertsEventsListOptions,
+  alertsEventsListQueryKey,
+  alertsRulesCreateMutation,
+  alertsRulesListOptions,
+  alertsRulesListQueryKey,
   authMeRetrieveOptions,
   authMeRetrieveQueryKey,
   cardsCardsArchetypesRetrieveOptions,
