@@ -63,6 +63,7 @@ LOCAL_APPS = [
     "apps.collection",
     "apps.imports",
     "apps.valuation",
+    "apps.alerts",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -216,7 +217,9 @@ CELERY_TIMEZONE = TIME_ZONE
 # Valuation->pricing is a *hard* dependency: the 04:00 slot is only a hint -- run_valuation
 # refuses unless a successful same-day pricing SyncRun is recorded, because a slow ingest
 # could overrun 04:00 and valuing a partial price table writes an uncorrectable snapshot
-# (DECISIONS 2026-05-24 slice 3, 2026-05-25 slice 4c).
+# (DECISIONS 2026-05-24 slice 3, 2026-05-25 slice 4c). Alerts (05:00) likewise gates on a
+# same-day pricing SUCCESS, not the clock -- it reads the same price table for its two-anchor
+# move (Phase 5 slice 4); it runs after valuation by convention but depends only on pricing.
 CELERY_BEAT_SCHEDULE: dict[str, Any] = {
     "ygoprodeck-metadata-daily": {
         "task": "cards.sync_ygoprodeck_metadata",
@@ -229,6 +232,10 @@ CELERY_BEAT_SCHEDULE: dict[str, Any] = {
     "valuation-daily": {
         "task": "valuation.value_portfolios",
         "schedule": crontab(hour=4, minute=0),
+    },
+    "alerts-daily": {
+        "task": "alerts.compute_alerts",
+        "schedule": crontab(hour=5, minute=0),
     },
 }
 
