@@ -158,6 +158,18 @@ class PriceSnapshot(TimeStampedModel):
                 fields=["printing", "edition", "-snapshot_date"],
                 name="price_snapshot_latest_idx",
             ),
+            # snapshot_date-leading companion for the date-anchored scan that the
+            # latest-price-map issues across MANY printings at once (Phase 5): both
+            # ``value_all_portfolios`` (catalog-wide, every day) and the collection-
+            # scoped "biggest movers" query filter ``source=TCGCSV`` + a
+            # ``snapshot_date <= anchor`` bound and then pick each (printing, edition)
+            # group's max date. The printing-leading index above serves the per-pair
+            # correlated subquery; this one serves the outer source+date scan that
+            # crosses printings, which a printing-leading index can't drive.
+            models.Index(
+                fields=["source", "-snapshot_date", "printing", "edition"],
+                name="price_snapshot_movers_idx",
+            ),
         ]
 
     def __str__(self) -> str:

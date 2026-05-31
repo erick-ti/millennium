@@ -77,6 +77,7 @@ export {
   pricingSnapshotsLatestRetrieve,
   pricingSnapshotsList,
   pricingSnapshotsRetrieve,
+  valuationMoversList,
 } from "./generated/sdk.gen";
 
 // ─── TanStack Query helpers ────────────────────────────────────────────────
@@ -137,6 +138,8 @@ export {
   pricingSnapshotsRetrieveOptions,
   pricingSnapshotsRetrieveQueryKey,
   type QueryKey,
+  valuationMoversListOptions,
+  valuationMoversListQueryKey,
 } from "./generated/@tanstack/react-query.gen";
 
 // ─── Runtime client singleton ─────────────────────────────────────────────

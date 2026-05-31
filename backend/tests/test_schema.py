@@ -255,3 +255,20 @@ def test_portfolio_latest_snapshot_is_nullable_in_schema() -> None:
     portfolio = schema["components"]["schemas"]["Portfolio"]
     field = portfolio["properties"]["latest_snapshot"]
     assert _is_nullable(field), f"latest_snapshot must be nullable in schema, got: {field}"
+
+
+def test_mover_row_nullable_fields_are_nullable_in_schema() -> None:
+    """``MoverRowSerializer`` (Phase 5 "biggest movers") is a plain ``Serializer``,
+    not a ``ModelSerializer`` — so the class-level nullable-field gate above does
+    NOT walk it. Its two nullable fields must therefore be pinned by hand: a
+    sub-floor older-anchor base leaves ``pct_change`` null (the dollar move is still
+    real; DECISIONS 2026-05-31) and a no-variant printing has a null
+    ``variant_label``. Without ``allow_null=True`` the generated TS client types
+    them non-null and the /movers UI crashes on a normal null. Backend-independent
+    (a structural assertion), so it runs under ``make test`` too — unlike the
+    @postgres_only snapshot-equality gate that's the only other coverage here."""
+    schema = _generate_schema()
+    mover = schema["components"]["schemas"]["MoverRow"]
+    for name in ("pct_change", "variant_label"):
+        field = mover["properties"][name]
+        assert _is_nullable(field), f"MoverRow.{name} must be nullable in schema, got: {field}"

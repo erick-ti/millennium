@@ -80,6 +80,27 @@ def _price(
 
 
 @pytest.mark.django_db
+def test_latest_price_map_scopes_to_printing_ids() -> None:
+    """The ``printing_ids`` kwarg (added for the Phase 5 movers query) narrows the
+    map to those printings; the default (``None``) stays catalog-wide — the
+    contract ``value_all_portfolios`` relies on. Pinned directly because the
+    movers API tests can't catch a no-op/over-narrow regression here: their
+    owned-only result loop reads the same values whether or not the catalog map is
+    scoped (Codex review 2026-05-31, finding #6)."""
+    first = Edition.FIRST_EDITION.value
+    p1 = _printing(set_code="AAA-EN001")
+    p2 = _printing(set_code="BBB-EN001")
+    _price(p1, market=Decimal("10.00"))
+    _price(p2, market=Decimal("20.00"))
+
+    catalog = engine._latest_price_map(on_or_before=DAY)
+    assert set(catalog) == {(p1.id, first), (p2.id, first)}
+
+    scoped = engine._latest_price_map(on_or_before=DAY, printing_ids={p1.id})
+    assert set(scoped) == {(p1.id, first)}
+
+
+@pytest.mark.django_db
 def test_values_a_fully_covered_portfolio() -> None:
     portfolio = Portfolio.objects.create(name="Yubel Deck")
     printing = _printing()

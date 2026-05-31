@@ -2,6 +2,7 @@
 
 import {
   type ColumnDef,
+  type RowData,
   flexRender,
   getCoreRowModel,
   useReactTable,
@@ -15,6 +16,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+declare module "@tanstack/react-table" {
+  // Optional per-column metadata. `ariaSort` marks the active server-side sort
+  // direction on a sortable header cell (rendered as `aria-sort` on the `<th>`)
+  // so assistive tech announces which column is sorted and which way — the
+  // movers view (Phase 5 slice 3) is the first server-sortable table. Left unset
+  // on non-sortable columns and on the other (unsorted) read views, so no
+  // `aria-sort` attribute is emitted there.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface ColumnMeta<TData extends RowData, TValue> {
+    ariaSort?: "ascending" | "descending" | "none";
+  }
+}
 
 interface DataTableProps<TData, TValue> {
   columns: Array<ColumnDef<TData, TValue>>;
@@ -53,7 +67,10 @@ export function DataTable<TData, TValue>({
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <TableHead key={header.id}>
+                <TableHead
+                  key={header.id}
+                  aria-sort={header.column.columnDef.meta?.ariaSort}
+                >
                   {header.isPlaceholder
                     ? null
                     : flexRender(

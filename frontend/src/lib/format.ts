@@ -20,6 +20,37 @@ export function formatUsd(value: number): string {
   return usd.format(value);
 }
 
+// Signed currency / percent for deltas (the "biggest movers" view, slice 3).
+// `signDisplay: "exceptZero"` prepends an explicit "+" to gains (a loss already
+// carries "-"), matching the portfolio gain convention (+$x ▲ / -$x ▼).
+const signedUsd = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  signDisplay: "exceptZero",
+});
+
+/** Format a signed USD delta, e.g. `2.5` → `"+$2.50"`, `-1` → `"-$1.00"`. */
+export function formatSignedUsd(value: number): string {
+  return signedUsd.format(value);
+}
+
+const signedPercent = new Intl.NumberFormat("en-US", {
+  style: "percent",
+  signDisplay: "exceptZero",
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+
+/**
+ * Format a fractional change as a signed percent, e.g. `0.125` → `"+12.5%"`.
+ * The input is a RATIO (`(end - start) / start`), not an already-scaled percent —
+ * `Intl` multiplies by 100. The movers API leaves `pct_change` null for a
+ * sub-floor base price; the caller renders that as a sentinel, never `0%`.
+ */
+export function formatPercent(value: number): string {
+  return signedPercent.format(value);
+}
+
 /**
  * Parse a DRF decimal string (e.g. `"42.10"`) to a number, or `null` for a
  * missing price. NEVER coerce `null`/`""` to `0` — a missing price is a gap,
