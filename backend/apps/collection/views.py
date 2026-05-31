@@ -8,12 +8,13 @@ from rest_framework import viewsets
 from rest_framework.exceptions import ValidationError
 from rest_framework.serializers import BaseSerializer
 
-from apps.collection.models import CollectionItem, CollectionLot
+from apps.collection.models import CollectionItem, CollectionLot, Condition, Language
 from apps.collection.serializers import (
     CollectionItemDetailSerializer,
     CollectionItemListSerializer,
     CollectionLotSerializer,
 )
+from apps.core.enums import Edition
 
 
 @extend_schema_view(
@@ -24,6 +25,34 @@ from apps.collection.serializers import (
                 "portfolio",
                 OpenApiTypes.INT,
                 description="Filter to one portfolio's holdings.",
+            ),
+            OpenApiParameter(
+                "condition",
+                OpenApiTypes.STR,
+                enum=Condition.values,
+                description="Exact-match filter by card condition.",
+            ),
+            OpenApiParameter(
+                "edition",
+                OpenApiTypes.STR,
+                enum=Edition.values,
+                description="Exact-match filter by edition.",
+            ),
+            OpenApiParameter(
+                "language",
+                OpenApiTypes.STR,
+                enum=Language.values,
+                description="Exact-match filter by print language (ISO 639-1 code).",
+            ),
+            OpenApiParameter(
+                "set_code",
+                OpenApiTypes.STR,
+                description="Exact-match filter by set code.",
+            ),
+            OpenApiParameter(
+                "search",
+                OpenApiTypes.STR,
+                description="Case-insensitive substring match on card name.",
             ),
         ],
     ),
@@ -63,6 +92,32 @@ class CollectionItemViewSet(viewsets.ReadOnlyModelViewSet[CollectionItem]):
             if not portfolio.isdigit():
                 raise ValidationError({"portfolio": "must be an integer portfolio id"})
             qs = qs.filter(portfolio_id=int(portfolio))
+
+        # Identity facets (Phase 5). Enum values are DB-CHECK-enforced, so an
+        # unknown value can't match a row anyway — but validate up front so the
+        # client gets a 400 with the allowed set rather than a silent empty list
+        # (the pricing edition-filter precedent). All of these hit fields already
+        # on the item or the select_related printing/card — no new joins.
+        for field, choices in (
+            ("condition", Condition.values),
+            ("edition", Edition.values),
+            ("language", Language.values),
+        ):
+            value = params.get(field)
+            if value is not None:
+                if value not in choices:
+                    raise ValidationError({field: f"must be one of {choices}"})
+                qs = qs.filter(**{field: value})
+
+        set_code = params.get("set_code")
+        if set_code is not None:
+            qs = qs.filter(printing__set_code=set_code)
+
+        # A cleared search box sends ?search= — empty/whitespace is "no filter",
+        # not "match nothing" (the cards-search convention).
+        search = params.get("search")
+        if search is not None and search.strip():
+            qs = qs.filter(printing__card__name__icontains=search.strip())
 
         return qs
 

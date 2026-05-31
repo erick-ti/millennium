@@ -190,6 +190,94 @@ def test_item_storage_location_null_serializes_as_null(client: APIClient) -> Non
     assert row["storage_location_name"] is None
 
 
+# --- identity filters (Phase 5) -------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_item_list_filters_by_condition_edition_language(client: APIClient) -> None:
+    """Each identity facet is an exact match on a field already on the holding; combined
+    facets AND together."""
+    nm_first_en = _item()  # NEAR_MINT / FIRST_EDITION / ENGLISH
+    lp_unl_ja = _item(
+        printing=_printing(set_code="MAMA-EN036", set_rarity="Ultra Rare"),
+        condition=Condition.LIGHT_PLAYED,
+        edition=Edition.UNLIMITED,
+        language=Language.JAPANESE,
+    )
+    url = reverse("collection:collectionitem-list")
+
+    assert _flatten_results(client.get(url, {"condition": "near_mint"})) == {nm_first_en.id}
+    assert _flatten_results(client.get(url, {"edition": "unlimited"})) == {lp_unl_ja.id}
+    assert _flatten_results(client.get(url, {"language": "ja"})) == {lp_unl_ja.id}
+    assert _flatten_results(
+        client.get(url, {"condition": "light_played", "edition": "unlimited"})
+    ) == {lp_unl_ja.id}
+
+
+@pytest.mark.django_db
+def test_item_list_rejects_invalid_enum_filter(client: APIClient) -> None:
+    """An unknown enum value 400s with the allowed set, not a silent empty result."""
+    url = reverse("collection:collectionitem-list")
+    assert client.get(url, {"condition": "pristine"}).status_code == status.HTTP_400_BAD_REQUEST
+    assert client.get(url, {"edition": "promo"}).status_code == status.HTTP_400_BAD_REQUEST
+    assert client.get(url, {"language": "klingon"}).status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+def test_item_list_filters_by_set_code(client: APIClient) -> None:
+    _item()  # L5DD-ENC09
+    mama = _item(printing=_printing(set_code="MAMA-EN036", set_rarity="Ultra Rare"))
+
+    resp = client.get(reverse("collection:collectionitem-list"), {"set_code": "MAMA-EN036"})
+
+    assert _flatten_results(resp) == {mama.id}
+
+
+@pytest.mark.django_db
+def test_item_list_search_filters_by_card_name(client: APIClient) -> None:
+    """?search= is a case-insensitive substring on the joined card name."""
+    ash_card = Card.objects.create(name="Ash Blossom & Joyous Spring")
+    ash = _item(
+        printing=CardPrinting.objects.create(
+            card=ash_card, set_code="A-1", set_rarity="Common", set_name="s"
+        )
+    )
+    dm_card = Card.objects.create(name="Dark Magician")
+    _item(
+        printing=CardPrinting.objects.create(
+            card=dm_card, set_code="B-1", set_rarity="Common", set_name="s"
+        )
+    )
+
+    resp = client.get(reverse("collection:collectionitem-list"), {"search": "blossom"})
+
+    assert _flatten_results(resp) == {ash.id}
+
+
+@pytest.mark.django_db
+def test_item_list_blank_search_returns_all(client: APIClient) -> None:
+    """A cleared search box sends ?search= — empty/whitespace is 'no filter'."""
+    _item()
+    _item(printing=_printing(set_code="MAMA-EN036", set_rarity="Ultra Rare"))
+
+    resp = client.get(reverse("collection:collectionitem-list"), {"search": "  "})
+
+    assert resp.data["count"] == 2
+
+
+@pytest.mark.django_db
+def test_item_detail_ignores_list_filters(client: APIClient) -> None:
+    """A stray filter param on a retrieve must not 404 via filter_queryset — the
+    list-only guard (the imports slice-5 lesson). The item is near_mint, so a
+    non-matching ?condition=poor would 404 it if the filter wrongly ran on detail."""
+    item = _item()  # NEAR_MINT
+    resp = client.get(
+        reverse("collection:collectionitem-detail", args=[item.pk]), {"condition": "poor"}
+    )
+    assert resp.status_code == status.HTTP_200_OK
+    assert resp.data["id"] == item.pk
+
+
 # --- lots ----------------------------------------------------------------------
 
 

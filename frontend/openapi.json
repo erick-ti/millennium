@@ -325,6 +325,54 @@
                 "summary": "List / filter collection items (with aggregate quantity)",
                 "parameters": [
                     {
+                        "in": "query",
+                        "name": "condition",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "excellent",
+                                "good",
+                                "light_played",
+                                "mint",
+                                "near_mint",
+                                "played",
+                                "poor"
+                            ]
+                        },
+                        "description": "Exact-match filter by card condition."
+                    },
+                    {
+                        "in": "query",
+                        "name": "edition",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "first",
+                                "limited",
+                                "unlimited"
+                            ]
+                        },
+                        "description": "Exact-match filter by edition."
+                    },
+                    {
+                        "in": "query",
+                        "name": "language",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "de",
+                                "en",
+                                "es",
+                                "fr",
+                                "it",
+                                "ja",
+                                "ko",
+                                "pt"
+                            ]
+                        },
+                        "description": "Exact-match filter by print language (ISO 639-1 code)."
+                    },
+                    {
                         "name": "page",
                         "required": false,
                         "in": "query",
@@ -340,6 +388,22 @@
                             "type": "integer"
                         },
                         "description": "Filter to one portfolio's holdings."
+                    },
+                    {
+                        "in": "query",
+                        "name": "search",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Case-insensitive substring match on card name."
+                    },
+                    {
+                        "in": "query",
+                        "name": "set_code",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Exact-match filter by set code."
                     }
                 ],
                 "tags": [
