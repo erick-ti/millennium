@@ -9,6 +9,7 @@ const routes: Array<{ href: string; label: string }> = [
   { href: "/collection", label: "Collection" },
   { href: "/cards", label: "Cards" },
   { href: "/portfolios", label: "Portfolios" },
+  { href: "/movers", label: "Movers" },
   { href: "/imports", label: "Imports" },
 ];
 

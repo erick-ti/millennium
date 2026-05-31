@@ -3,8 +3,8 @@
 import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { authLoginCreate, authLogoutCreate, authMeRetrieve, cardsCardsArchetypesRetrieve, cardsCardsList, cardsCardsRetrieve, cardsPrintingsList, cardsPrintingsRetrieve, collectionItemsList, collectionItemsRetrieve, collectionLotsList, collectionLotsRetrieve, csrfRetrieve, healthRetrieve, importsBatchesCreate, importsBatchesList, importsBatchesRetrieve, importsRowsApproveCreate, importsRowsList, importsRowsOverrideCreate, importsRowsRejectCreate, importsRowsRetrieve, type Options, portfolioPortfoliosList, portfolioPortfoliosRetrieve, portfolioSnapshotsList, portfolioSnapshotsRetrieve, pricingSnapshotsLatestRetrieve, pricingSnapshotsList, pricingSnapshotsRetrieve } from '../sdk.gen';
-import type { AuthLoginCreateData, AuthLoginCreateResponse, AuthLogoutCreateData, AuthMeRetrieveData, AuthMeRetrieveResponse, CardsCardsArchetypesRetrieveData, CardsCardsArchetypesRetrieveResponse, CardsCardsListData, CardsCardsListResponse, CardsCardsRetrieveData, CardsCardsRetrieveResponse, CardsPrintingsListData, CardsPrintingsListResponse, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponse, CollectionItemsListData, CollectionItemsListResponse, CollectionItemsRetrieveData, CollectionItemsRetrieveResponse, CollectionLotsListData, CollectionLotsListResponse, CollectionLotsRetrieveData, CollectionLotsRetrieveResponse, CsrfRetrieveData, HealthRetrieveData, ImportsBatchesCreateData, ImportsBatchesCreateError, ImportsBatchesCreateResponse, ImportsBatchesListData, ImportsBatchesListResponse, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponse, ImportsRowsApproveCreateData, ImportsRowsApproveCreateError, ImportsRowsApproveCreateResponse, ImportsRowsListData, ImportsRowsListResponse, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateError, ImportsRowsOverrideCreateResponse, ImportsRowsRejectCreateData, ImportsRowsRejectCreateError, ImportsRowsRejectCreateResponse, ImportsRowsRetrieveData, ImportsRowsRetrieveResponse, PortfolioPortfoliosListData, PortfolioPortfoliosListResponse, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponse, PortfolioSnapshotsListData, PortfolioSnapshotsListResponse, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponse, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveError, PricingSnapshotsLatestRetrieveResponse, PricingSnapshotsListData, PricingSnapshotsListResponse, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponse } from '../types.gen';
+import { authLoginCreate, authLogoutCreate, authMeRetrieve, cardsCardsArchetypesRetrieve, cardsCardsList, cardsCardsRetrieve, cardsPrintingsList, cardsPrintingsRetrieve, collectionItemsList, collectionItemsRetrieve, collectionLotsList, collectionLotsRetrieve, csrfRetrieve, healthRetrieve, importsBatchesCreate, importsBatchesList, importsBatchesRetrieve, importsRowsApproveCreate, importsRowsList, importsRowsOverrideCreate, importsRowsRejectCreate, importsRowsRetrieve, type Options, portfolioPortfoliosList, portfolioPortfoliosRetrieve, portfolioSnapshotsList, portfolioSnapshotsRetrieve, pricingSnapshotsLatestRetrieve, pricingSnapshotsList, pricingSnapshotsRetrieve, valuationMoversList } from '../sdk.gen';
+import type { AuthLoginCreateData, AuthLoginCreateResponse, AuthLogoutCreateData, AuthMeRetrieveData, AuthMeRetrieveResponse, CardsCardsArchetypesRetrieveData, CardsCardsArchetypesRetrieveResponse, CardsCardsListData, CardsCardsListResponse, CardsCardsRetrieveData, CardsCardsRetrieveResponse, CardsPrintingsListData, CardsPrintingsListResponse, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponse, CollectionItemsListData, CollectionItemsListResponse, CollectionItemsRetrieveData, CollectionItemsRetrieveResponse, CollectionLotsListData, CollectionLotsListResponse, CollectionLotsRetrieveData, CollectionLotsRetrieveResponse, CsrfRetrieveData, HealthRetrieveData, ImportsBatchesCreateData, ImportsBatchesCreateError, ImportsBatchesCreateResponse, ImportsBatchesListData, ImportsBatchesListResponse, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponse, ImportsRowsApproveCreateData, ImportsRowsApproveCreateError, ImportsRowsApproveCreateResponse, ImportsRowsListData, ImportsRowsListResponse, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateError, ImportsRowsOverrideCreateResponse, ImportsRowsRejectCreateData, ImportsRowsRejectCreateError, ImportsRowsRejectCreateResponse, ImportsRowsRetrieveData, ImportsRowsRetrieveResponse, PortfolioPortfoliosListData, PortfolioPortfoliosListResponse, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponse, PortfolioSnapshotsListData, PortfolioSnapshotsListResponse, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponse, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveError, PricingSnapshotsLatestRetrieveResponse, PricingSnapshotsListData, PricingSnapshotsListResponse, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponse, ValuationMoversListData, ValuationMoversListResponse } from '../types.gen';
 
 /**
  * Log in (establish a session cookie)
@@ -1044,4 +1044,63 @@ export const pricingSnapshotsLatestRetrieveOptions = (options: Options<PricingSn
         return data;
     },
     queryKey: pricingSnapshotsLatestRetrieveQueryKey(options)
+});
+
+export const valuationMoversListQueryKey = (options?: Options<ValuationMoversListData>) => createQueryKey('valuationMoversList', options);
+
+/**
+ * Biggest price movers among owned (printing, edition) pairs
+ *
+ * Read-only "biggest movers" analytics (DECISIONS 2026-05-31): each owned
+ * ``(printing, edition)``'s price change over a selectable window. Rows are
+ * computed from the valuation engine's usable-price helpers across two date
+ * anchors (today and today - window), scoped to currently-held holdings, then
+ * server-ordered (the ``?ordering=`` allowlist) and paginated — like every other
+ * list endpoint. Inherits the global ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const valuationMoversListOptions = (options?: Options<ValuationMoversListData>) => queryOptions<ValuationMoversListResponse, DefaultError, ValuationMoversListResponse, ReturnType<typeof valuationMoversListQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await valuationMoversList({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: valuationMoversListQueryKey(options)
+});
+
+export const valuationMoversListInfiniteQueryKey = (options?: Options<ValuationMoversListData>): QueryKey<Options<ValuationMoversListData>> => createQueryKey('valuationMoversList', options, true);
+
+/**
+ * Biggest price movers among owned (printing, edition) pairs
+ *
+ * Read-only "biggest movers" analytics (DECISIONS 2026-05-31): each owned
+ * ``(printing, edition)``'s price change over a selectable window. Rows are
+ * computed from the valuation engine's usable-price helpers across two date
+ * anchors (today and today - window), scoped to currently-held holdings, then
+ * server-ordered (the ``?ordering=`` allowlist) and paginated — like every other
+ * list endpoint. Inherits the global ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const valuationMoversListInfiniteOptions = (options?: Options<ValuationMoversListData>) => infiniteQueryOptions<ValuationMoversListResponse, DefaultError, InfiniteData<ValuationMoversListResponse>, QueryKey<Options<ValuationMoversListData>>, number | Pick<QueryKey<Options<ValuationMoversListData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+// @ts-ignore
+{
+    queryFn: async ({ pageParam, queryKey, signal }) => {
+        // @ts-ignore
+        const page: Pick<QueryKey<Options<ValuationMoversListData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+            query: {
+                page: pageParam
+            }
+        };
+        const params = createInfiniteParams(queryKey, page);
+        const { data } = await valuationMoversList({
+            ...options,
+            ...params,
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: valuationMoversListInfiniteQueryKey(options)
 });

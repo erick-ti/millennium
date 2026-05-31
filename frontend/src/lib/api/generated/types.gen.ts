@@ -283,6 +283,35 @@ export type MatchedPrinting = {
     is_multi_variant?: boolean;
 };
 
+/**
+ * One owned ``(printing, edition)``'s price move over the window — a computed
+ * aggregate, not a model row, so a plain (hand-typed) ``Serializer``.
+ *
+ * ``pct_change`` is null when the older-anchor base is below the near-zero floor
+ * (the dollar move is still real and shown); ``variant_label`` is null for a
+ * no-variant printing. Both nullables set ``allow_null=True`` explicitly: the
+ * schema nullability gate (``test_schema.py``) only walks ``ModelSerializer``s, so
+ * a plain ``Serializer`` gets no automatic coverage. Money fields are
+ * ``DecimalField`` (serialized as strings, like ``PriceSnapshotSerializer``) so the
+ * frontend's ``parseDecimal`` keeps NULL distinct from 0; ``abs_change`` may be
+ * negative (a loss).
+ */
+export type MoverRow = {
+    printing: number;
+    card_id: number;
+    card_name: string;
+    set_code: string;
+    set_rarity: string;
+    variant_label: string | null;
+    edition: EditionEnum;
+    start_price: string;
+    end_price: string;
+    abs_change: string;
+    pct_change: number | null;
+    start_date: string;
+    end_date: string;
+};
+
 export type PaginatedCardListList = {
     count: number;
     next?: string | null;
@@ -323,6 +352,13 @@ export type PaginatedImportRowList = {
     next?: string | null;
     previous?: string | null;
     results: Array<ImportRow>;
+};
+
+export type PaginatedMoverRowList = {
+    count: number;
+    next?: string | null;
+    previous?: string | null;
+    results: Array<MoverRow>;
 };
 
 export type PaginatedPortfolioList = {
@@ -1353,3 +1389,29 @@ export type PricingSnapshotsLatestRetrieveResponses = {
 };
 
 export type PricingSnapshotsLatestRetrieveResponse = PricingSnapshotsLatestRetrieveResponses[keyof PricingSnapshotsLatestRetrieveResponses];
+
+export type ValuationMoversListData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Sort key (default '-pct_change'). A leading '-' is descending; rows with a null percent (sub-floor base) always sort last.
+         */
+        ordering?: '-abs_change' | '-pct_change' | 'abs_change' | 'pct_change';
+        /**
+         * A page number within the paginated result set.
+         */
+        page?: number;
+        /**
+         * Lookback window in days; one of [7, 30, 90] (default 30).
+         */
+        window?: 30 | 7 | 90;
+    };
+    url: '/api/valuation/movers/';
+};
+
+export type ValuationMoversListResponses = {
+    200: PaginatedMoverRowList;
+};
+
+export type ValuationMoversListResponse = ValuationMoversListResponses[keyof ValuationMoversListResponses];

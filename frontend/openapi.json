@@ -1380,6 +1380,71 @@
                     }
                 }
             }
+        },
+        "/api/valuation/movers/": {
+            "get": {
+                "operationId": "valuation_movers_list",
+                "description": "Read-only \"biggest movers\" analytics (DECISIONS 2026-05-31): each owned\n``(printing, edition)``'s price change over a selectable window. Rows are\ncomputed from the valuation engine's usable-price helpers across two date\nanchors (today and today - window), scoped to currently-held holdings, then\nserver-ordered (the ``?ordering=`` allowlist) and paginated — like every other\nlist endpoint. Inherits the global ``IsAuthenticated`` + ``PageNumberPagination``.",
+                "summary": "Biggest price movers among owned (printing, edition) pairs",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "ordering",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "-abs_change",
+                                "-pct_change",
+                                "abs_change",
+                                "pct_change"
+                            ]
+                        },
+                        "description": "Sort key (default '-pct_change'). A leading '-' is descending; rows with a null percent (sub-floor base) always sort last."
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "window",
+                        "schema": {
+                            "type": "integer",
+                            "enum": [
+                                30,
+                                7,
+                                90
+                            ]
+                        },
+                        "description": "Lookback window in days; one of [7, 30, 90] (default 30)."
+                    }
+                ],
+                "tags": [
+                    "valuation"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedMoverRowList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -1998,6 +2063,77 @@
                     "set_rarity"
                 ]
             },
+            "MoverRow": {
+                "type": "object",
+                "description": "One owned ``(printing, edition)``'s price move over the window — a computed\naggregate, not a model row, so a plain (hand-typed) ``Serializer``.\n\n``pct_change`` is null when the older-anchor base is below the near-zero floor\n(the dollar move is still real and shown); ``variant_label`` is null for a\nno-variant printing. Both nullables set ``allow_null=True`` explicitly: the\nschema nullability gate (``test_schema.py``) only walks ``ModelSerializer``s, so\na plain ``Serializer`` gets no automatic coverage. Money fields are\n``DecimalField`` (serialized as strings, like ``PriceSnapshotSerializer``) so the\nfrontend's ``parseDecimal`` keeps NULL distinct from 0; ``abs_change`` may be\nnegative (a loss).",
+                "properties": {
+                    "printing": {
+                        "type": "integer"
+                    },
+                    "card_id": {
+                        "type": "integer"
+                    },
+                    "card_name": {
+                        "type": "string"
+                    },
+                    "set_code": {
+                        "type": "string"
+                    },
+                    "set_rarity": {
+                        "type": "string"
+                    },
+                    "variant_label": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "edition": {
+                        "$ref": "#/components/schemas/EditionEnum"
+                    },
+                    "start_price": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "end_price": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "abs_change": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "pct_change": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "format": "date"
+                    }
+                },
+                "required": [
+                    "abs_change",
+                    "card_id",
+                    "card_name",
+                    "edition",
+                    "end_date",
+                    "end_price",
+                    "pct_change",
+                    "printing",
+                    "set_code",
+                    "set_rarity",
+                    "start_date",
+                    "start_price",
+                    "variant_label"
+                ]
+            },
             "PaginatedCardListList": {
                 "type": "object",
                 "required": [
@@ -2180,6 +2316,37 @@
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/ImportRow"
+                        }
+                    }
+                }
+            },
+            "PaginatedMoverRowList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MoverRow"
                         }
                     }
                 }
