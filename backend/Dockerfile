@@ -29,6 +29,7 @@ COPY . .
 RUN DJANGO_SETTINGS_MODULE=config.settings.prod \
     DJANGO_SECRET_KEY=collectstatic-build-only-not-real \
     DJANGO_ALLOWED_HOSTS=build \
+    DJANGO_CSRF_TRUSTED_ORIGINS=https://build \
     DATABASE_URL=postgres://build:build@build:5432/build \
     REDIS_URL=redis://build:6379/0 \
     CELERY_BROKER_URL=redis://build:6379/1 \
