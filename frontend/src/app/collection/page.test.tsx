@@ -64,6 +64,19 @@ function stubItems(
   });
 }
 
+// Stub keyed on the FULL query object (not just page/portfolio), so changing any
+// facet produces a distinct queryKey and TanStack refetches — what the facet/search
+// tests assert against.
+function stubItemsFull(impl: (query: Record<string, unknown>) => ItemsPage) {
+  itemsOptions.mockImplementation((options) => {
+    const query = options?.query ?? {};
+    return {
+      queryKey: [{ _id: "collectionItemsList", query }],
+      queryFn: async () => impl(query),
+    } as unknown as ReturnType<typeof collectionItemsListOptions>;
+  });
+}
+
 function stubPortfolios(results: Array<{ id: number; name: string }>) {
   portfoliosOptions.mockImplementation(
     () =>
@@ -138,11 +151,11 @@ describe("CollectionPage", () => {
       await screen.findByText("Blue-Eyes White Dragon")
     ).toBeInTheDocument();
     expect(screen.getByText("Dark Magician")).toBeInTheDocument();
-    // enum code -> human label
-    expect(screen.getByText("Near Mint")).toBeInTheDocument();
-    expect(screen.getByText("Light Played")).toBeInTheDocument();
-    expect(screen.getByText("1st")).toBeInTheDocument();
-    expect(screen.getByText("Unlimited")).toBeInTheDocument();
+    // enum code -> human label (query the CELL, not the like-named filter <option>)
+    expect(screen.getByRole("cell", { name: "Near Mint" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "Light Played" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "1st" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "Unlimited" })).toBeInTheDocument();
     // the headline derived field actually renders (quantity cells, not footer)
     expect(screen.getByRole("cell", { name: "3" })).toBeInTheDocument();
     expect(screen.getByRole("cell", { name: "1" })).toBeInTheDocument();
@@ -331,7 +344,7 @@ describe("CollectionPage", () => {
     });
   });
 
-  it("shows the filtered-empty message when a portfolio has no holdings", async () => {
+  it("shows the filtered-empty message when a filter matches no holdings", async () => {
     stubPortfolios([{ id: 7, name: "Vintage" }]);
     stubItems(() => ({ count: 0, next: null, previous: null, results: [] }));
     const user = userEvent.setup();
@@ -344,9 +357,71 @@ describe("CollectionPage", () => {
     );
 
     expect(
-      await screen.findByText(/No holdings in this portfolio/i)
+      await screen.findByText(/No holdings match these filters/i)
     ).toBeInTheDocument();
     // the generic message belongs to the no-filter branch
     expect(screen.queryByText(/No holdings yet/i)).not.toBeInTheDocument();
+  });
+
+  it("filters by the condition facet and resets to page 1", async () => {
+    stubItemsFull((query) =>
+      query.condition === "near_mint"
+        ? {
+            count: 1,
+            next: null,
+            previous: null,
+            results: [makeItem({ id: 5, card_name: "Near-Mint Card" })],
+          }
+        : {
+            count: 2,
+            next: null,
+            previous: null,
+            results: [makeItem({ id: 1, card_name: "Some Card" })],
+          }
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    expect(await screen.findByText("Some Card")).toBeInTheDocument();
+    await user.selectOptions(
+      screen.getByLabelText(/filter by condition/i),
+      "near_mint"
+    );
+
+    expect(await screen.findByText("Near-Mint Card")).toBeInTheDocument();
+    expect(itemsOptions).toHaveBeenLastCalledWith({
+      query: { page: 1, condition: "near_mint" },
+    });
+  });
+
+  it("debounces the card-name search and resets to page 1", async () => {
+    stubItemsFull((query) =>
+      query.search === "blossom"
+        ? {
+            count: 1,
+            next: null,
+            previous: null,
+            results: [makeItem({ id: 8, card_name: "Ash Blossom" })],
+          }
+        : {
+            count: 2,
+            next: null,
+            previous: null,
+            results: [makeItem({ id: 1, card_name: "Some Card" })],
+          }
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    expect(await screen.findByText("Some Card")).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/search by card name/i), "blossom");
+
+    // The request only fires after the 300ms debounce settles.
+    expect(
+      await screen.findByText("Ash Blossom", undefined, { timeout: 2000 })
+    ).toBeInTheDocument();
+    expect(itemsOptions).toHaveBeenLastCalledWith({
+      query: { page: 1, search: "blossom" },
+    });
   });
 });

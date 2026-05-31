@@ -870,6 +870,18 @@ export type CollectionItemsListData = {
     path?: never;
     query?: {
         /**
+         * Exact-match filter by card condition.
+         */
+        condition?: 'excellent' | 'good' | 'light_played' | 'mint' | 'near_mint' | 'played' | 'poor';
+        /**
+         * Exact-match filter by edition.
+         */
+        edition?: 'first' | 'limited' | 'unlimited';
+        /**
+         * Exact-match filter by print language (ISO 639-1 code).
+         */
+        language?: 'de' | 'en' | 'es' | 'fr' | 'it' | 'ja' | 'ko' | 'pt';
+        /**
          * A page number within the paginated result set.
          */
         page?: number;
@@ -877,6 +889,14 @@ export type CollectionItemsListData = {
          * Filter to one portfolio's holdings.
          */
         portfolio?: number;
+        /**
+         * Case-insensitive substring match on card name.
+         */
+        search?: string;
+        /**
+         * Exact-match filter by set code.
+         */
+        set_code?: string;
     };
     url: '/api/collection/items/';
 };

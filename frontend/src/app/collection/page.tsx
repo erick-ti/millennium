@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 
@@ -50,6 +50,51 @@ const LANGUAGE_LABELS: Record<LanguageEnum, string> = {
   ko: "KO",
 };
 
+// Debounce the free-text search so we fire one request after the user stops
+// typing, not one per keystroke (the printing-picker pattern). The discrete
+// <select> facets need no debounce — they change once per choice.
+function useDebounced<T>(value: T, ms: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(timer);
+  }, [value, ms]);
+  return debounced;
+}
+
+/** A labelled enum facet `<select>`: "All" plus one option per label-map entry.
+ *  The server validates the value, so the only states are a known enum or "" (all). */
+function FacetSelect<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T | "";
+  options: Record<T, string>;
+  onChange: (value: T | "") => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+      <span>{label}</span>
+      <select
+        aria-label={`Filter by ${label.toLowerCase()}`}
+        value={value}
+        onChange={(event) => onChange((event.target.value as T) || "")}
+        className="h-8 rounded-lg border border-border bg-background px-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        <option value="">All</option>
+        {(Object.entries(options) as Array<[T, string]>).map(([key, text]) => (
+          <option key={key} value={key}>
+            {text}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 const columns: Array<ColumnDef<CollectionItemList>> = [
   { accessorKey: "card_name", header: "Card" },
   { accessorKey: "set_code", header: "Set" },
@@ -87,6 +132,11 @@ const columns: Array<ColumnDef<CollectionItemList>> = [
 export default function CollectionPage() {
   const [page, setPage] = useState(1);
   const [portfolioId, setPortfolioId] = useState<number | null>(null);
+  const [condition, setCondition] = useState<ConditionEnum | "">("");
+  const [edition, setEdition] = useState<EditionEnum | "">("");
+  const [language, setLanguage] = useState<LanguageEnum | "">("");
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounced(search.trim(), 300);
 
   const portfoliosQuery = useQuery({
     ...portfolioPortfoliosListOptions(),
@@ -101,6 +151,10 @@ export default function CollectionPage() {
       query: {
         page,
         ...(portfolioId !== null ? { portfolio: portfolioId } : {}),
+        ...(condition ? { condition } : {}),
+        ...(edition ? { edition } : {}),
+        ...(language ? { language } : {}),
+        ...(debouncedSearch ? { search: debouncedSearch } : {}),
       },
     }),
     // Keep the current page visible while the next one loads (no flash to a
@@ -116,20 +170,40 @@ export default function CollectionPage() {
   const hasPrev = Boolean(data?.previous);
   const hasNext = Boolean(data?.next);
 
-  const emptyMessage =
-    portfolioId !== null
-      ? "No holdings in this portfolio."
-      : "No holdings yet. Import a collection to get started.";
+  const hasFilter =
+    portfolioId !== null ||
+    condition !== "" ||
+    edition !== "" ||
+    language !== "" ||
+    debouncedSearch !== "";
+  const emptyMessage = hasFilter
+    ? "No holdings match these filters."
+    : "No holdings yet. Import a collection to get started.";
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Collection</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Every holding across your portfolios.
-          </p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Collection</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Every holding across your portfolios.
+        </p>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="sr-only">Search by card name</span>
+          <input
+            type="search"
+            value={search}
+            aria-label="Search by card name"
+            placeholder="Search card name…"
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+            className="h-8 w-48 rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          />
+        </label>
 
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
           <span>Portfolio</span>
@@ -152,6 +226,34 @@ export default function CollectionPage() {
             ))}
           </select>
         </label>
+
+        <FacetSelect
+          label="Condition"
+          value={condition}
+          options={CONDITION_LABELS}
+          onChange={(value) => {
+            setCondition(value);
+            setPage(1);
+          }}
+        />
+        <FacetSelect
+          label="Edition"
+          value={edition}
+          options={EDITION_LABELS}
+          onChange={(value) => {
+            setEdition(value);
+            setPage(1);
+          }}
+        />
+        <FacetSelect
+          label="Language"
+          value={language}
+          options={LANGUAGE_LABELS}
+          onChange={(value) => {
+            setLanguage(value);
+            setPage(1);
+          }}
+        />
       </div>
 
       <div className="mt-6">
