@@ -5,6 +5,78 @@ export type ClientOptions = {
 };
 
 /**
+ * One alert-feed row: the fired rule's fire-time snapshot + the moved printing's
+ * identity + the move. The ``rule_*`` columns are the immutable snapshot (so the feed
+ * renders faithfully even if the live rule was later edited); the printing identity is
+ * pulled via ``source="printing.*"`` (those declared fields are skipped by the schema
+ * nullability gate, which only maps 1:1 model fields, so ``variant_label`` sets
+ * ``allow_null=True`` explicitly). Money fields serialize as strings (DecimalField — the
+ * PriceSnapshot convention) so the frontend's ``parseDecimal`` keeps values exact.
+ */
+export type AlertEvent = {
+    readonly id: number;
+    rule: number;
+    rule_name: string;
+    rule_threshold_pct: string;
+    rule_window_days: number;
+    rule_direction: string;
+    printing: number;
+    readonly card_id: number;
+    readonly card_name: string;
+    readonly set_code: string;
+    readonly set_rarity: string;
+    readonly variant_label: string | null;
+    edition: EditionEnum;
+    triggered_on: string;
+    start_price: string;
+    end_price: string;
+    pct_change: string;
+    dollar_change: string;
+    readonly created_at: string;
+};
+
+/**
+ * A price-alert rule — read AND create. ``id``/timestamps are read-only, so a POST
+ * body carries only ``name``/``threshold_pct``/``window_days``/``direction``/``is_active``
+ * and the 201 echoes the saved rule (id + timestamps). With
+ * ``COMPONENT_SPLIT_REQUEST=True`` (SPECTACULAR_SETTINGS) drf-spectacular emits separate
+ * request/response schemas from this one class, so no second create-serializer is needed.
+ *
+ * ``window_days``/``direction`` are ChoiceFields auto-derived from the model's ``choices``
+ * (an off-menu value → 400). ``threshold_pct`` positivity is the model's DB CHECK; validate
+ * it here too so a non-positive value is a clean 400, not an IntegrityError 500.
+ */
+export type AlertRule = {
+    readonly id: number;
+    name: string;
+    threshold_pct: string;
+    window_days?: WindowDaysEnum;
+    direction?: DirectionEnum;
+    is_active?: boolean;
+    readonly created_at: string;
+    readonly updated_at: string;
+};
+
+/**
+ * A price-alert rule — read AND create. ``id``/timestamps are read-only, so a POST
+ * body carries only ``name``/``threshold_pct``/``window_days``/``direction``/``is_active``
+ * and the 201 echoes the saved rule (id + timestamps). With
+ * ``COMPONENT_SPLIT_REQUEST=True`` (SPECTACULAR_SETTINGS) drf-spectacular emits separate
+ * request/response schemas from this one class, so no second create-serializer is needed.
+ *
+ * ``window_days``/``direction`` are ChoiceFields auto-derived from the model's ``choices``
+ * (an off-menu value → 400). ``threshold_pct`` positivity is the model's DB CHECK; validate
+ * it here too so a non-positive value is a clean 400, not an IntegrityError 500.
+ */
+export type AlertRuleRequest = {
+    name: string;
+    threshold_pct: string;
+    window_days?: WindowDaysEnum;
+    direction?: DirectionEnum;
+    is_active?: boolean;
+};
+
+/**
  * Card detail nests its printings (most cards have at most a handful, so the
  * nested payload stays small). The flat ``/api/cards/printings/?card={id}``
  * endpoint remains available for filterable browsing.
@@ -131,6 +203,13 @@ export type CollectionLot = {
  * * `poor` - Poor
  */
 export type ConditionEnum = 'mint' | 'near_mint' | 'excellent' | 'good' | 'light_played' | 'played' | 'poor';
+
+/**
+ * * `up` - Up
+ * * `down` - Down
+ * * `any` - Any direction
+ */
+export type DirectionEnum = 'up' | 'down' | 'any';
 
 /**
  * * `first` - 1st Edition
@@ -312,6 +391,20 @@ export type MoverRow = {
     end_date: string;
 };
 
+export type PaginatedAlertEventList = {
+    count: number;
+    next?: string | null;
+    previous?: string | null;
+    results: Array<AlertEvent>;
+};
+
+export type PaginatedAlertRuleList = {
+    count: number;
+    next?: string | null;
+    previous?: string | null;
+    results: Array<AlertRule>;
+};
+
 export type PaginatedCardListList = {
     count: number;
     next?: string | null;
@@ -483,6 +576,56 @@ export type User = {
 };
 
 /**
+ * * `7` - 7 days
+ * * `30` - 30 days
+ * * `90` - 90 days
+ */
+export type WindowDaysEnum = 7 | 30 | 90;
+
+/**
+ * One alert-feed row: the fired rule's fire-time snapshot + the moved printing's
+ * identity + the move. The ``rule_*`` columns are the immutable snapshot (so the feed
+ * renders faithfully even if the live rule was later edited); the printing identity is
+ * pulled via ``source="printing.*"`` (those declared fields are skipped by the schema
+ * nullability gate, which only maps 1:1 model fields, so ``variant_label`` sets
+ * ``allow_null=True`` explicitly). Money fields serialize as strings (DecimalField — the
+ * PriceSnapshot convention) so the frontend's ``parseDecimal`` keeps values exact.
+ */
+export type AlertEventWritable = {
+    rule: number;
+    rule_name: string;
+    rule_threshold_pct: string;
+    rule_window_days: number;
+    rule_direction: string;
+    printing: number;
+    edition: EditionEnum;
+    triggered_on: string;
+    start_price: string;
+    end_price: string;
+    pct_change: string;
+    dollar_change: string;
+};
+
+/**
+ * A price-alert rule — read AND create. ``id``/timestamps are read-only, so a POST
+ * body carries only ``name``/``threshold_pct``/``window_days``/``direction``/``is_active``
+ * and the 201 echoes the saved rule (id + timestamps). With
+ * ``COMPONENT_SPLIT_REQUEST=True`` (SPECTACULAR_SETTINGS) drf-spectacular emits separate
+ * request/response schemas from this one class, so no second create-serializer is needed.
+ *
+ * ``window_days``/``direction`` are ChoiceFields auto-derived from the model's ``choices``
+ * (an off-menu value → 400). ``threshold_pct`` positivity is the model's DB CHECK; validate
+ * it here too so a non-positive value is a clean 400, not an IntegrityError 500.
+ */
+export type AlertRuleWritable = {
+    name: string;
+    threshold_pct: string;
+    window_days?: WindowDaysEnum;
+    direction?: DirectionEnum;
+    is_active?: boolean;
+};
+
+/**
  * Card detail nests its printings (most cards have at most a handful, so the
  * nested payload stays small). The flat ``/api/cards/printings/?card={id}``
  * endpoint remains available for filterable browsing.
@@ -625,6 +768,20 @@ export type MatchedPrintingWritable = {
     is_multi_variant?: boolean;
 };
 
+export type PaginatedAlertEventListWritable = {
+    count: number;
+    next?: string | null;
+    previous?: string | null;
+    results: Array<AlertEventWritable>;
+};
+
+export type PaginatedAlertRuleListWritable = {
+    count: number;
+    next?: string | null;
+    previous?: string | null;
+    results: Array<AlertRuleWritable>;
+};
+
 export type PaginatedCardListListWritable = {
     count: number;
     next?: string | null;
@@ -748,6 +905,67 @@ export type PriceSnapshotWritable = {
     confidence?: number;
     source_subtype_name?: string | null;
 };
+
+export type AlertsEventsListData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * A page number within the paginated result set.
+         */
+        page?: number;
+        /**
+         * Filter the feed to one rule's events.
+         */
+        rule?: number;
+    };
+    url: '/api/alerts/events/';
+};
+
+export type AlertsEventsListResponses = {
+    200: PaginatedAlertEventList;
+};
+
+export type AlertsEventsListResponse = AlertsEventsListResponses[keyof AlertsEventsListResponses];
+
+export type AlertsRulesListData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * A page number within the paginated result set.
+         */
+        page?: number;
+    };
+    url: '/api/alerts/rules/';
+};
+
+export type AlertsRulesListResponses = {
+    200: PaginatedAlertRuleList;
+};
+
+export type AlertsRulesListResponse = AlertsRulesListResponses[keyof AlertsRulesListResponses];
+
+export type AlertsRulesCreateData = {
+    body: AlertRuleRequest;
+    path?: never;
+    query?: never;
+    url: '/api/alerts/rules/';
+};
+
+export type AlertsRulesCreateErrors = {
+    400: {
+        [key: string]: unknown;
+    };
+};
+
+export type AlertsRulesCreateError = AlertsRulesCreateErrors[keyof AlertsRulesCreateErrors];
+
+export type AlertsRulesCreateResponses = {
+    201: AlertRule;
+};
+
+export type AlertsRulesCreateResponse = AlertsRulesCreateResponses[keyof AlertsRulesCreateResponses];
 
 export type AuthLoginCreateData = {
     body: LoginRequest;

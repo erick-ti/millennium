@@ -10,6 +10,7 @@ const routes: Array<{ href: string; label: string }> = [
   { href: "/cards", label: "Cards" },
   { href: "/portfolios", label: "Portfolios" },
   { href: "/movers", label: "Movers" },
+  { href: "/alerts", label: "Alerts" },
   { href: "/imports", label: "Imports" },
 ];
 

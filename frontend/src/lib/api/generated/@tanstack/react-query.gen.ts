@@ -3,8 +3,199 @@
 import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { authLoginCreate, authLogoutCreate, authMeRetrieve, cardsCardsArchetypesRetrieve, cardsCardsList, cardsCardsRetrieve, cardsPrintingsList, cardsPrintingsRetrieve, collectionItemsList, collectionItemsRetrieve, collectionLotsList, collectionLotsRetrieve, csrfRetrieve, healthRetrieve, importsBatchesCreate, importsBatchesList, importsBatchesRetrieve, importsRowsApproveCreate, importsRowsList, importsRowsOverrideCreate, importsRowsRejectCreate, importsRowsRetrieve, type Options, portfolioPortfoliosList, portfolioPortfoliosRetrieve, portfolioSnapshotsList, portfolioSnapshotsRetrieve, pricingSnapshotsLatestRetrieve, pricingSnapshotsList, pricingSnapshotsRetrieve, valuationMoversList } from '../sdk.gen';
-import type { AuthLoginCreateData, AuthLoginCreateResponse, AuthLogoutCreateData, AuthMeRetrieveData, AuthMeRetrieveResponse, CardsCardsArchetypesRetrieveData, CardsCardsArchetypesRetrieveResponse, CardsCardsListData, CardsCardsListResponse, CardsCardsRetrieveData, CardsCardsRetrieveResponse, CardsPrintingsListData, CardsPrintingsListResponse, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponse, CollectionItemsListData, CollectionItemsListResponse, CollectionItemsRetrieveData, CollectionItemsRetrieveResponse, CollectionLotsListData, CollectionLotsListResponse, CollectionLotsRetrieveData, CollectionLotsRetrieveResponse, CsrfRetrieveData, HealthRetrieveData, ImportsBatchesCreateData, ImportsBatchesCreateError, ImportsBatchesCreateResponse, ImportsBatchesListData, ImportsBatchesListResponse, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponse, ImportsRowsApproveCreateData, ImportsRowsApproveCreateError, ImportsRowsApproveCreateResponse, ImportsRowsListData, ImportsRowsListResponse, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateError, ImportsRowsOverrideCreateResponse, ImportsRowsRejectCreateData, ImportsRowsRejectCreateError, ImportsRowsRejectCreateResponse, ImportsRowsRetrieveData, ImportsRowsRetrieveResponse, PortfolioPortfoliosListData, PortfolioPortfoliosListResponse, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponse, PortfolioSnapshotsListData, PortfolioSnapshotsListResponse, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponse, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveError, PricingSnapshotsLatestRetrieveResponse, PricingSnapshotsListData, PricingSnapshotsListResponse, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponse, ValuationMoversListData, ValuationMoversListResponse } from '../types.gen';
+import { alertsEventsList, alertsRulesCreate, alertsRulesList, authLoginCreate, authLogoutCreate, authMeRetrieve, cardsCardsArchetypesRetrieve, cardsCardsList, cardsCardsRetrieve, cardsPrintingsList, cardsPrintingsRetrieve, collectionItemsList, collectionItemsRetrieve, collectionLotsList, collectionLotsRetrieve, csrfRetrieve, healthRetrieve, importsBatchesCreate, importsBatchesList, importsBatchesRetrieve, importsRowsApproveCreate, importsRowsList, importsRowsOverrideCreate, importsRowsRejectCreate, importsRowsRetrieve, type Options, portfolioPortfoliosList, portfolioPortfoliosRetrieve, portfolioSnapshotsList, portfolioSnapshotsRetrieve, pricingSnapshotsLatestRetrieve, pricingSnapshotsList, pricingSnapshotsRetrieve, valuationMoversList } from '../sdk.gen';
+import type { AlertsEventsListData, AlertsEventsListResponse, AlertsRulesCreateData, AlertsRulesCreateError, AlertsRulesCreateResponse, AlertsRulesListData, AlertsRulesListResponse, AuthLoginCreateData, AuthLoginCreateResponse, AuthLogoutCreateData, AuthMeRetrieveData, AuthMeRetrieveResponse, CardsCardsArchetypesRetrieveData, CardsCardsArchetypesRetrieveResponse, CardsCardsListData, CardsCardsListResponse, CardsCardsRetrieveData, CardsCardsRetrieveResponse, CardsPrintingsListData, CardsPrintingsListResponse, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponse, CollectionItemsListData, CollectionItemsListResponse, CollectionItemsRetrieveData, CollectionItemsRetrieveResponse, CollectionLotsListData, CollectionLotsListResponse, CollectionLotsRetrieveData, CollectionLotsRetrieveResponse, CsrfRetrieveData, HealthRetrieveData, ImportsBatchesCreateData, ImportsBatchesCreateError, ImportsBatchesCreateResponse, ImportsBatchesListData, ImportsBatchesListResponse, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponse, ImportsRowsApproveCreateData, ImportsRowsApproveCreateError, ImportsRowsApproveCreateResponse, ImportsRowsListData, ImportsRowsListResponse, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateError, ImportsRowsOverrideCreateResponse, ImportsRowsRejectCreateData, ImportsRowsRejectCreateError, ImportsRowsRejectCreateResponse, ImportsRowsRetrieveData, ImportsRowsRetrieveResponse, PortfolioPortfoliosListData, PortfolioPortfoliosListResponse, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponse, PortfolioSnapshotsListData, PortfolioSnapshotsListResponse, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponse, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveError, PricingSnapshotsLatestRetrieveResponse, PricingSnapshotsListData, PricingSnapshotsListResponse, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponse, ValuationMoversListData, ValuationMoversListResponse } from '../types.gen';
+
+export type QueryKey<TOptions extends Options> = [
+    Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
+        _id: string;
+        _infinite?: boolean;
+        tags?: ReadonlyArray<string>;
+    }
+];
+
+const createQueryKey = <TOptions extends Options>(id: string, options?: TOptions, infinite?: boolean, tags?: ReadonlyArray<string>): [
+    QueryKey<TOptions>[0]
+] => {
+    const params: QueryKey<TOptions>[0] = { _id: id, baseUrl: options?.baseUrl || (options?.client ?? client).getConfig().baseUrl } as QueryKey<TOptions>[0];
+    if (infinite) {
+        params._infinite = infinite;
+    }
+    if (tags) {
+        params.tags = tags;
+    }
+    if (options?.body) {
+        params.body = options.body;
+    }
+    if (options?.headers) {
+        params.headers = options.headers;
+    }
+    if (options?.path) {
+        params.path = options.path;
+    }
+    if (options?.query) {
+        params.query = options.query;
+    }
+    return [params];
+};
+
+export const alertsEventsListQueryKey = (options?: Options<AlertsEventsListData>) => createQueryKey('alertsEventsList', options);
+
+/**
+ * The price-alert feed (newest first)
+ *
+ * The in-app alert feed: append-only ``AlertEvent`` rows recorded by the daily
+ * evaluation, newest first. LIST-ONLY (a feed, like ``MoversViewSet`` — there is no
+ * per-event detail view, so no retrieve endpoint is exposed) and read-only (events are
+ * written only by ``run_alerts``). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const alertsEventsListOptions = (options?: Options<AlertsEventsListData>) => queryOptions<AlertsEventsListResponse, DefaultError, AlertsEventsListResponse, ReturnType<typeof alertsEventsListQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await alertsEventsList({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: alertsEventsListQueryKey(options)
+});
+
+const createInfiniteParams = <K extends Pick<QueryKey<Options>[0], 'body' | 'headers' | 'path' | 'query'>>(queryKey: QueryKey<Options>, page: K) => {
+    const params = { ...queryKey[0] };
+    if (page.body) {
+        params.body = {
+            ...queryKey[0].body as any,
+            ...page.body as any
+        };
+    }
+    if (page.headers) {
+        params.headers = {
+            ...queryKey[0].headers,
+            ...page.headers
+        };
+    }
+    if (page.path) {
+        params.path = {
+            ...queryKey[0].path as any,
+            ...page.path as any
+        };
+    }
+    if (page.query) {
+        params.query = {
+            ...queryKey[0].query as any,
+            ...page.query as any
+        };
+    }
+    return params as unknown as typeof page;
+};
+
+export const alertsEventsListInfiniteQueryKey = (options?: Options<AlertsEventsListData>): QueryKey<Options<AlertsEventsListData>> => createQueryKey('alertsEventsList', options, true);
+
+/**
+ * The price-alert feed (newest first)
+ *
+ * The in-app alert feed: append-only ``AlertEvent`` rows recorded by the daily
+ * evaluation, newest first. LIST-ONLY (a feed, like ``MoversViewSet`` — there is no
+ * per-event detail view, so no retrieve endpoint is exposed) and read-only (events are
+ * written only by ``run_alerts``). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const alertsEventsListInfiniteOptions = (options?: Options<AlertsEventsListData>) => infiniteQueryOptions<AlertsEventsListResponse, DefaultError, InfiniteData<AlertsEventsListResponse>, QueryKey<Options<AlertsEventsListData>>, number | Pick<QueryKey<Options<AlertsEventsListData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+// @ts-ignore
+{
+    queryFn: async ({ pageParam, queryKey, signal }) => {
+        // @ts-ignore
+        const page: Pick<QueryKey<Options<AlertsEventsListData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+            query: {
+                page: pageParam
+            }
+        };
+        const params = createInfiniteParams(queryKey, page);
+        const { data } = await alertsEventsList({
+            ...options,
+            ...params,
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: alertsEventsListInfiniteQueryKey(options)
+});
+
+export const alertsRulesListQueryKey = (options?: Options<AlertsRulesListData>) => createQueryKey('alertsRulesList', options);
+
+/**
+ * List price-alert rules
+ *
+ * List + create price-alert rules. Create is the minimal write surface for this slice
+ * (edit/delete/mute UI deferred); the global CSRF + session auth apply (``proxy.ts``
+ * injects ``X-CSRFToken``). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const alertsRulesListOptions = (options?: Options<AlertsRulesListData>) => queryOptions<AlertsRulesListResponse, DefaultError, AlertsRulesListResponse, ReturnType<typeof alertsRulesListQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await alertsRulesList({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: alertsRulesListQueryKey(options)
+});
+
+export const alertsRulesListInfiniteQueryKey = (options?: Options<AlertsRulesListData>): QueryKey<Options<AlertsRulesListData>> => createQueryKey('alertsRulesList', options, true);
+
+/**
+ * List price-alert rules
+ *
+ * List + create price-alert rules. Create is the minimal write surface for this slice
+ * (edit/delete/mute UI deferred); the global CSRF + session auth apply (``proxy.ts``
+ * injects ``X-CSRFToken``). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const alertsRulesListInfiniteOptions = (options?: Options<AlertsRulesListData>) => infiniteQueryOptions<AlertsRulesListResponse, DefaultError, InfiniteData<AlertsRulesListResponse>, QueryKey<Options<AlertsRulesListData>>, number | Pick<QueryKey<Options<AlertsRulesListData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+// @ts-ignore
+{
+    queryFn: async ({ pageParam, queryKey, signal }) => {
+        // @ts-ignore
+        const page: Pick<QueryKey<Options<AlertsRulesListData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+            query: {
+                page: pageParam
+            }
+        };
+        const params = createInfiniteParams(queryKey, page);
+        const { data } = await alertsRulesList({
+            ...options,
+            ...params,
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: alertsRulesListInfiniteQueryKey(options)
+});
+
+/**
+ * Create a price-alert rule
+ *
+ * List + create price-alert rules. Create is the minimal write surface for this slice
+ * (edit/delete/mute UI deferred); the global CSRF + session auth apply (``proxy.ts``
+ * injects ``X-CSRFToken``). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const alertsRulesCreateMutation = (options?: Partial<Options<AlertsRulesCreateData>>): UseMutationOptions<AlertsRulesCreateResponse, AlertsRulesCreateError, Options<AlertsRulesCreateData>> => {
+    const mutationOptions: UseMutationOptions<AlertsRulesCreateResponse, AlertsRulesCreateError, Options<AlertsRulesCreateData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await alertsRulesCreate({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
 
 /**
  * Log in (establish a session cookie)
@@ -64,39 +255,6 @@ export const authLogoutCreateMutation = (options?: Partial<Options<AuthLogoutCre
     return mutationOptions;
 };
 
-export type QueryKey<TOptions extends Options> = [
-    Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
-        _id: string;
-        _infinite?: boolean;
-        tags?: ReadonlyArray<string>;
-    }
-];
-
-const createQueryKey = <TOptions extends Options>(id: string, options?: TOptions, infinite?: boolean, tags?: ReadonlyArray<string>): [
-    QueryKey<TOptions>[0]
-] => {
-    const params: QueryKey<TOptions>[0] = { _id: id, baseUrl: options?.baseUrl || (options?.client ?? client).getConfig().baseUrl } as QueryKey<TOptions>[0];
-    if (infinite) {
-        params._infinite = infinite;
-    }
-    if (tags) {
-        params.tags = tags;
-    }
-    if (options?.body) {
-        params.body = options.body;
-    }
-    if (options?.headers) {
-        params.headers = options.headers;
-    }
-    if (options?.path) {
-        params.path = options.path;
-    }
-    if (options?.query) {
-        params.query = options.query;
-    }
-    return [params];
-};
-
 export const authMeRetrieveQueryKey = (options?: Options<AuthMeRetrieveData>) => createQueryKey('authMeRetrieve', options);
 
 /**
@@ -145,35 +303,6 @@ export const cardsCardsListOptions = (options?: Options<CardsCardsListData>) => 
     },
     queryKey: cardsCardsListQueryKey(options)
 });
-
-const createInfiniteParams = <K extends Pick<QueryKey<Options>[0], 'body' | 'headers' | 'path' | 'query'>>(queryKey: QueryKey<Options>, page: K) => {
-    const params = { ...queryKey[0] };
-    if (page.body) {
-        params.body = {
-            ...queryKey[0].body as any,
-            ...page.body as any
-        };
-    }
-    if (page.headers) {
-        params.headers = {
-            ...queryKey[0].headers,
-            ...page.headers
-        };
-    }
-    if (page.path) {
-        params.path = {
-            ...queryKey[0].path as any,
-            ...page.path as any
-        };
-    }
-    if (page.query) {
-        params.query = {
-            ...queryKey[0].query as any,
-            ...page.query as any
-        };
-    }
-    return params as unknown as typeof page;
-};
 
 export const cardsCardsListInfiniteQueryKey = (options?: Options<CardsCardsListData>): QueryKey<Options<CardsCardsListData>> => createQueryKey('cardsCardsList', options, true);
 
