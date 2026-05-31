@@ -185,6 +185,7 @@ export function CardDetail({ cardId }: { cardId: number }) {
       <BackLink />
       <h1 className="mt-3 text-2xl font-semibold tracking-tight">{card.name}</h1>
       <p className="mt-1 text-sm text-muted-foreground">
+        {card.archetype != null ? `${card.archetype} · ` : ""}
         {printings.length} {printings.length === 1 ? "printing" : "printings"}
         {card.passcode != null ? ` · passcode ${card.passcode}` : ""}
       </p>

@@ -23,8 +23,13 @@ def client() -> APIClient:
     return api
 
 
-def _card(name: str = "Ash Blossom & Joyous Spring", passcode: int | None = 14558127) -> Card:
-    return Card.objects.create(name=name, passcode=passcode)
+def _card(
+    name: str = "Ash Blossom & Joyous Spring",
+    passcode: int | None = 14558127,
+    *,
+    archetype: str | None = None,
+) -> Card:
+    return Card.objects.create(name=name, passcode=passcode, archetype=archetype)
 
 
 def _printing(
@@ -76,12 +81,14 @@ def test_card_list_returns_paginated_shape(client: APIClient) -> None:
         "id": ash.id,
         "passcode": 14558127,
         "name": "Ash Blossom & Joyous Spring",
+        "archetype": None,
         "printings_count": 0,
     }
     assert second == {
         "id": nibiru.id,
         "passcode": 27204311,
         "name": "Nibiru, the Primal Being",
+        "archetype": None,
         "printings_count": 0,
     }
 
@@ -255,3 +262,82 @@ def test_card_detail_ignores_search_param(client: APIClient) -> None:
 
     assert resp.status_code == status.HTTP_200_OK
     assert resp.data["id"] == card.pk
+
+
+# --- archetype (Phase 5) --------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_card_list_includes_archetype(client: APIClient) -> None:
+    """archetype is surfaced on the list (the Phase 5 /cards column). A card with no
+    archetype reads ``null``, never an empty string (NULL is the canonical 'none')."""
+    _card(name="Blue-Eyes White Dragon", passcode=89631139, archetype="Blue-Eyes")
+    _card(name="Pot of Greed", passcode=55144522)  # no archetype
+
+    resp = client.get(reverse("cards:card-list"))
+
+    assert resp.status_code == status.HTTP_200_OK
+    by_name = {row["name"]: row["archetype"] for row in resp.data["results"]}
+    assert by_name == {"Blue-Eyes White Dragon": "Blue-Eyes", "Pot of Greed": None}
+
+
+@pytest.mark.django_db
+def test_card_list_filters_by_archetype_exact(client: APIClient) -> None:
+    """?archetype= is an EXACT match (a facet, not a substring): 'Blue' matches nothing."""
+    blue = _card(name="Blue-Eyes White Dragon", passcode=89631139, archetype="Blue-Eyes")
+    _card(name="Pot of Greed", passcode=55144522)  # no archetype
+    striker = _card(name="Sky Striker Ace - Roze", passcode=26077387, archetype="Sky Striker")
+    url = reverse("cards:card-list")
+
+    def ids(resp: Any) -> set[int]:
+        return {row["id"] for row in resp.data["results"]}
+
+    assert ids(client.get(url, {"archetype": "Blue-Eyes"})) == {blue.id}
+    assert ids(client.get(url, {"archetype": "Sky Striker"})) == {striker.id}
+    assert client.get(url, {"archetype": "Blue"}).data["count"] == 0  # exact, not prefix
+
+
+@pytest.mark.django_db
+def test_card_list_blank_archetype_returns_all(client: APIClient) -> None:
+    """A cleared dropdown sends ?archetype= — empty/whitespace is 'no filter', not
+    'match the empty archetype'."""
+    _card(name="Blue-Eyes White Dragon", passcode=89631139, archetype="Blue-Eyes")
+    _card(name="Pot of Greed", passcode=55144522)
+
+    resp = client.get(reverse("cards:card-list"), {"archetype": "  "})
+
+    assert resp.status_code == status.HTTP_200_OK
+    assert resp.data["count"] == 2
+
+
+@pytest.mark.django_db
+def test_card_detail_ignores_archetype_param(client: APIClient) -> None:
+    """Detail must not run the list-only archetype filter (the list-only-guard convention)."""
+    card = _card(name="Pot of Greed", passcode=55144522)  # archetype None
+
+    resp = client.get(reverse("cards:card-detail", args=[card.pk]), {"archetype": "Blue-Eyes"})
+
+    assert resp.status_code == status.HTTP_200_OK
+    assert resp.data["id"] == card.pk
+    assert resp.data["archetype"] is None
+
+
+@pytest.mark.django_db
+def test_archetypes_action_lists_distinct_sorted_excluding_null(client: APIClient) -> None:
+    """The filter-dropdown source: distinct non-null archetypes, sorted; duplicates
+    collapse and cards without an archetype contribute nothing."""
+    _card(name="Sky Striker Ace - Roze", passcode=26077387, archetype="Sky Striker")
+    _card(name="Sky Striker Ace - Raye", passcode=63288573, archetype="Sky Striker")  # dup
+    _card(name="Blue-Eyes White Dragon", passcode=89631139, archetype="Blue-Eyes")
+    _card(name="Pot of Greed", passcode=55144522)  # no archetype
+
+    resp = client.get(reverse("cards:card-archetypes"))
+
+    assert resp.status_code == status.HTTP_200_OK
+    assert resp.data == ["Blue-Eyes", "Sky Striker"]
+
+
+@pytest.mark.django_db
+def test_archetypes_action_requires_authentication() -> None:
+    anon = APIClient()
+    assert anon.get(reverse("cards:card-archetypes")).status_code == status.HTTP_403_FORBIDDEN

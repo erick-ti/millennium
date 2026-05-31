@@ -14,6 +14,12 @@ from apps.pricing.providers.ygoprodeck import YgoprodeckProvider
 
 logger = structlog.get_logger(__name__)
 
+# A single run may legitimately null archetype on a handful of cards (Konami errata /
+# YGOPRODeck corrections), and an early/small catalog shouldn't fail the whole metadata
+# sync over a fractional threshold. Only ABOVE this many archetype withdrawals does the
+# fraction guard engage; below it, withdrawals are always allowed through.
+_ARCHETYPE_WITHDRAWAL_FLOOR = 25
+
 
 @dataclass(frozen=True, slots=True)
 class SyncResult:
@@ -25,9 +31,15 @@ class SyncResult:
     printings_created: int = 0
     printings_updated: int = 0
     printings_unchanged: int = 0
+    # Non-null archetypes in this run's fetch — coverage telemetry recorded in the
+    # SyncRun detail (Phase 5). NOT the guard input: the withdrawal guard reads the live
+    # tagged set, not a recorded baseline.
+    archetype_count: int = 0
 
 
-def sync_cards_from_metadata(provider: MetadataProvider) -> SyncResult:
+def sync_cards_from_metadata(
+    provider: MetadataProvider, *, archetype_withdrawal_tolerance: float | None = None
+) -> SyncResult:
     """Upsert cards and printings from a metadata provider, skipping unchanged rows.
 
     An existing row is written *only* when a field actually differs from the
@@ -49,15 +61,48 @@ def sync_cards_from_metadata(provider: MetadataProvider) -> SyncResult:
     """
     cards_created = cards_updated = cards_unchanged = 0
     printings_created = printings_updated = printings_unchanged = 0
-    for record in provider.fetch_card_metadata():
+    # Materialize before writing so the archetype-withdrawal guard can fail closed on a
+    # field-degraded fetch BEFORE any card is overwritten. archetype is OPTIONAL upstream,
+    # so a record with archetype=None reads as a withdrawal and would NULL an existing
+    # tag. A full OR PARTIAL key-drop (a subset of cards) would silently wipe those tags
+    # while passing the card-count floor (which counts cards, not archetypes). So guard
+    # the destructive op directly: count how many CURRENTLY-tagged cards this run would
+    # null, and fail closed if that exceeds a fraction of the tagged set (above a small
+    # absolute floor, so early/small states and legit handful-of-card corrections don't
+    # trip it). An aggregate count floor slips a partial loss through — Codex review.
+    records = list(provider.fetch_card_metadata())
+    archetype_count = sum(1 for record in records if record.archetype is not None)
+    if archetype_withdrawal_tolerance is not None:
+        tagged = set(
+            Card.objects.exclude(archetype__isnull=True).values_list("passcode", flat=True)
+        )
+        withdrawals = sum(
+            1 for record in records if record.archetype is None and record.passcode in tagged
+        )
+        threshold = max(
+            _ARCHETYPE_WITHDRAWAL_FLOOR, int(len(tagged) * archetype_withdrawal_tolerance)
+        )
+        if withdrawals > threshold:
+            raise ValueError(
+                f"sync would null archetype on {withdrawals} of {len(tagged)} currently "
+                f"tagged cards (> threshold {threshold}) -- refusing a likely "
+                f"field-degraded dump that would wipe existing archetype tags."
+            )
+    for record in records:
         try:
             card = Card.objects.get(passcode=record.passcode)
         except Card.DoesNotExist:
-            card = Card.objects.create(passcode=record.passcode, name=record.name)
+            card = Card.objects.create(
+                passcode=record.passcode, name=record.name, archetype=record.archetype
+            )
             cards_created += 1
         else:
-            if card.name != record.name:
+            # name and archetype are the mutable provider-supplied fields; an
+            # archetype change (added, corrected, or withdrawn → None) is a real
+            # metadata update, so it counts and writes like a rename does.
+            if card.name != record.name or card.archetype != record.archetype:
                 card.name = record.name
+                card.archetype = record.archetype
                 card.save()  # full save: derives normalized_name, bumps updated_at
                 cards_updated += 1
             else:
@@ -115,6 +160,7 @@ def sync_cards_from_metadata(provider: MetadataProvider) -> SyncResult:
         printings_created=printings_created,
         printings_updated=printings_updated,
         printings_unchanged=printings_unchanged,
+        archetype_count=archetype_count,
     )
 
 
@@ -150,7 +196,13 @@ def run_ygoprodeck_sync(*, fetch: JsonFetcher = fetch_json) -> SyncResult | None
                 tolerance=settings.SYNC_GUARD_METADATA_TOLERANCE,
             )
             provider = YgoprodeckProvider(fetch, min_cards=floor)
-            result = sync_cards_from_metadata(provider)
+            # The Phase 5 archetype-withdrawal guard: fail closed if this one run would
+            # null archetype on more than SYNC_GUARD_ARCHETYPE_TOLERANCE of the currently
+            # tagged cards (a partial/total upstream key-drop), without blocking legit
+            # small corrections (the absolute floor inside the guard).
+            result = sync_cards_from_metadata(
+                provider, archetype_withdrawal_tolerance=settings.SYNC_GUARD_ARCHETYPE_TOLERANCE
+            )
         except Exception as exc:
             record_run(SyncKind.YGOPRODECK_METADATA, SyncStatus.FAILED, error=str(exc))
             raise

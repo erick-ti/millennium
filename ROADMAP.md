@@ -21,7 +21,7 @@ A personal Yu-Gi-Oh collection portfolio tracker that treats a card collection l
 
 ## Current milestone
 
-**Phase 5: Portfolio analytics.** Archetype tagging, deck association, biggest movers, price alerts, advanced filtering. Minimal Playwright smoke tests after UI stabilizes. (A minimal auth/login slice may precede this — see open questions.)
+**Phase 5: Portfolio analytics.** Archetype tagging, deck association, biggest movers, price alerts, advanced filtering. Minimal Playwright smoke tests after UI stabilizes.
 
 ## Completed milestones
 
@@ -31,6 +31,7 @@ A personal Yu-Gi-Oh collection portfolio tracker that treats a card collection l
 - **Phase 2: Data pipeline** (completed 2026-05-25, PRs #15–#21). Provider adapter pattern, YGOPRODeck metadata sync + TCGCSV reconcile→ingest, daily Celery-beat wiring (02:00/03:00/04:00) under cardinality guards + per-kind advisory locks with append-only `SyncRun` history, and the valuation engine — `PortfolioValueSnapshot` with partial-coverage accounting + `ValuationRun` run history.
 - **Phase 3: CSV import** (completed 2026-05-27, PRs #22–#26). The `imports` app: `ImportBatch`/`ImportRow` JSON-staging models, Dragon Shield parser + normalization, the alias-aware card→printing matcher (`is_multi_variant` guard), `run_import` orchestration + materialization (per-printing reconciliation-coverage gate, per-holding re-import dedup), and the DRF review-queue API (list/filter, approve/override/reject through `_materialize`, schema gated per Invariant 7).
 - **Phase 4: Frontend MVP** (completed 2026-05-30, PRs #27–#32). Next.js 16 (App Router) + React 19 scaffold with a same-origin `/api/*` proxy; read-only DRF API (cards/collection/portfolio/pricing) + `@hey-api/openapi-ts` client generation behind a committed-snapshot drift gate; collection view (reusable `<DataTable>` + Vitest/RTL harness); card detail + price history; portfolio summary grid + coverage-aware value chart; and the import upload + match-review UI carrying the first browser writes + CSRF (`proxy.ts` X-CSRFToken injection, `GET /api/csrf/` cookie seed, synchronous upload endpoint). Per-slice Codex adversarial review throughout.
+- **Auth/login slice** (completed 2026-05-31, PR #33). Custom Django session-cookie endpoints (login/logout/me; AllowAny + `csrf_protect` login, throttled) + a `/login` page, `AuthProvider`, and a global client-side 403→/login gate. The app is now usable end-to-end in a browser; slice-6's CSRF/write plumbing is exercisable against a real session. Six Codex adversarial-challenge rounds.
 
 ## Upcoming milestones
 
@@ -50,7 +51,7 @@ A personal Yu-Gi-Oh collection portfolio tracker that treats a card collection l
 1. **Condition adjustment factors** — **resolved 2026-05-25** (slice 4b): the valuation engine applies a hardcoded, version-tagged DS-condition→factor table (NM 1.00 → Poor 0.40); see DECISIONS 2026-05-25. (Was: multipliers for LP/MP/HP/DMG when only product-level pricing is available.)
 2. **Valuation coverage representation** — **resolved 2026-05-25** (slice 4a): `portfolio_value_snapshots` carries card-quantity coverage counts (`total/priced/costed_card_count`) + a nullable `unrealized_gain` set iff fully covered (CHECK `gain_iff_complete`); unknowns are excluded from totals, never zeroed. See DECISIONS 2026-05-25. (Was: how partial/unknown inputs are recorded so a rolled-up total doesn't silently look complete.)
 3. **OpenAPI client generation tooling** — **resolved 2026-05-27** (Phase 4 slice 1): `@hey-api/openapi-ts` (the actively-maintained successor to the deprecated `openapi-typescript-codegen` originally listed; TanStack Query plugin available). See DECISIONS 2026-05-27. (Was: openapi-typescript-codegen vs orval vs alternatives. Phase 4-blocking.)
-4. **Frontend auth/login** — **unresolved.** The API is `IsAuthenticated` but there is no frontend login UI, so every live page (reads + writes) 403s until a session exists on the frontend origin. Does a minimal login slice (Django built-in auth, per non-goals) come *before* Phase 5, or fold into it? Surfaced by Phase 4 slice 6 (2026-05-30): the CSRF/write plumbing is built but can't be exercised end-to-end without a session.
+4. **Frontend auth/login** — **resolved 2026-05-31** (PR #33): shipped as a dedicated slice *before* Phase 5 — custom Django session-cookie auth (login/logout/me) + a `/login` page + client-side 403→/login gating; see DECISIONS 2026-05-30. (Was: the API is `IsAuthenticated` with no frontend login, so every live page 403s until a session exists on the frontend origin — does a minimal login slice come before Phase 5, or fold into it?)
 
 ## Architecture direction
 

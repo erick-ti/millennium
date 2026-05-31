@@ -23,6 +23,15 @@ class Card(TimeStampedModel):
     # drift. Indexed, not unique: names may collide after normalization;
     # ``passcode`` is the real identity.
     normalized_name = models.CharField(max_length=255, db_index=True)
+    # The card's Yu-Gi-Oh archetype (e.g. "Blue-Eyes", "Sky Striker"), supplied
+    # verbatim by YGOPRODeck metadata — provider-given, not derived, so no save()
+    # computation. Nullable because ~40% of cards have none (Normal Monsters,
+    # generic staples): NULL is the canonical "no archetype", never "". Open free
+    # text from upstream, NOT a closed vocabulary, so deliberately no CHECK
+    # constraint (unlike Condition/Edition/etc.) — a new upstream archetype must
+    # never need a migration. Indexed because filter/group-by-archetype is the
+    # whole point (Phase 5).
+    archetype = models.CharField(max_length=255, null=True, blank=True, db_index=True)  # noqa: DJ001
 
     class Meta:
         ordering = ["name"]

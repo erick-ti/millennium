@@ -72,10 +72,15 @@ class CardMetadata:
     no passcode (DECISIONS 2026-05-18); representing them means widening this to
     ``passcode: int | None`` with a fallback identity key — deferred to the slice
     that adds TCGCSV catalog ingestion (see ``PricingProvider``).
+
+    ``archetype`` is the card's Yu-Gi-Oh archetype (e.g. "Blue-Eyes"), supplied by
+    the provider; ``None`` when the card has none (~40% don't) — never coerce a
+    missing archetype to ``""`` (NULL is the canonical "no archetype").
     """
 
     passcode: int
     name: str
+    archetype: str | None = None
     printings: tuple[PrintingMetadata, ...] = ()
 
 

@@ -167,6 +167,48 @@ def test_decodes_html_entities_in_names() -> None:
     assert card.printings[0].set_name == "Duelist Nexus & Friends"
 
 
+def test_normalizes_archetype() -> None:
+    """The Phase 5 archetype tagging: the adapter carries YGOPRODeck's ``archetype``
+    string onto CardMetadata (it was previously dropped on the floor)."""
+    provider = _provider(
+        {"data": [{"id": 89631139, "name": "Blue-Eyes White Dragon", "archetype": "Blue-Eyes"}]}
+    )
+
+    (card,) = provider.fetch_card_metadata()
+
+    assert card.archetype == "Blue-Eyes"
+
+
+def test_card_without_archetype_is_none() -> None:
+    """~40% of cards have no archetype upstream — a missing key maps to None, not ''."""
+    provider = _provider({"data": [{"id": 55144522, "name": "Pot of Greed"}]})
+
+    (card,) = provider.fetch_card_metadata()
+
+    assert card.archetype is None
+
+
+def test_blank_archetype_normalizes_to_none() -> None:
+    """A present-but-blank archetype is coerced to None so it can't form a bogus
+    '' group (the NULL-is-canonical rule)."""
+    provider = _provider({"data": [{"id": 55144522, "name": "Pot of Greed", "archetype": "   "}]})
+
+    (card,) = provider.fetch_card_metadata()
+
+    assert card.archetype is None
+
+
+def test_decodes_html_entities_in_archetype() -> None:
+    """archetype is decoded + trimmed like the name (display prose, not a key)."""
+    provider = _provider(
+        {"data": [{"id": 1, "name": "X", "archetype": "Yang Zing &amp; Friends"}]}
+    )
+
+    (card,) = provider.fetch_card_metadata()
+
+    assert card.archetype == "Yang Zing & Friends"
+
+
 def test_skips_numeric_garbage_rarity() -> None:
     """YGOPRODeck reports rarity "2" for L5DD-ENC09 (a known data bug); the
     adapter must drop it rather than seed it into a natural key — TCGCSV is
