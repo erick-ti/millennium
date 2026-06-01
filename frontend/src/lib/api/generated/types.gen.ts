@@ -205,6 +205,95 @@ export type CollectionLot = {
 export type ConditionEnum = 'mint' | 'near_mint' | 'excellent' | 'good' | 'light_played' | 'played' | 'poor';
 
 /**
+ * A deck — read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``
+ * one class serves read+write, so a POST/PATCH body carries only ``name``/``description``
+ * and the response echoes the saved deck.
+ *
+ * ``member_count`` is derived (the count of ``DeckMembership`` rows). The viewset
+ * annotates it on the list/retrieve queryset, but a freshly created/updated instance
+ * won't carry the annotation, so it is a ``SerializerMethodField`` that falls back to a
+ * live count — the response after a POST/PATCH must still serialize without an
+ * AttributeError (the cards ``printings_count`` annotation trap, made annotation-safe).
+ */
+export type Deck = {
+    readonly id: number;
+    name: string;
+    description?: string;
+    readonly member_count: number;
+    readonly created_at: string;
+    readonly updated_at: string;
+};
+
+/**
+ * A deck membership — read AND create. The write side carries only ``deck`` +
+ * ``collection_item`` (both ``PrimaryKeyRelatedField`` → 400 on an unknown id);
+ * everything else is the owned holding's identity, denormalized read-only via
+ * ``source="collection_item.*"`` so the deck-detail member table renders without a
+ * per-row lookup (the ``CollectionItemListSerializer`` pattern). ``variant_label`` is
+ * nullable, and a ``source=``-pointed declared field is skipped by the schema
+ * nullability gate (it maps only 1:1 model fields), so it sets ``allow_null=True``
+ * explicitly (the ``AlertEventSerializer`` precedent).
+ *
+ * ``Meta.validators = []`` drops the auto ``UniqueTogetherValidator`` DRF would derive
+ * from the model's ``(deck, collection_item)`` UNIQUE: the viewset's ``create`` instead
+ * ``get_or_create``s and returns a clean 409 for an already-present holding (informative,
+ * and the same status the import-review frontend already reads), rather than a generic
+ * 400 — while the DB UNIQUE still backstops a concurrent double-add.
+ */
+export type DeckMembership = {
+    readonly id: number;
+    deck: number;
+    collection_item: number;
+    readonly quantity: number;
+    readonly card_name: string;
+    readonly set_code: string;
+    readonly set_rarity: string;
+    readonly variant_label: string | null;
+    readonly condition: string;
+    readonly edition: string;
+    readonly language: string;
+    readonly portfolio_name: string;
+    readonly created_at: string;
+};
+
+/**
+ * A deck membership — read AND create. The write side carries only ``deck`` +
+ * ``collection_item`` (both ``PrimaryKeyRelatedField`` → 400 on an unknown id);
+ * everything else is the owned holding's identity, denormalized read-only via
+ * ``source="collection_item.*"`` so the deck-detail member table renders without a
+ * per-row lookup (the ``CollectionItemListSerializer`` pattern). ``variant_label`` is
+ * nullable, and a ``source=``-pointed declared field is skipped by the schema
+ * nullability gate (it maps only 1:1 model fields), so it sets ``allow_null=True``
+ * explicitly (the ``AlertEventSerializer`` precedent).
+ *
+ * ``Meta.validators = []`` drops the auto ``UniqueTogetherValidator`` DRF would derive
+ * from the model's ``(deck, collection_item)`` UNIQUE: the viewset's ``create`` instead
+ * ``get_or_create``s and returns a clean 409 for an already-present holding (informative,
+ * and the same status the import-review frontend already reads), rather than a generic
+ * 400 — while the DB UNIQUE still backstops a concurrent double-add.
+ */
+export type DeckMembershipRequest = {
+    deck: number;
+    collection_item: number;
+};
+
+/**
+ * A deck — read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``
+ * one class serves read+write, so a POST/PATCH body carries only ``name``/``description``
+ * and the response echoes the saved deck.
+ *
+ * ``member_count`` is derived (the count of ``DeckMembership`` rows). The viewset
+ * annotates it on the list/retrieve queryset, but a freshly created/updated instance
+ * won't carry the annotation, so it is a ``SerializerMethodField`` that falls back to a
+ * live count — the response after a POST/PATCH must still serialize without an
+ * AttributeError (the cards ``printings_count`` annotation trap, made annotation-safe).
+ */
+export type DeckRequest = {
+    name: string;
+    description?: string;
+};
+
+/**
  * * `up` - Up
  * * `down` - Down
  * * `any` - Any direction
@@ -433,6 +522,20 @@ export type PaginatedCollectionLotList = {
     results: Array<CollectionLot>;
 };
 
+export type PaginatedDeckList = {
+    count: number;
+    next?: string | null;
+    previous?: string | null;
+    results: Array<Deck>;
+};
+
+export type PaginatedDeckMembershipList = {
+    count: number;
+    next?: string | null;
+    previous?: string | null;
+    results: Array<DeckMembership>;
+};
+
 export type PaginatedImportBatchList = {
     count: number;
     next?: string | null;
@@ -473,6 +576,22 @@ export type PaginatedPriceSnapshotList = {
     next?: string | null;
     previous?: string | null;
     results: Array<PriceSnapshot>;
+};
+
+/**
+ * A deck — read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``
+ * one class serves read+write, so a POST/PATCH body carries only ``name``/``description``
+ * and the response echoes the saved deck.
+ *
+ * ``member_count`` is derived (the count of ``DeckMembership`` rows). The viewset
+ * annotates it on the list/retrieve queryset, but a freshly created/updated instance
+ * won't carry the annotation, so it is a ``SerializerMethodField`` that falls back to a
+ * live count — the response after a POST/PATCH must still serialize without an
+ * AttributeError (the cards ``printings_count`` annotation trap, made annotation-safe).
+ */
+export type PatchedDeckRequest = {
+    name?: string;
+    description?: string;
 };
 
 /**
@@ -716,6 +835,43 @@ export type CollectionLotWritable = {
 };
 
 /**
+ * A deck — read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``
+ * one class serves read+write, so a POST/PATCH body carries only ``name``/``description``
+ * and the response echoes the saved deck.
+ *
+ * ``member_count`` is derived (the count of ``DeckMembership`` rows). The viewset
+ * annotates it on the list/retrieve queryset, but a freshly created/updated instance
+ * won't carry the annotation, so it is a ``SerializerMethodField`` that falls back to a
+ * live count — the response after a POST/PATCH must still serialize without an
+ * AttributeError (the cards ``printings_count`` annotation trap, made annotation-safe).
+ */
+export type DeckWritable = {
+    name: string;
+    description?: string;
+};
+
+/**
+ * A deck membership — read AND create. The write side carries only ``deck`` +
+ * ``collection_item`` (both ``PrimaryKeyRelatedField`` → 400 on an unknown id);
+ * everything else is the owned holding's identity, denormalized read-only via
+ * ``source="collection_item.*"`` so the deck-detail member table renders without a
+ * per-row lookup (the ``CollectionItemListSerializer`` pattern). ``variant_label`` is
+ * nullable, and a ``source=``-pointed declared field is skipped by the schema
+ * nullability gate (it maps only 1:1 model fields), so it sets ``allow_null=True``
+ * explicitly (the ``AlertEventSerializer`` precedent).
+ *
+ * ``Meta.validators = []`` drops the auto ``UniqueTogetherValidator`` DRF would derive
+ * from the model's ``(deck, collection_item)`` UNIQUE: the viewset's ``create`` instead
+ * ``get_or_create``s and returns a clean 409 for an already-present holding (informative,
+ * and the same status the import-review frontend already reads), rather than a generic
+ * 400 — while the DB UNIQUE still backstops a concurrent double-add.
+ */
+export type DeckMembershipWritable = {
+    deck: number;
+    collection_item: number;
+};
+
+/**
  * One import's history record + per-status row counts. The counts are *derived* — the
  * model deliberately does not denormalize them (DECISIONS 2026-05-25 slice 1) — and are
  * supplied by the viewset's queryset annotation, so a summary can't drift from its rows.
@@ -808,6 +964,20 @@ export type PaginatedCollectionLotListWritable = {
     next?: string | null;
     previous?: string | null;
     results: Array<CollectionLotWritable>;
+};
+
+export type PaginatedDeckListWritable = {
+    count: number;
+    next?: string | null;
+    previous?: string | null;
+    results: Array<DeckWritable>;
+};
+
+export type PaginatedDeckMembershipListWritable = {
+    count: number;
+    next?: string | null;
+    previous?: string | null;
+    results: Array<DeckMembershipWritable>;
 };
 
 export type PaginatedImportBatchListWritable = {
@@ -1236,6 +1406,187 @@ export type CsrfRetrieveResponses = {
      */
     200: unknown;
 };
+
+export type DecksDecksListData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * A page number within the paginated result set.
+         */
+        page?: number;
+    };
+    url: '/api/decks/decks/';
+};
+
+export type DecksDecksListResponses = {
+    200: PaginatedDeckList;
+};
+
+export type DecksDecksListResponse = DecksDecksListResponses[keyof DecksDecksListResponses];
+
+export type DecksDecksCreateData = {
+    body: DeckRequest;
+    path?: never;
+    query?: never;
+    url: '/api/decks/decks/';
+};
+
+export type DecksDecksCreateErrors = {
+    400: {
+        [key: string]: unknown;
+    };
+};
+
+export type DecksDecksCreateError = DecksDecksCreateErrors[keyof DecksDecksCreateErrors];
+
+export type DecksDecksCreateResponses = {
+    201: Deck;
+};
+
+export type DecksDecksCreateResponse = DecksDecksCreateResponses[keyof DecksDecksCreateResponses];
+
+export type DecksDecksDestroyData = {
+    body?: never;
+    path: {
+        /**
+         * A unique integer value identifying this deck.
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/decks/decks/{id}/';
+};
+
+export type DecksDecksDestroyResponses = {
+    /**
+     * No response body
+     */
+    204: void;
+};
+
+export type DecksDecksDestroyResponse = DecksDecksDestroyResponses[keyof DecksDecksDestroyResponses];
+
+export type DecksDecksRetrieveData = {
+    body?: never;
+    path: {
+        /**
+         * A unique integer value identifying this deck.
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/decks/decks/{id}/';
+};
+
+export type DecksDecksRetrieveResponses = {
+    200: Deck;
+};
+
+export type DecksDecksRetrieveResponse = DecksDecksRetrieveResponses[keyof DecksDecksRetrieveResponses];
+
+export type DecksDecksPartialUpdateData = {
+    body?: PatchedDeckRequest;
+    path: {
+        /**
+         * A unique integer value identifying this deck.
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/decks/decks/{id}/';
+};
+
+export type DecksDecksPartialUpdateResponses = {
+    200: Deck;
+};
+
+export type DecksDecksPartialUpdateResponse = DecksDecksPartialUpdateResponses[keyof DecksDecksPartialUpdateResponses];
+
+export type DecksDecksUpdateData = {
+    body: DeckRequest;
+    path: {
+        /**
+         * A unique integer value identifying this deck.
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/decks/decks/{id}/';
+};
+
+export type DecksDecksUpdateResponses = {
+    200: Deck;
+};
+
+export type DecksDecksUpdateResponse = DecksDecksUpdateResponses[keyof DecksDecksUpdateResponses];
+
+export type DecksMembershipsListData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Filter memberships to one deck.
+         */
+        deck?: number;
+        /**
+         * A page number within the paginated result set.
+         */
+        page?: number;
+    };
+    url: '/api/decks/memberships/';
+};
+
+export type DecksMembershipsListResponses = {
+    200: PaginatedDeckMembershipList;
+};
+
+export type DecksMembershipsListResponse = DecksMembershipsListResponses[keyof DecksMembershipsListResponses];
+
+export type DecksMembershipsCreateData = {
+    body: DeckMembershipRequest;
+    path?: never;
+    query?: never;
+    url: '/api/decks/memberships/';
+};
+
+export type DecksMembershipsCreateErrors = {
+    400: {
+        [key: string]: unknown;
+    };
+    409: {
+        [key: string]: unknown;
+    };
+};
+
+export type DecksMembershipsCreateError = DecksMembershipsCreateErrors[keyof DecksMembershipsCreateErrors];
+
+export type DecksMembershipsCreateResponses = {
+    201: DeckMembership;
+};
+
+export type DecksMembershipsCreateResponse = DecksMembershipsCreateResponses[keyof DecksMembershipsCreateResponses];
+
+export type DecksMembershipsDestroyData = {
+    body?: never;
+    path: {
+        /**
+         * A unique integer value identifying this deck membership.
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/decks/memberships/{id}/';
+};
+
+export type DecksMembershipsDestroyResponses = {
+    /**
+     * No response body
+     */
+    204: void;
+};
+
+export type DecksMembershipsDestroyResponse = DecksMembershipsDestroyResponses[keyof DecksMembershipsDestroyResponses];
 
 export type HealthRetrieveData = {
     body?: never;

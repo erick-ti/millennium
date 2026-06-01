@@ -716,6 +716,422 @@
                 }
             }
         },
+        "/api/decks/decks/": {
+            "get": {
+                "operationId": "decks_decks_list",
+                "description": "Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the\nexplicit-full-surface case where ``ModelViewSet`` is the honest choice). List +\nretrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the\ninherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed\nthrough the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT\nnested here — members are mutable + paginated, so they live on their own flat endpoint\n(the import-batch-detail header/rows split, not the cards/collection nested-detail\nshape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
+                "summary": "List decks (each with its member count)",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "decks"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedDeckList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "decks_decks_create",
+                "description": "Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the\nexplicit-full-surface case where ``ModelViewSet`` is the honest choice). List +\nretrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the\ninherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed\nthrough the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT\nnested here — members are mutable + paginated, so they live on their own flat endpoint\n(the import-batch-detail header/rows split, not the cards/collection nested-detail\nshape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
+                "summary": "Create a deck",
+                "tags": [
+                    "decks"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeckRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeckRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeckRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Deck"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/decks/decks/{id}/": {
+            "get": {
+                "operationId": "decks_decks_retrieve",
+                "description": "Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the\nexplicit-full-surface case where ``ModelViewSet`` is the honest choice). List +\nretrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the\ninherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed\nthrough the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT\nnested here — members are mutable + paginated, so they live on their own flat endpoint\n(the import-batch-detail header/rows split, not the cards/collection nested-detail\nshape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
+                "summary": "Retrieve a deck",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this deck.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "decks"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Deck"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "decks_decks_update",
+                "description": "Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the\nexplicit-full-surface case where ``ModelViewSet`` is the honest choice). List +\nretrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the\ninherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed\nthrough the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT\nnested here — members are mutable + paginated, so they live on their own flat endpoint\n(the import-batch-detail header/rows split, not the cards/collection nested-detail\nshape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
+                "summary": "Replace a deck",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this deck.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "decks"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeckRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeckRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeckRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Deck"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "decks_decks_partial_update",
+                "description": "Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the\nexplicit-full-surface case where ``ModelViewSet`` is the honest choice). List +\nretrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the\ninherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed\nthrough the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT\nnested here — members are mutable + paginated, so they live on their own flat endpoint\n(the import-batch-detail header/rows split, not the cards/collection nested-detail\nshape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
+                "summary": "Rename / edit a deck",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this deck.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "decks"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedDeckRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedDeckRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedDeckRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Deck"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "decks_decks_destroy",
+                "description": "Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the\nexplicit-full-surface case where ``ModelViewSet`` is the honest choice). List +\nretrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the\ninherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed\nthrough the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT\nnested here — members are mutable + paginated, so they live on their own flat endpoint\n(the import-batch-detail header/rows split, not the cards/collection nested-detail\nshape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
+                "summary": "Delete a deck (its memberships cascade away)",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this deck.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "decks"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/decks/memberships/": {
+            "get": {
+                "operationId": "decks_memberships_list",
+                "description": "A deck's membership feed + add/remove. A membership is a stateless join row, so this\nis a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,\nwhich exists only for that app's batch/row state machine — decks have no such state).\nOWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card\nhas no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``\nreturns 409 (the holding is already in the deck), never a second row. Inherits\n``IsAuthenticated`` + ``PageNumberPagination``.",
+                "summary": "List deck memberships (filter to one deck with ?deck=)",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "deck",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Filter memberships to one deck."
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "decks"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedDeckMembershipList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "decks_memberships_create",
+                "description": "A deck's membership feed + add/remove. A membership is a stateless join row, so this\nis a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,\nwhich exists only for that app's batch/row state machine — decks have no such state).\nOWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card\nhas no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``\nreturns 409 (the holding is already in the deck), never a second row. Inherits\n``IsAuthenticated`` + ``PageNumberPagination``.",
+                "summary": "Add an owned holding to a deck",
+                "tags": [
+                    "decks"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeckMembershipRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeckMembershipRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeckMembershipRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeckMembership"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/decks/memberships/{id}/": {
+            "delete": {
+                "operationId": "decks_memberships_destroy",
+                "description": "A deck's membership feed + add/remove. A membership is a stateless join row, so this\nis a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,\nwhich exists only for that app's batch/row state machine — decks have no such state).\nOWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card\nhas no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``\nreturns 409 (the holding is already in the deck), never a second row. Inherits\n``IsAuthenticated`` + ``PageNumberPagination``.",
+                "summary": "Remove a holding from a deck",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this deck membership.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "decks"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
         "/api/health/": {
             "get": {
                 "operationId": "health_retrieve",
@@ -2126,6 +2542,150 @@
                 "type": "string",
                 "description": "* `mint` - Mint\n* `near_mint` - Near Mint\n* `excellent` - Excellent\n* `good` - Good\n* `light_played` - Light Played\n* `played` - Played\n* `poor` - Poor"
             },
+            "Deck": {
+                "type": "object",
+                "description": "A deck — read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``\none class serves read+write, so a POST/PATCH body carries only ``name``/``description``\nand the response echoes the saved deck.\n\n``member_count`` is derived (the count of ``DeckMembership`` rows). The viewset\nannotates it on the list/retrieve queryset, but a freshly created/updated instance\nwon't carry the annotation, so it is a ``SerializerMethodField`` that falls back to a\nlive count — the response after a POST/PATCH must still serialize without an\nAttributeError (the cards ``printings_count`` annotation trap, made annotation-safe).",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "member_count": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "id",
+                    "member_count",
+                    "name",
+                    "updated_at"
+                ]
+            },
+            "DeckMembership": {
+                "type": "object",
+                "description": "A deck membership — read AND create. The write side carries only ``deck`` +\n``collection_item`` (both ``PrimaryKeyRelatedField`` → 400 on an unknown id);\neverything else is the owned holding's identity, denormalized read-only via\n``source=\"collection_item.*\"`` so the deck-detail member table renders without a\nper-row lookup (the ``CollectionItemListSerializer`` pattern). ``variant_label`` is\nnullable, and a ``source=``-pointed declared field is skipped by the schema\nnullability gate (it maps only 1:1 model fields), so it sets ``allow_null=True``\nexplicitly (the ``AlertEventSerializer`` precedent).\n\n``Meta.validators = []`` drops the auto ``UniqueTogetherValidator`` DRF would derive\nfrom the model's ``(deck, collection_item)`` UNIQUE: the viewset's ``create`` instead\n``get_or_create``s and returns a clean 409 for an already-present holding (informative,\nand the same status the import-review frontend already reads), rather than a generic\n400 — while the DB UNIQUE still backstops a concurrent double-add.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "deck": {
+                        "type": "integer"
+                    },
+                    "collection_item": {
+                        "type": "integer"
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "card_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "set_code": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "set_rarity": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "variant_label": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "condition": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "edition": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "language": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "portfolio_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "card_name",
+                    "collection_item",
+                    "condition",
+                    "created_at",
+                    "deck",
+                    "edition",
+                    "id",
+                    "language",
+                    "portfolio_name",
+                    "quantity",
+                    "set_code",
+                    "set_rarity",
+                    "variant_label"
+                ]
+            },
+            "DeckMembershipRequest": {
+                "type": "object",
+                "description": "A deck membership — read AND create. The write side carries only ``deck`` +\n``collection_item`` (both ``PrimaryKeyRelatedField`` → 400 on an unknown id);\neverything else is the owned holding's identity, denormalized read-only via\n``source=\"collection_item.*\"`` so the deck-detail member table renders without a\nper-row lookup (the ``CollectionItemListSerializer`` pattern). ``variant_label`` is\nnullable, and a ``source=``-pointed declared field is skipped by the schema\nnullability gate (it maps only 1:1 model fields), so it sets ``allow_null=True``\nexplicitly (the ``AlertEventSerializer`` precedent).\n\n``Meta.validators = []`` drops the auto ``UniqueTogetherValidator`` DRF would derive\nfrom the model's ``(deck, collection_item)`` UNIQUE: the viewset's ``create`` instead\n``get_or_create``s and returns a clean 409 for an already-present holding (informative,\nand the same status the import-review frontend already reads), rather than a generic\n400 — while the DB UNIQUE still backstops a concurrent double-add.",
+                "properties": {
+                    "deck": {
+                        "type": "integer"
+                    },
+                    "collection_item": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "collection_item",
+                    "deck"
+                ]
+            },
+            "DeckRequest": {
+                "type": "object",
+                "description": "A deck — read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``\none class serves read+write, so a POST/PATCH body carries only ``name``/``description``\nand the response echoes the saved deck.\n\n``member_count`` is derived (the count of ``DeckMembership`` rows). The viewset\nannotates it on the list/retrieve queryset, but a freshly created/updated instance\nwon't carry the annotation, so it is a ``SerializerMethodField`` that falls back to a\nlive count — the response after a POST/PATCH must still serialize without an\nAttributeError (the cards ``printings_count`` annotation trap, made annotation-safe).",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                    },
+                    "description": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "name"
+                ]
+            },
             "DirectionEnum": {
                 "enum": [
                     "up",
@@ -2663,6 +3223,68 @@
                     }
                 }
             },
+            "PaginatedDeckList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Deck"
+                        }
+                    }
+                }
+            },
+            "PaginatedDeckMembershipList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DeckMembership"
+                        }
+                    }
+                }
+            },
             "PaginatedImportBatchList": {
                 "type": "object",
                 "required": [
@@ -2846,6 +3468,20 @@
                         "items": {
                             "$ref": "#/components/schemas/PriceSnapshot"
                         }
+                    }
+                }
+            },
+            "PatchedDeckRequest": {
+                "type": "object",
+                "description": "A deck — read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``\none class serves read+write, so a POST/PATCH body carries only ``name``/``description``\nand the response echoes the saved deck.\n\n``member_count`` is derived (the count of ``DeckMembership`` rows). The viewset\nannotates it on the list/retrieve queryset, but a freshly created/updated instance\nwon't carry the annotation, so it is a ``SerializerMethodField`` that falls back to a\nlive count — the response after a POST/PATCH must still serialize without an\nAttributeError (the cards ``printings_count`` annotation trap, made annotation-safe).",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                    },
+                    "description": {
+                        "type": "string"
                     }
                 }
             },
