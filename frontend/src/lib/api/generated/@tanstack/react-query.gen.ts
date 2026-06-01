@@ -3,8 +3,8 @@
 import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { alertsEventsList, alertsRulesCreate, alertsRulesList, authLoginCreate, authLogoutCreate, authMeRetrieve, cardsCardsArchetypesRetrieve, cardsCardsList, cardsCardsRetrieve, cardsPrintingsList, cardsPrintingsRetrieve, collectionItemsList, collectionItemsRetrieve, collectionLotsList, collectionLotsRetrieve, csrfRetrieve, healthRetrieve, importsBatchesCreate, importsBatchesList, importsBatchesRetrieve, importsRowsApproveCreate, importsRowsList, importsRowsOverrideCreate, importsRowsRejectCreate, importsRowsRetrieve, type Options, portfolioPortfoliosList, portfolioPortfoliosRetrieve, portfolioSnapshotsList, portfolioSnapshotsRetrieve, pricingSnapshotsLatestRetrieve, pricingSnapshotsList, pricingSnapshotsRetrieve, valuationMoversList } from '../sdk.gen';
-import type { AlertsEventsListData, AlertsEventsListResponse, AlertsRulesCreateData, AlertsRulesCreateError, AlertsRulesCreateResponse, AlertsRulesListData, AlertsRulesListResponse, AuthLoginCreateData, AuthLoginCreateResponse, AuthLogoutCreateData, AuthMeRetrieveData, AuthMeRetrieveResponse, CardsCardsArchetypesRetrieveData, CardsCardsArchetypesRetrieveResponse, CardsCardsListData, CardsCardsListResponse, CardsCardsRetrieveData, CardsCardsRetrieveResponse, CardsPrintingsListData, CardsPrintingsListResponse, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponse, CollectionItemsListData, CollectionItemsListResponse, CollectionItemsRetrieveData, CollectionItemsRetrieveResponse, CollectionLotsListData, CollectionLotsListResponse, CollectionLotsRetrieveData, CollectionLotsRetrieveResponse, CsrfRetrieveData, HealthRetrieveData, ImportsBatchesCreateData, ImportsBatchesCreateError, ImportsBatchesCreateResponse, ImportsBatchesListData, ImportsBatchesListResponse, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponse, ImportsRowsApproveCreateData, ImportsRowsApproveCreateError, ImportsRowsApproveCreateResponse, ImportsRowsListData, ImportsRowsListResponse, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateError, ImportsRowsOverrideCreateResponse, ImportsRowsRejectCreateData, ImportsRowsRejectCreateError, ImportsRowsRejectCreateResponse, ImportsRowsRetrieveData, ImportsRowsRetrieveResponse, PortfolioPortfoliosListData, PortfolioPortfoliosListResponse, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponse, PortfolioSnapshotsListData, PortfolioSnapshotsListResponse, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponse, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveError, PricingSnapshotsLatestRetrieveResponse, PricingSnapshotsListData, PricingSnapshotsListResponse, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponse, ValuationMoversListData, ValuationMoversListResponse } from '../types.gen';
+import { alertsEventsList, alertsRulesCreate, alertsRulesList, authLoginCreate, authLogoutCreate, authMeRetrieve, cardsCardsArchetypesRetrieve, cardsCardsList, cardsCardsRetrieve, cardsPrintingsList, cardsPrintingsRetrieve, collectionItemsList, collectionItemsRetrieve, collectionLotsList, collectionLotsRetrieve, csrfRetrieve, decksDecksCreate, decksDecksDestroy, decksDecksList, decksDecksPartialUpdate, decksDecksRetrieve, decksDecksUpdate, decksMembershipsCreate, decksMembershipsDestroy, decksMembershipsList, healthRetrieve, importsBatchesCreate, importsBatchesList, importsBatchesRetrieve, importsRowsApproveCreate, importsRowsList, importsRowsOverrideCreate, importsRowsRejectCreate, importsRowsRetrieve, type Options, portfolioPortfoliosList, portfolioPortfoliosRetrieve, portfolioSnapshotsList, portfolioSnapshotsRetrieve, pricingSnapshotsLatestRetrieve, pricingSnapshotsList, pricingSnapshotsRetrieve, valuationMoversList } from '../sdk.gen';
+import type { AlertsEventsListData, AlertsEventsListResponse, AlertsRulesCreateData, AlertsRulesCreateError, AlertsRulesCreateResponse, AlertsRulesListData, AlertsRulesListResponse, AuthLoginCreateData, AuthLoginCreateResponse, AuthLogoutCreateData, AuthMeRetrieveData, AuthMeRetrieveResponse, CardsCardsArchetypesRetrieveData, CardsCardsArchetypesRetrieveResponse, CardsCardsListData, CardsCardsListResponse, CardsCardsRetrieveData, CardsCardsRetrieveResponse, CardsPrintingsListData, CardsPrintingsListResponse, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponse, CollectionItemsListData, CollectionItemsListResponse, CollectionItemsRetrieveData, CollectionItemsRetrieveResponse, CollectionLotsListData, CollectionLotsListResponse, CollectionLotsRetrieveData, CollectionLotsRetrieveResponse, CsrfRetrieveData, DecksDecksCreateData, DecksDecksCreateError, DecksDecksCreateResponse, DecksDecksDestroyData, DecksDecksDestroyResponse, DecksDecksListData, DecksDecksListResponse, DecksDecksPartialUpdateData, DecksDecksPartialUpdateResponse, DecksDecksRetrieveData, DecksDecksRetrieveResponse, DecksDecksUpdateData, DecksDecksUpdateResponse, DecksMembershipsCreateData, DecksMembershipsCreateError, DecksMembershipsCreateResponse, DecksMembershipsDestroyData, DecksMembershipsDestroyResponse, DecksMembershipsListData, DecksMembershipsListResponse, HealthRetrieveData, ImportsBatchesCreateData, ImportsBatchesCreateError, ImportsBatchesCreateResponse, ImportsBatchesListData, ImportsBatchesListResponse, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponse, ImportsRowsApproveCreateData, ImportsRowsApproveCreateError, ImportsRowsApproveCreateResponse, ImportsRowsListData, ImportsRowsListResponse, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateError, ImportsRowsOverrideCreateResponse, ImportsRowsRejectCreateData, ImportsRowsRejectCreateError, ImportsRowsRejectCreateResponse, ImportsRowsRetrieveData, ImportsRowsRetrieveResponse, PortfolioPortfoliosListData, PortfolioPortfoliosListResponse, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponse, PortfolioSnapshotsListData, PortfolioSnapshotsListResponse, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponse, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveError, PricingSnapshotsLatestRetrieveResponse, PricingSnapshotsListData, PricingSnapshotsListResponse, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponse, ValuationMoversListData, ValuationMoversListResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -637,6 +637,311 @@ export const csrfRetrieveOptions = (options?: Options<CsrfRetrieveData>) => quer
     },
     queryKey: csrfRetrieveQueryKey(options)
 });
+
+export const decksDecksListQueryKey = (options?: Options<DecksDecksListData>) => createQueryKey('decksDecksList', options);
+
+/**
+ * List decks (each with its member count)
+ *
+ * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
+ * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
+ * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
+ * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
+ * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * (the import-batch-detail header/rows split, not the cards/collection nested-detail
+ * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksDecksListOptions = (options?: Options<DecksDecksListData>) => queryOptions<DecksDecksListResponse, DefaultError, DecksDecksListResponse, ReturnType<typeof decksDecksListQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await decksDecksList({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: decksDecksListQueryKey(options)
+});
+
+export const decksDecksListInfiniteQueryKey = (options?: Options<DecksDecksListData>): QueryKey<Options<DecksDecksListData>> => createQueryKey('decksDecksList', options, true);
+
+/**
+ * List decks (each with its member count)
+ *
+ * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
+ * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
+ * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
+ * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
+ * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * (the import-batch-detail header/rows split, not the cards/collection nested-detail
+ * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksDecksListInfiniteOptions = (options?: Options<DecksDecksListData>) => infiniteQueryOptions<DecksDecksListResponse, DefaultError, InfiniteData<DecksDecksListResponse>, QueryKey<Options<DecksDecksListData>>, number | Pick<QueryKey<Options<DecksDecksListData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+// @ts-ignore
+{
+    queryFn: async ({ pageParam, queryKey, signal }) => {
+        // @ts-ignore
+        const page: Pick<QueryKey<Options<DecksDecksListData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+            query: {
+                page: pageParam
+            }
+        };
+        const params = createInfiniteParams(queryKey, page);
+        const { data } = await decksDecksList({
+            ...options,
+            ...params,
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: decksDecksListInfiniteQueryKey(options)
+});
+
+/**
+ * Create a deck
+ *
+ * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
+ * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
+ * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
+ * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
+ * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * (the import-batch-detail header/rows split, not the cards/collection nested-detail
+ * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksDecksCreateMutation = (options?: Partial<Options<DecksDecksCreateData>>): UseMutationOptions<DecksDecksCreateResponse, DecksDecksCreateError, Options<DecksDecksCreateData>> => {
+    const mutationOptions: UseMutationOptions<DecksDecksCreateResponse, DecksDecksCreateError, Options<DecksDecksCreateData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await decksDecksCreate({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Delete a deck (its memberships cascade away)
+ *
+ * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
+ * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
+ * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
+ * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
+ * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * (the import-batch-detail header/rows split, not the cards/collection nested-detail
+ * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksDecksDestroyMutation = (options?: Partial<Options<DecksDecksDestroyData>>): UseMutationOptions<DecksDecksDestroyResponse, DefaultError, Options<DecksDecksDestroyData>> => {
+    const mutationOptions: UseMutationOptions<DecksDecksDestroyResponse, DefaultError, Options<DecksDecksDestroyData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await decksDecksDestroy({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const decksDecksRetrieveQueryKey = (options: Options<DecksDecksRetrieveData>) => createQueryKey('decksDecksRetrieve', options);
+
+/**
+ * Retrieve a deck
+ *
+ * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
+ * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
+ * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
+ * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
+ * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * (the import-batch-detail header/rows split, not the cards/collection nested-detail
+ * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksDecksRetrieveOptions = (options: Options<DecksDecksRetrieveData>) => queryOptions<DecksDecksRetrieveResponse, DefaultError, DecksDecksRetrieveResponse, ReturnType<typeof decksDecksRetrieveQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await decksDecksRetrieve({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: decksDecksRetrieveQueryKey(options)
+});
+
+/**
+ * Rename / edit a deck
+ *
+ * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
+ * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
+ * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
+ * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
+ * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * (the import-batch-detail header/rows split, not the cards/collection nested-detail
+ * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksDecksPartialUpdateMutation = (options?: Partial<Options<DecksDecksPartialUpdateData>>): UseMutationOptions<DecksDecksPartialUpdateResponse, DefaultError, Options<DecksDecksPartialUpdateData>> => {
+    const mutationOptions: UseMutationOptions<DecksDecksPartialUpdateResponse, DefaultError, Options<DecksDecksPartialUpdateData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await decksDecksPartialUpdate({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Replace a deck
+ *
+ * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
+ * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
+ * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
+ * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
+ * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * (the import-batch-detail header/rows split, not the cards/collection nested-detail
+ * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksDecksUpdateMutation = (options?: Partial<Options<DecksDecksUpdateData>>): UseMutationOptions<DecksDecksUpdateResponse, DefaultError, Options<DecksDecksUpdateData>> => {
+    const mutationOptions: UseMutationOptions<DecksDecksUpdateResponse, DefaultError, Options<DecksDecksUpdateData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await decksDecksUpdate({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const decksMembershipsListQueryKey = (options?: Options<DecksMembershipsListData>) => createQueryKey('decksMembershipsList', options);
+
+/**
+ * List deck memberships (filter to one deck with ?deck=)
+ *
+ * A deck's membership feed + add/remove. A membership is a stateless join row, so this
+ * is a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,
+ * which exists only for that app's batch/row state machine — decks have no such state).
+ * OWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card
+ * has no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``
+ * returns 409 (the holding is already in the deck), never a second row. Inherits
+ * ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksMembershipsListOptions = (options?: Options<DecksMembershipsListData>) => queryOptions<DecksMembershipsListResponse, DefaultError, DecksMembershipsListResponse, ReturnType<typeof decksMembershipsListQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await decksMembershipsList({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: decksMembershipsListQueryKey(options)
+});
+
+export const decksMembershipsListInfiniteQueryKey = (options?: Options<DecksMembershipsListData>): QueryKey<Options<DecksMembershipsListData>> => createQueryKey('decksMembershipsList', options, true);
+
+/**
+ * List deck memberships (filter to one deck with ?deck=)
+ *
+ * A deck's membership feed + add/remove. A membership is a stateless join row, so this
+ * is a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,
+ * which exists only for that app's batch/row state machine — decks have no such state).
+ * OWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card
+ * has no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``
+ * returns 409 (the holding is already in the deck), never a second row. Inherits
+ * ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksMembershipsListInfiniteOptions = (options?: Options<DecksMembershipsListData>) => infiniteQueryOptions<DecksMembershipsListResponse, DefaultError, InfiniteData<DecksMembershipsListResponse>, QueryKey<Options<DecksMembershipsListData>>, number | Pick<QueryKey<Options<DecksMembershipsListData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+// @ts-ignore
+{
+    queryFn: async ({ pageParam, queryKey, signal }) => {
+        // @ts-ignore
+        const page: Pick<QueryKey<Options<DecksMembershipsListData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+            query: {
+                page: pageParam
+            }
+        };
+        const params = createInfiniteParams(queryKey, page);
+        const { data } = await decksMembershipsList({
+            ...options,
+            ...params,
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: decksMembershipsListInfiniteQueryKey(options)
+});
+
+/**
+ * Add an owned holding to a deck
+ *
+ * A deck's membership feed + add/remove. A membership is a stateless join row, so this
+ * is a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,
+ * which exists only for that app's batch/row state machine — decks have no such state).
+ * OWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card
+ * has no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``
+ * returns 409 (the holding is already in the deck), never a second row. Inherits
+ * ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksMembershipsCreateMutation = (options?: Partial<Options<DecksMembershipsCreateData>>): UseMutationOptions<DecksMembershipsCreateResponse, DecksMembershipsCreateError, Options<DecksMembershipsCreateData>> => {
+    const mutationOptions: UseMutationOptions<DecksMembershipsCreateResponse, DecksMembershipsCreateError, Options<DecksMembershipsCreateData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await decksMembershipsCreate({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Remove a holding from a deck
+ *
+ * A deck's membership feed + add/remove. A membership is a stateless join row, so this
+ * is a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,
+ * which exists only for that app's batch/row state machine — decks have no such state).
+ * OWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card
+ * has no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``
+ * returns 409 (the holding is already in the deck), never a second row. Inherits
+ * ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksMembershipsDestroyMutation = (options?: Partial<Options<DecksMembershipsDestroyData>>): UseMutationOptions<DecksMembershipsDestroyResponse, DefaultError, Options<DecksMembershipsDestroyData>> => {
+    const mutationOptions: UseMutationOptions<DecksMembershipsDestroyResponse, DefaultError, Options<DecksMembershipsDestroyData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await decksMembershipsDestroy({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
 
 export const healthRetrieveQueryKey = (options?: Options<HealthRetrieveData>) => createQueryKey('healthRetrieve', options);
 

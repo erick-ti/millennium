@@ -21,7 +21,10 @@
  * `RejectCreate`, `importsBatchesCreate`) + their `*Mutation` variants are now
  * re-exported and safe to call through the same-origin proxy. Phase 5 adds the
  * price-alert rule-create write (`alertsRulesCreate` + `alertsRulesCreateMutation`)
- * on the same path.
+ * on the same path. Phase 5 deck association adds the deck CRUD + membership
+ * add/remove writes (`decksDecksCreate` / `decksDecksDestroy`,
+ * `decksMembershipsCreate` / `decksMembershipsDestroy`), called as bare SDK fns so
+ * the add can read its 409 (duplicate membership) — the import write pattern.
  *
  * We deliberately do NOT collapse this to `export * from "./generated"` (the
  * slice-2 comment's suggested one-line revert): hey-api still generates the
@@ -65,6 +68,10 @@ export {
   collectionLotsList,
   collectionLotsRetrieve,
   csrfRetrieve,
+  decksDecksCreate,
+  decksDecksDestroy,
+  decksMembershipsCreate,
+  decksMembershipsDestroy,
   healthRetrieve,
   importsBatchesCreate,
   importsBatchesList,
@@ -119,6 +126,12 @@ export {
   collectionLotsRetrieveQueryKey,
   csrfRetrieveOptions,
   csrfRetrieveQueryKey,
+  decksDecksListOptions,
+  decksDecksListQueryKey,
+  decksDecksRetrieveOptions,
+  decksDecksRetrieveQueryKey,
+  decksMembershipsListOptions,
+  decksMembershipsListQueryKey,
   healthRetrieveOptions,
   healthRetrieveQueryKey,
   importsBatchesCreateMutation,

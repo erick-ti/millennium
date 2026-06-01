@@ -2,7 +2,7 @@
 
 import { type Client, formDataBodySerializer, type Options as Options2, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AlertsEventsListData, AlertsEventsListResponses, AlertsRulesCreateData, AlertsRulesCreateErrors, AlertsRulesCreateResponses, AlertsRulesListData, AlertsRulesListResponses, AuthLoginCreateData, AuthLoginCreateErrors, AuthLoginCreateResponses, AuthLogoutCreateData, AuthLogoutCreateResponses, AuthMeRetrieveData, AuthMeRetrieveResponses, CardsCardsArchetypesRetrieveData, CardsCardsArchetypesRetrieveResponses, CardsCardsListData, CardsCardsListResponses, CardsCardsRetrieveData, CardsCardsRetrieveResponses, CardsPrintingsListData, CardsPrintingsListResponses, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponses, CollectionItemsListData, CollectionItemsListResponses, CollectionItemsRetrieveData, CollectionItemsRetrieveResponses, CollectionLotsListData, CollectionLotsListResponses, CollectionLotsRetrieveData, CollectionLotsRetrieveResponses, CsrfRetrieveData, CsrfRetrieveResponses, HealthRetrieveData, HealthRetrieveResponses, ImportsBatchesCreateData, ImportsBatchesCreateErrors, ImportsBatchesCreateResponses, ImportsBatchesListData, ImportsBatchesListResponses, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponses, ImportsRowsApproveCreateData, ImportsRowsApproveCreateErrors, ImportsRowsApproveCreateResponses, ImportsRowsListData, ImportsRowsListResponses, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateErrors, ImportsRowsOverrideCreateResponses, ImportsRowsRejectCreateData, ImportsRowsRejectCreateErrors, ImportsRowsRejectCreateResponses, ImportsRowsRetrieveData, ImportsRowsRetrieveResponses, PortfolioPortfoliosListData, PortfolioPortfoliosListResponses, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponses, PortfolioSnapshotsListData, PortfolioSnapshotsListResponses, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponses, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveErrors, PricingSnapshotsLatestRetrieveResponses, PricingSnapshotsListData, PricingSnapshotsListResponses, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponses, ValuationMoversListData, ValuationMoversListResponses } from './types.gen';
+import type { AlertsEventsListData, AlertsEventsListResponses, AlertsRulesCreateData, AlertsRulesCreateErrors, AlertsRulesCreateResponses, AlertsRulesListData, AlertsRulesListResponses, AuthLoginCreateData, AuthLoginCreateErrors, AuthLoginCreateResponses, AuthLogoutCreateData, AuthLogoutCreateResponses, AuthMeRetrieveData, AuthMeRetrieveResponses, CardsCardsArchetypesRetrieveData, CardsCardsArchetypesRetrieveResponses, CardsCardsListData, CardsCardsListResponses, CardsCardsRetrieveData, CardsCardsRetrieveResponses, CardsPrintingsListData, CardsPrintingsListResponses, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponses, CollectionItemsListData, CollectionItemsListResponses, CollectionItemsRetrieveData, CollectionItemsRetrieveResponses, CollectionLotsListData, CollectionLotsListResponses, CollectionLotsRetrieveData, CollectionLotsRetrieveResponses, CsrfRetrieveData, CsrfRetrieveResponses, DecksDecksCreateData, DecksDecksCreateErrors, DecksDecksCreateResponses, DecksDecksDestroyData, DecksDecksDestroyResponses, DecksDecksListData, DecksDecksListResponses, DecksDecksPartialUpdateData, DecksDecksPartialUpdateResponses, DecksDecksRetrieveData, DecksDecksRetrieveResponses, DecksDecksUpdateData, DecksDecksUpdateResponses, DecksMembershipsCreateData, DecksMembershipsCreateErrors, DecksMembershipsCreateResponses, DecksMembershipsDestroyData, DecksMembershipsDestroyResponses, DecksMembershipsListData, DecksMembershipsListResponses, HealthRetrieveData, HealthRetrieveResponses, ImportsBatchesCreateData, ImportsBatchesCreateErrors, ImportsBatchesCreateResponses, ImportsBatchesListData, ImportsBatchesListResponses, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponses, ImportsRowsApproveCreateData, ImportsRowsApproveCreateErrors, ImportsRowsApproveCreateResponses, ImportsRowsListData, ImportsRowsListResponses, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateErrors, ImportsRowsOverrideCreateResponses, ImportsRowsRejectCreateData, ImportsRowsRejectCreateErrors, ImportsRowsRejectCreateResponses, ImportsRowsRetrieveData, ImportsRowsRetrieveResponses, PortfolioPortfoliosListData, PortfolioPortfoliosListResponses, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponses, PortfolioSnapshotsListData, PortfolioSnapshotsListResponses, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponses, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveErrors, PricingSnapshotsLatestRetrieveResponses, PricingSnapshotsListData, PricingSnapshotsListResponses, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponses, ValuationMoversListData, ValuationMoversListResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -315,6 +315,217 @@ export const collectionLotsRetrieve = <ThrowOnError extends boolean = false>(opt
  * secret the client already holds). Safe method → no CSRF *enforcement* here.
  */
 export const csrfRetrieve = <ThrowOnError extends boolean = false>(options?: Options<CsrfRetrieveData, ThrowOnError>) => (options?.client ?? client).get<CsrfRetrieveResponses, unknown, ThrowOnError>({ url: '/api/csrf/', ...options });
+
+/**
+ * List decks (each with its member count)
+ *
+ * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
+ * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
+ * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
+ * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
+ * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * (the import-batch-detail header/rows split, not the cards/collection nested-detail
+ * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksDecksList = <ThrowOnError extends boolean = false>(options?: Options<DecksDecksListData, ThrowOnError>) => (options?.client ?? client).get<DecksDecksListResponses, unknown, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'sessionid',
+            type: 'apiKey'
+        }],
+    url: '/api/decks/decks/',
+    ...options
+});
+
+/**
+ * Create a deck
+ *
+ * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
+ * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
+ * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
+ * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
+ * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * (the import-batch-detail header/rows split, not the cards/collection nested-detail
+ * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksDecksCreate = <ThrowOnError extends boolean = false>(options: Options<DecksDecksCreateData, ThrowOnError>) => (options.client ?? client).post<DecksDecksCreateResponses, DecksDecksCreateErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'sessionid',
+            type: 'apiKey'
+        }],
+    url: '/api/decks/decks/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a deck (its memberships cascade away)
+ *
+ * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
+ * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
+ * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
+ * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
+ * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * (the import-batch-detail header/rows split, not the cards/collection nested-detail
+ * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksDecksDestroy = <ThrowOnError extends boolean = false>(options: Options<DecksDecksDestroyData, ThrowOnError>) => (options.client ?? client).delete<DecksDecksDestroyResponses, unknown, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'sessionid',
+            type: 'apiKey'
+        }],
+    url: '/api/decks/decks/{id}/',
+    ...options
+});
+
+/**
+ * Retrieve a deck
+ *
+ * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
+ * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
+ * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
+ * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
+ * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * (the import-batch-detail header/rows split, not the cards/collection nested-detail
+ * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksDecksRetrieve = <ThrowOnError extends boolean = false>(options: Options<DecksDecksRetrieveData, ThrowOnError>) => (options.client ?? client).get<DecksDecksRetrieveResponses, unknown, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'sessionid',
+            type: 'apiKey'
+        }],
+    url: '/api/decks/decks/{id}/',
+    ...options
+});
+
+/**
+ * Rename / edit a deck
+ *
+ * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
+ * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
+ * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
+ * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
+ * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * (the import-batch-detail header/rows split, not the cards/collection nested-detail
+ * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksDecksPartialUpdate = <ThrowOnError extends boolean = false>(options: Options<DecksDecksPartialUpdateData, ThrowOnError>) => (options.client ?? client).patch<DecksDecksPartialUpdateResponses, unknown, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'sessionid',
+            type: 'apiKey'
+        }],
+    url: '/api/decks/decks/{id}/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Replace a deck
+ *
+ * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
+ * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
+ * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
+ * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
+ * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * (the import-batch-detail header/rows split, not the cards/collection nested-detail
+ * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksDecksUpdate = <ThrowOnError extends boolean = false>(options: Options<DecksDecksUpdateData, ThrowOnError>) => (options.client ?? client).put<DecksDecksUpdateResponses, unknown, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'sessionid',
+            type: 'apiKey'
+        }],
+    url: '/api/decks/decks/{id}/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List deck memberships (filter to one deck with ?deck=)
+ *
+ * A deck's membership feed + add/remove. A membership is a stateless join row, so this
+ * is a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,
+ * which exists only for that app's batch/row state machine — decks have no such state).
+ * OWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card
+ * has no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``
+ * returns 409 (the holding is already in the deck), never a second row. Inherits
+ * ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksMembershipsList = <ThrowOnError extends boolean = false>(options?: Options<DecksMembershipsListData, ThrowOnError>) => (options?.client ?? client).get<DecksMembershipsListResponses, unknown, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'sessionid',
+            type: 'apiKey'
+        }],
+    url: '/api/decks/memberships/',
+    ...options
+});
+
+/**
+ * Add an owned holding to a deck
+ *
+ * A deck's membership feed + add/remove. A membership is a stateless join row, so this
+ * is a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,
+ * which exists only for that app's batch/row state machine — decks have no such state).
+ * OWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card
+ * has no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``
+ * returns 409 (the holding is already in the deck), never a second row. Inherits
+ * ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksMembershipsCreate = <ThrowOnError extends boolean = false>(options: Options<DecksMembershipsCreateData, ThrowOnError>) => (options.client ?? client).post<DecksMembershipsCreateResponses, DecksMembershipsCreateErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'sessionid',
+            type: 'apiKey'
+        }],
+    url: '/api/decks/memberships/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Remove a holding from a deck
+ *
+ * A deck's membership feed + add/remove. A membership is a stateless join row, so this
+ * is a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,
+ * which exists only for that app's batch/row state machine — decks have no such state).
+ * OWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card
+ * has no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``
+ * returns 409 (the holding is already in the deck), never a second row. Inherits
+ * ``IsAuthenticated`` + ``PageNumberPagination``.
+ */
+export const decksMembershipsDestroy = <ThrowOnError extends boolean = false>(options: Options<DecksMembershipsDestroyData, ThrowOnError>) => (options.client ?? client).delete<DecksMembershipsDestroyResponses, unknown, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'sessionid',
+            type: 'apiKey'
+        }],
+    url: '/api/decks/memberships/{id}/',
+    ...options
+});
 
 /**
  * Service health

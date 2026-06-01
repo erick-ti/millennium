@@ -287,3 +287,17 @@ def test_alert_event_variant_label_is_nullable_in_schema() -> None:
     event = schema["components"]["schemas"]["AlertEvent"]
     field = event["properties"]["variant_label"]
     assert _is_nullable(field), f"AlertEvent.variant_label must be nullable, got: {field}"
+
+
+def test_deck_membership_variant_label_is_nullable_in_schema() -> None:
+    """``DeckMembershipSerializer.variant_label`` uses
+    ``source="collection_item.printing.variant_label"``, so the class-level gate SKIPS it
+    (``DeckMembership._meta.get_field("variant_label")`` raises FieldDoesNotExist — the
+    field lives on ``CardPrinting``). A no-variant printing has a null ``variant_label``,
+    so the schema must declare it nullable or the generated TS client types it non-null
+    and the deck-detail member table crashes on a normal null. Pinned by hand here (the
+    ``AlertEvent.variant_label`` precedent) since the auto-gate can't reach it."""
+    schema = _generate_schema()
+    membership = schema["components"]["schemas"]["DeckMembership"]
+    field = membership["properties"]["variant_label"]
+    assert _is_nullable(field), f"DeckMembership.variant_label must be nullable, got: {field}"
