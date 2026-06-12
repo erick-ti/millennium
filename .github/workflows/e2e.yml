@@ -1,0 +1,109 @@
+name: e2e
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:  # allow manual runs from the Actions tab
+
+# Least privilege: this workflow only checks out code and runs the smoke suite.
+permissions:
+  contents: read
+
+# Coalesce stacked runs of this heavy job (Postgres + browser install + build):
+# a same-repo PR fires both push and pull_request, and rapid pushes pile up.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    # ADVISORY check named `e2e (smoke)`. Deliberately NOT in the protect-main
+    # required-checks set (ruleset 16524398) — selectors churn while the UI
+    # evolves, so it reports on PRs without blocking merges. Promote it to
+    # required once it has proven stable (the frontend.yml advisory→required
+    # precedent: the check name must exist on main once before GitHub lets you
+    # select it). The three required checks stay: `scan for secrets`,
+    # `pytest (postgres)`, `lint + build`.
+    name: e2e (smoke)
+    runs-on: ubuntu-latest
+    # Postgres only — the smoke settings (config.settings.smoke) use a LocMem
+    # cache and run imports synchronously, so no Redis/Celery is needed.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: millennium
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.smoke
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/millennium
+      # The browser hits Next at localhost:3000; this origin must be CSRF-trusted
+      # (Invariant 10) or every proxied POST 403s.
+      DJANGO_CSRF_TRUSTED_ORIGINS: http://localhost:3000
+      # Next proxies /api/* here; the Playwright webServer starts Django on this port.
+      BACKEND_URL: http://127.0.0.1:8000
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+
+      - name: sync backend deps
+        working-directory: backend
+        run: uv sync --frozen --group dev
+
+      - name: migrate
+        working-directory: backend
+        run: uv run python manage.py migrate
+
+      - name: seed smoke fixtures
+        working-directory: backend
+        # --reset is a no-op on a fresh CI DB; kept for parity with `make e2e`.
+        run: uv run python manage.py seed_smoke --reset
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: typecheck e2e specs
+        working-directory: frontend
+        # Static type/import check (Playwright's esbuild transpile skips it).
+        # Fails fast before the slow browser install if a spec or helper drifted.
+        run: npm run test:e2e:typecheck
+
+      - name: install playwright browser
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: run smoke suite
+        working-directory: frontend
+        # Playwright's webServer starts Django (runserver, smoke settings) + Next
+        # (build → start in CI) against the migrated+seeded DB above.
+        run: npm run test:e2e
+
+      - name: upload report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
