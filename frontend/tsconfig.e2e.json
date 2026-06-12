@@ -1,0 +1,16 @@
+{
+  // Static type/import check for the Playwright smoke suite (Phase 5 slice 6).
+  // The base tsconfig EXCLUDES e2e/ + playwright.config.ts so the required
+  // `next build` typecheck stays app-only; this sibling project re-includes them
+  // so `npm run test:e2e:typecheck` (run by the advisory e2e CI job) catches type
+  // errors and renamed-helper imports that Playwright's esbuild transpile would
+  // otherwise pass through to a runtime failure. include/exclude reset on extend,
+  // so this scopes to e2e + the config only (no src/ pre-existing-error noise).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": ["e2e/**/*.ts", "playwright.config.ts"],
+  "exclude": ["node_modules"]
+}

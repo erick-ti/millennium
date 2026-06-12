@@ -16,6 +16,13 @@ const eslintConfig = defineConfig([
     // consumed, not hand-edited; linting it is noise (the generator's own
     // conventions don't always match ours).
     "src/lib/api/generated/**",
+    // Playwright smoke suite (Phase 5 slice 6) — advisory test infra, not app
+    // code. Playwright owns its own transpilation/checking; keep the required
+    // `lint + build` job decoupled from selector churn here.
+    "e2e/**",
+    "playwright.config.ts",
+    "playwright-report/**",
+    "test-results/**",
   ]),
 ]);
 

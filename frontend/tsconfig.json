@@ -30,5 +30,10 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  // e2e/ + playwright.config.ts are excluded so the required `next build`
+  // typecheck stays app-only, decoupled from advisory smoke churn. Playwright
+  // transpiles those specs via esbuild (no type-check) at run time; their static
+  // type/import check is `npm run test:e2e:typecheck` (tsconfig.e2e.json), which
+  // the advisory e2e CI job runs.
+  "exclude": ["node_modules", "e2e", "playwright.config.ts"]
 }
