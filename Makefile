@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint format typecheck migrate migrate-up shell superuser up down logs ps build clean frontend-install frontend-lint frontend-build frontend-test frontend-snapshot-schema frontend-gen-api
+.PHONY: help install dev test lint format typecheck migrate migrate-up shell superuser up down logs ps build clean frontend-install frontend-lint frontend-build frontend-test frontend-snapshot-schema frontend-gen-api seed-smoke e2e
 
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
@@ -31,6 +31,8 @@ help:
 	@echo "  frontend-test           Run frontend unit tests (Vitest)"
 	@echo "  frontend-snapshot-schema  Snapshot OpenAPI schema to frontend/openapi.json"
 	@echo "  frontend-gen-api        Regenerate the TypeScript API client from openapi.json"
+	@echo "  seed-smoke         Start compose Postgres + migrate + seed the Playwright smoke fixtures"
+	@echo "  e2e                Seed + run the Playwright smoke suite (dev stack must be DOWN on the e2e ports)"
 
 install:
 	$(BACKEND) uv sync --group dev
@@ -116,3 +118,36 @@ frontend-snapshot-schema:
 # acquisition decision — committed snapshot + committed generated client).
 frontend-gen-api:
 	$(FRONTEND) npm run gen:api
+
+# Playwright end-to-end smoke suite (Phase 5 slice 6). Both targets run the
+# backend under config.settings.smoke (relaxed login throttle, LocMem cache —
+# no Redis) against a real Postgres (the compose `infra-postgres-1`, or set
+# DATABASE_URL). Export the settings + DB to the whole recipe so the migrate/seed
+# prestep AND Playwright's Django webServer (started by `npm run test:e2e`) share
+# the same database. Ports are env-overridable (E2E_FRONTEND_PORT / E2E_BACKEND_PORT)
+# in case an unrelated local project holds 3000/8000.
+#
+# Local preconditions: (1) the Chromium binary is installed once —
+# `cd frontend && npx playwright install chromium`; (2) the `make dev` stack must
+# be DOWN on the default ports (e2e starts its OWN smoke-configured servers and
+# fails loudly on a port clash — it no longer silently reuses a dev server), or
+# set E2E_FRONTEND_PORT / E2E_BACKEND_PORT to free ports. Do NOT `make up` to
+# provide Postgres — that starts the FULL dev stack onto 3000/8000, the exact
+# clash above (Codex review); the recipe below starts ONLY the postgres service.
+e2e seed-smoke: export DJANGO_SETTINGS_MODULE := config.settings.smoke
+e2e seed-smoke: export DATABASE_URL := $(if $(DATABASE_URL),$(DATABASE_URL),postgres://postgres:postgres@localhost:5432/millennium)
+
+# Start ONLY the compose postgres (idempotent no-op if already up), then migrate
+# (also idempotent) so a standalone `make seed-smoke` works from a cold start.
+# The compose-up is skipped when the caller provides DATABASE_URL — an external
+# DB that may itself hold port 5432. `e2e` reuses this as a prerequisite, so
+# migrate/seed runs before Playwright starts the servers.
+seed-smoke:
+ifndef DATABASE_URL
+	$(COMPOSE) up -d postgres
+endif
+	$(BACKEND) uv run python manage.py migrate
+	$(BACKEND) uv run python manage.py seed_smoke --reset
+
+e2e: seed-smoke
+	$(FRONTEND) npm run test:e2e

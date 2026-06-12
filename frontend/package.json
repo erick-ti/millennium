@@ -9,6 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:typecheck": "tsc -p tsconfig.e2e.json",
     "gen:api": "openapi-ts"
   },
   "dependencies": {
@@ -29,6 +31,7 @@
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "^0.97.3",
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",

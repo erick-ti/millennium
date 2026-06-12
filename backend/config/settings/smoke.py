@@ -1,0 +1,44 @@
+"""Settings for the Playwright end-to-end smoke suite (Phase 5 slice 6).
+
+A live multi-process server (a `runserver` process serving the browser, plus a
+separate `migrate` / `seed_smoke` process priming the DB) needs a real on-disk
+database shared across processes — so this inherits `dev.py` (Postgres via
+`DATABASE_URL`, `DEBUG=True`, `ALLOWED_HOSTS=['*']`, env-driven
+`CSRF_TRUSTED_ORIGINS`) rather than `test`/`test_postgres` (sqlite `:memory:` is
+per-connection; their `LocMemCache` is per-process).
+
+Two deliberate overrides on top of dev:
+
+1. **`CACHES` → LocMemCache.** The smoke needs no Celery/Redis (imports run
+   synchronously inline, no beat), so dropping the Redis dependency keeps the
+   CI job to a single Postgres service and lets a developer run it without
+   Redis up. The only cache consumer in the request path is the login
+   `ScopedRateThrottle`, which is relaxed below — so a per-process bucket is
+   irrelevant.
+
+2. **The `login` throttle is relaxed.** The 5/min default (`base.py`) would 429
+   a suite that logs in across specs/retries. Relaxing it HERE (not in
+   dev/prod) keeps the security posture intact everywhere else.
+
+Invariants 1/2/3 hold: `base.py` still defines no env-sensitive values and
+loads no dotenv; this module owns its overrides like dev/prod/test. It inherits
+dev's defaults, so it introduces no new fail-closed prod env var and needs no
+Dockerfile `collectstatic` placeholder (the Phase-5 gotcha applies only to
+prod-required vars). It is NEVER prod: do not run a deployed server under it.
+"""
+
+from .base import REST_FRAMEWORK as _BASE_REST_FRAMEWORK
+from .dev import *  # noqa: F403
+
+# Drop the Redis cache dependency — see the module docstring. LocMem is process
+# -local, which is fine because the only request-path cache user (the login
+# throttle) is relaxed just below.
+CACHES = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+}
+
+# Relax the login throttle so a Playwright suite logging in repeatedly (across
+# specs / retries) is never 429'd. Spread the base dict so the rest of the DRF
+# config is untouched; the relaxation lives ONLY here, never in dev/prod.
+REST_FRAMEWORK = {**_BASE_REST_FRAMEWORK}
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {"login": "100000/min"}
