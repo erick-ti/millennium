@@ -42,4 +42,33 @@ USER app
 
 EXPOSE 8000
 
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
+# Shell-form + `exec` on purpose: shell form so ${PORT:-8000} expands (Railway
+# injects PORT and routes the edge + healthcheck to it); `exec` guarantees
+# gunicorn replaces the shell as PID 1 and receives SIGTERM directly no matter
+# how the command grows (dash — this image's /bin/sh — happens to tail-exec a
+# sole simple command anyway, but that vanishes the moment the CMD gains `&&`
+# or a trap, and a resident sh does NOT forward signals: every deploy/stop
+# would hang to the 10s SIGKILL instead of shutting down gracefully).
+# `[::]` binds dual-stack: Railway private networking resolves
+# *.railway.internal to IPv6 (legacy environments) or IPv4+IPv6 (environments
+# created after 2025-10-16), while IPv4 healthchecks/compose connect via
+# IPv4-mapped addresses. Workers come from WEB_CONCURRENCY (above), which
+# gunicorn reads natively.
+# --timeout 120 AND --graceful-timeout 120 are sized together to the
+# synchronous CSV import (POST /api/imports/batches/ runs run_import inline):
+# gunicorn's 30s defaults would kill a long import mid-request — steady-state
+# via the heartbeat timeout (SIGABRT escalating to SIGKILL; the sync worker
+# only notifies between requests, so --timeout is a hard per-request cap) and
+# deploy-time via the SIGTERM grace window — leaving a stuck PROCESSING batch
+# (recoverable via re-import dedup, but pointlessly). MEASURED 2026-06-12: a
+# worst-case all-materialize import runs ~4.4ms/row on local Postgres, so the
+# MAX_UPLOAD_ROWS=10k cap (apps/imports/views.py — sized to THIS timeout in
+# the same review) ≈ 44s local / est. ≤100s over Railway private networking.
+# Change either bound only with the other in view. The platform's stop-to-kill
+# grace must exceed 120s for the graceful window to matter (deploy runbook).
+# --access-logfile - emits request logs to stdout.
+CMD exec gunicorn config.wsgi:application \
+    --bind "[::]:${PORT:-8000}" \
+    --access-logfile - \
+    --timeout 120 \
+    --graceful-timeout 120
