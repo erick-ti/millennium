@@ -21,7 +21,7 @@ A personal Yu-Gi-Oh collection portfolio tracker that treats a card collection l
 
 ## Current milestone
 
-**Phase 5: Portfolio analytics.** Archetype tagging, deck association, biggest movers, price alerts, advanced filtering. Minimal Playwright smoke tests after UI stabilizes.
+**Railway deployment (phase-1 deploy target).** Deploy backend + frontend + Postgres + Redis to Railway, with the daily sync/valuation/alert management commands as Railway cron services (no always-on worker/beat — DECISIONS 2026-06-12); prod hardening carried from prior slices: cookie tuning (`SESSION_COOKIE_SAMESITE`), edge-proxy `X-Forwarded-For` posture, real `DJANGO_CSRF_TRUSTED_ORIGINS`, env provisioning.
 
 ## Completed milestones
 
@@ -32,6 +32,7 @@ A personal Yu-Gi-Oh collection portfolio tracker that treats a card collection l
 - **Phase 3: CSV import** (completed 2026-05-27, PRs #22–#26). The `imports` app: `ImportBatch`/`ImportRow` JSON-staging models, Dragon Shield parser + normalization, the alias-aware card→printing matcher (`is_multi_variant` guard), `run_import` orchestration + materialization (per-printing reconciliation-coverage gate, per-holding re-import dedup), and the DRF review-queue API (list/filter, approve/override/reject through `_materialize`, schema gated per Invariant 7).
 - **Phase 4: Frontend MVP** (completed 2026-05-30, PRs #27–#32). Next.js 16 (App Router) + React 19 scaffold with a same-origin `/api/*` proxy; read-only DRF API (cards/collection/portfolio/pricing) + `@hey-api/openapi-ts` client generation behind a committed-snapshot drift gate; collection view (reusable `<DataTable>` + Vitest/RTL harness); card detail + price history; portfolio summary grid + coverage-aware value chart; and the import upload + match-review UI carrying the first browser writes + CSRF (`proxy.ts` X-CSRFToken injection, `GET /api/csrf/` cookie seed, synchronous upload endpoint). Per-slice Codex adversarial review throughout.
 - **Auth/login slice** (completed 2026-05-31, PR #33). Custom Django session-cookie endpoints (login/logout/me; AllowAny + `csrf_protect` login, throttled) + a `/login` page, `AuthProvider`, and a global client-side 403→/login gate. The app is now usable end-to-end in a browser; slice-6's CSRF/write plumbing is exercisable against a real session. Six Codex adversarial-challenge rounds.
+- **Phase 5: Portfolio analytics** (completed 2026-06-12, PRs #34–#39). Archetype tagging, advanced collection filtering, biggest movers, price alerts, deck association, and a Playwright smoke suite (login→import→approve→collection + deck flows) with a guarded `seed_smoke` command and an advisory e2e CI job. Per-slice Codex adversarial review throughout.
 
 ## Upcoming milestones
 

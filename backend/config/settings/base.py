@@ -7,6 +7,7 @@ import django_stubs_ext
 import environ
 import structlog
 from celery.schedules import crontab
+from django.core.exceptions import ImproperlyConfigured
 
 # Make django-stubs' generic ModelAdmin/QuerySet/Manager subscriptable at runtime
 # (not just for mypy), so `ModelAdmin[Card]` doesn't raise. Main dep → holds in --no-dev prod.
@@ -155,6 +156,21 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # DRF + drf-spectacular
 # ---------------------------------------------------------------------------
 
+
+def _validated_num_proxies(raw: int) -> int:
+    """Fail closed at boot on a negative proxy depth (adversarial review
+    2026-06-12): DRF's BaseThrottle.get_ident indexes the X-Forwarded-For
+    chain with the configured depth, and a negative value raises IndexError
+    at request time — a green-booting deploy that 500s every throttled
+    endpoint."""
+    if raw < 0:
+        raise ImproperlyConfigured(
+            f"DJANGO_NUM_PROXIES must be >= 0, got {raw}. Negative values "
+            "crash DRF throttle identity derivation at request time."
+        )
+    return raw
+
+
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -186,10 +202,19 @@ REST_FRAMEWORK = {
     # (NUM_PROXIES=None) keys on the *entire XFF header* (throttling.py get_ident),
     # so a client rotating X-Forwarded-For gets a fresh bucket per request and the
     # rate limit never bites (Codex 2026-05-30). With it, the key is the connecting
-    # proxy's IP — one global, unspoofable bucket, which is exactly right for a
-    # single-user app: it caps *total* login attempts/min (CSRF can't stop a direct
-    # client). The edge proxy should also strip/overwrite inbound XFF (deploy note).
-    "NUM_PROXIES": 0,
+    # IP — one global, unspoofable bucket, which is exactly right for a single-user
+    # app: it caps *total* login attempts/min (CSRF can't stop a direct client).
+    # Behind a deployed proxy chain (Railway edge → Next rewrite → Django),
+    # REMOTE_ADDR is the connecting upstream hop, so 0 still yields one shared
+    # bucket — the safe default. Raise DJANGO_NUM_PROXIES to the verified chain
+    # depth ONLY after an empirical spoof test against the live edge (deploy
+    # runbook): platform XFF handling changes without notice, and trusting one
+    # hop too many re-opens the rotating-XFF bypass this guards against.
+    # Default 0 is fail-safe; an env read with a safe default in base is the
+    # SYNC_GUARD_* precedent, not an Invariant 2 value. Like SYNC_GUARD_*, it is
+    # read at base-import time from the real process env only — a repo-root .env
+    # value is inert in dev because dev.py loads dotenv AFTER importing base.
+    "NUM_PROXIES": _validated_num_proxies(env.int("DJANGO_NUM_PROXIES", default=0)),
 }
 
 SPECTACULAR_SETTINGS = {
