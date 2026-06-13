@@ -41,11 +41,15 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 # Bound the synchronous import by ROW COUNT, not just bytes (Codex review 2026-05-30). The byte
 # cap doesn't bound the per-row DB work / request duration, and run_import runs inline in the
 # request, so a pathologically large export could outlast a worker/proxy timeout and leave a
-# stuck PROCESSING batch. A real personal collection is a few thousand rows; 50k is well above
-# any plausible collection (so it never rejects a legitimate import) while keeping the bound
-# deterministic. Enforced at the HTTP boundary only -- the management command imports a trusted
-# local file and is uncapped. Counted via newlines (a cheap upper bound: lines >= data rows).
-MAX_UPLOAD_ROWS = 50_000
+# stuck PROCESSING batch. Sized to the request timeout it must fit, MEASURED (adversarial
+# review 2026-06-12): a worst-case all-materialize import runs ~4.4ms/row against local
+# Postgres (50k rows = 218s, far past gunicorn's --timeout 120 in the prod image), so 10k
+# ≈ 44s local / est. ≤100s over Railway private networking — inside 120s with margin. A real
+# personal collection is a few thousand rows, so 10k still clears any plausible export 3-5x
+# over; a larger collection splits across files safely (per-holding re-import dedup ratchets).
+# Enforced at the HTTP boundary only -- the management command imports a trusted local file and
+# is uncapped. Counted via newlines (a cheap upper bound: lines >= data rows).
+MAX_UPLOAD_ROWS = 10_000
 
 # The "needs a human" set is exactly the still-PENDING rows (== ImportRow.needs_review): a
 # pending row is one the auto-path couldn't finish — a sub-EXACT match, a freshness-gated EXACT
@@ -124,8 +128,13 @@ class ImportBatchViewSet(viewsets.ReadOnlyModelViewSet[ImportBatch]):
         except UnicodeDecodeError as exc:
             raise ValidationError({"file": ["file must be UTF-8-encoded text"]}) from exc
         # Reject by row count before the inline import runs, so a pathologically large file can't
-        # outlast the request worker mid-import (newline count is a cheap upper bound on rows).
-        if content.count("\n") > MAX_UPLOAD_ROWS:
+        # outlast the request worker mid-import. Counted with splitlines() — the SAME line
+        # semantics the parser uses (dragon_shield.parse_dragon_shield splitlines() then
+        # csv.DictReader) — NOT a bare "\n" count: a CR-delimited file has zero newlines but
+        # still parses into all its rows, which would bypass the cap entirely (Codex review
+        # 2026-06-12). The transient list is bounded by MAX_UPLOAD_BYTES and is exactly what
+        # the parser would allocate for an accepted file anyway.
+        if len(content.splitlines()) > MAX_UPLOAD_ROWS:
             raise ValidationError(
                 {"file": [f"file has too many rows (limit {MAX_UPLOAD_ROWS:,})"]}
             )

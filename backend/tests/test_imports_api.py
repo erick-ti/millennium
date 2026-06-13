@@ -592,6 +592,46 @@ def test_upload_over_the_row_cap_is_400(
 
 
 @pytest.mark.django_db
+def test_upload_row_cap_counts_cr_delimited_rows(
+    client: APIClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Codex review 2026-06-12: the cap must count rows with the parser's own line
+    semantics (splitlines), not a bare newline count. A CR-delimited file contains
+    zero "\\n" but parse_dragon_shield splitlines() it into every row — an LF-only
+    guard waves the whole file through, bypassing the cap the gunicorn --timeout
+    pairing depends on."""
+    monkeypatch.setattr("apps.imports.views.MAX_UPLOAD_ROWS", 1)
+    cr_body = f'"sep=,"\r{_DS_HEADER}\r{_DS_ROW}\r'.encode("utf-8-sig")
+    upload = SimpleUploadedFile("cr.csv", cr_body, content_type="text/csv")
+
+    resp = client.post(
+        reverse("imports:importbatch-list"), {"file": upload}, format="multipart"
+    )
+
+    assert resp.status_code == status.HTTP_400_BAD_REQUEST
+    assert "file" in resp.data
+    assert ImportBatch.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_upload_at_exactly_the_row_cap_is_accepted(
+    client: APIClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Boundary pair to the cap tests: the fixture is exactly 3 lines (sep hint +
+    header + one data row), so a cap of 3 must admit it — the guard is `>`, not
+    `>=`, and lines >= data rows keeps the cap a cheap upper bound, not an
+    off-by-one rejection of a legitimate file."""
+    monkeypatch.setattr("apps.imports.views.MAX_UPLOAD_ROWS", 3)
+
+    resp = client.post(
+        reverse("imports:importbatch-list"), {"file": _ds_upload()}, format="multipart"
+    )
+
+    assert resp.status_code == status.HTTP_201_CREATED
+    assert ImportBatch.objects.count() == 1
+
+
+@pytest.mark.django_db
 def test_upload_requires_authentication() -> None:
     anon = APIClient()
     resp = anon.post(
