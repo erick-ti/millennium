@@ -102,6 +102,11 @@ services:
     build:
       context: ../frontend
       dockerfile: Dockerfile
+      # Pin the dev stage: the frontend Dockerfile is multi-stage (slice 3 of
+      # the Railway deploy phase) and an untargeted build produces the
+      # PRODUCTION stage — which would run the standalone server against the
+      # bind mount instead of next dev.
+      target: dev
     environment:
       # Inside the compose network, the backend resolves by service name. The
       # frontend's next.config rewrites /api/* through this URL, so the browser
