@@ -52,6 +52,19 @@ const nextConfig: NextConfig = {
   // > MAX_UPLOAD_BYTES + multipart overhead if either cap changes. (Codex review 2026-05-30.)
   experimental: {
     proxyClientMaxBodySize: "20mb",
+    // The /api/* path is browser → THIS Next proxy → Django. Next 16's proxy
+    // timeout defaults to 30_000ms when unset (verified: dist/server/lib/
+    // router-utils/proxy-request.js — `proxyTimeout || 30000`, in ms), but the
+    // synchronous CSV import (POST /api/imports/batches/) is sized to the
+    // BACKEND's 120s gunicorn --timeout (MAX_UPLOAD_ROWS=10k ≈ ≤100s on Railway).
+    // A 30s proxy cutoff would 500 a legitimate large import at the proxy while
+    // Django keeps committing rows — a "failed" import that actually (partly)
+    // succeeded, then a confusing retry. Set the proxy ABOVE the backend budget
+    // so the backend's own --timeout is authoritative (a too-slow import returns
+    // a real backend error, not a silent proxy cutoff). 125s > gunicorn's 120s.
+    // (Codex review 2026-06-13.) NOTE: a Railway EDGE request timeout sits in
+    // front of this proxy — the runbook flags confirming it also exceeds 120s.
+    proxyTimeout: 125_000,
   },
   // Django's APPEND_SLASH=True (default) canonicalizes /api/foo → /api/foo/.
   // With Next's default trailingSlash:false the two would round-trip forever

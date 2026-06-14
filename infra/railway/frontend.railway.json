@@ -1,0 +1,14 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "watchPatterns": ["frontend/**", "infra/railway/frontend.railway.json"]
+  },
+  "deploy": {
+    "healthcheckPath": "/api/health/",
+    "healthcheckTimeout": 120,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3,
+    "drainingSeconds": 150
+  }
+}
