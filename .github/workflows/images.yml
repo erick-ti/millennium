@@ -19,10 +19,11 @@ concurrency:
 
 jobs:
   backend:
-    # ADVISORY check named `backend image` (deliberately NOT in the protect-main
-    # required set — the frontend.yml/e2e.yml advisory→required precedent; the
-    # check name must exist on main once before GitHub lets you select it).
-    # Closes the long-standing unguarded gotcha "No CI job builds the backend
+    # REQUIRED check named `backend image` (promoted into the protect-main ruleset
+    # 2026-06-13, after passing its first runs — the frontend.yml/e2e.yml
+    # advisory→required precedent). Because it gates `main`, a red image build
+    # blocks the merge, so Railway autodeploy-on-main (Wait-for-CI off) never sees
+    # a broken-image commit. Closes the long-standing unguarded gotcha "No CI builds the backend
     # image": a fail-closed prod env var added WITHOUT a matching placeholder in
     # the Dockerfile collectstatic RUN broke the Railway image build undetected
     # until a deploy. The BUILD runs collectstatic under config.settings.prod, so
@@ -93,7 +94,9 @@ jobs:
           exit 1
 
   frontend:
-    # ADVISORY check named `frontend image`. MORE valuable than the backend job:
+    # REQUIRED check named `frontend image` (promoted into protect-main 2026-06-13,
+    # same as `backend image` above — a red build blocks the merge, so the
+    # autodeploy posture never ships a broken image). MORE valuable than the backend job:
     # compose pins `target: dev`, so NOTHING in the repo (not even make dev/build)
     # builds the production build/runtime stages — only a Railway deploy did,
     # until now. The build proves the standalone bundle assembles and the
