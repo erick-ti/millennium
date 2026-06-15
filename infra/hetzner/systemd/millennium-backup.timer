@@ -1,0 +1,12 @@
+[Unit]
+Description=Millennium — nightly Postgres backup (06:00 UTC)
+
+[Timer]
+# 06:00 UTC: after the 02:00-05:00 sync/valuation/alert chain settles, so the
+# dump captures the day's writes. Also clear of the box's other nightly jobs.
+OnCalendar=*-*-* 06:00:00 UTC
+Persistent=true
+Unit=millennium-backup.service
+
+[Install]
+WantedBy=timers.target

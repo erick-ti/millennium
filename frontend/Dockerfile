@@ -53,9 +53,17 @@ COPY . .
 # nowhere. Changing the backend URL later requires a REBUILD, not a restart
 # (deploy runbook: pin the backend's PORT and never rename the service).
 ARG BACKEND_URL
+# Optional heap cap for the `npm run build` below. Empty by default, so CI /
+# Railway / dev builds (which never pass it) are unaffected; the memory-tight
+# Hetzner box passes NODE_OPTIONS=--max-old-space-size=2048 (via the compose
+# build arg) to bound the 1.5-4 GB Next build spike and keep the co-hosted co-tenant
+# app off the global OOM killer (Codex review 2026-06-14). MUST be promoted to
+# a real ENV — `npm run build` does not see a bare build ARG.
+ARG NODE_OPTIONS
 RUN test -n "$BACKEND_URL" || { echo "BACKEND_URL build arg is required (it is baked into the standalone server)" >&2; exit 1; }
 ENV BACKEND_URL=$BACKEND_URL \
-    NEXT_TELEMETRY_DISABLED=1
+    NEXT_TELEMETRY_DISABLED=1 \
+    NODE_OPTIONS=$NODE_OPTIONS
 
 RUN npm run build
 

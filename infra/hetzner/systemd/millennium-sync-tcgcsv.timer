@@ -1,0 +1,12 @@
+[Unit]
+Description=Millennium — daily TCGCSV pricing sync (03:00 UTC)
+
+[Timer]
+# Pricing reconcile: corrects provisional rarities + appends the day's price
+# snapshots. Valuation + alerts gate on a same-day SUCCESS of this run.
+OnCalendar=*-*-* 03:00:00 UTC
+Persistent=true
+Unit=millennium-sync@sync_tcgcsv.service
+
+[Install]
+WantedBy=timers.target

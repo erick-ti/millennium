@@ -1,0 +1,14 @@
+[Unit]
+Description=Millennium — daily price-alert evaluation (05:00 UTC)
+
+[Timer]
+# Evaluates active alert rules off the same-day price table. Also gates on a
+# same-day pricing SUCCESS; runs after valuation by convention.
+# Persistent=FALSE (unlike the syncs): see value-portfolios.timer — a dependent
+# job catching up after downtime would race the recovering sync and skip the day.
+OnCalendar=*-*-* 05:00:00 UTC
+Persistent=false
+Unit=millennium-sync@run_alerts.service
+
+[Install]
+WantedBy=timers.target

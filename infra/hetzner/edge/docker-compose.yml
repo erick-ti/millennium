@@ -1,0 +1,44 @@
+name: edge
+
+# Server-level public edge for the box — a standalone Caddy that owns 80/443 and
+# TLS, independent of any single app's lifecycle. It reverse-proxies ONLY
+# Millennium's frontend today; adding the portfolio or another app later is a
+# new vhost in the Caddyfile + that app joining `edge_net`, with no change to
+# Millennium's stack. The box's other apps are NOT proxied here — they stay
+# loopback/SSH-only by design.
+#
+# Bring up AFTER the shared network exists and Millennium is running:
+#   docker network create edge_net          # one-time
+#   docker compose up -d                     # from infra/hetzner/ (the app stack)
+#   docker compose -f edge/docker-compose.yml up -d   # this edge
+#
+# Open 80/443 at the HETZNER CLOUD FIREWALL (the real outer gate — Docker's
+# published ports write iptables that bypass ufw) AND ufw. See the runbook.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: edge-caddy
+    restart: unless-stopped
+    # The box's sole public listener — cgroup-cap it too (Caddy idles ~30-50 MB).
+    mem_limit: 128m
+    ports:
+      - "0.0.0.0:80:80"
+      - "0.0.0.0:443:443"
+      - "0.0.0.0:443:443/udp"   # HTTP/3 (QUIC)
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Persist ACME account + issued certs so a restart does NOT re-request
+      # from Let's Encrypt (which rate-limits issuance).
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - edge_net
+
+networks:
+  edge_net:
+    external: true
+
+volumes:
+  caddy_data:
+  caddy_config:

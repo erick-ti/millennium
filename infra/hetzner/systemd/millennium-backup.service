@@ -1,0 +1,22 @@
+# Nightly Postgres backup for Millennium. Runs as the `millennium` user with
+# its OWN backup config (backup.env) — separate from any co-tenant's crontab env,
+# so a Millennium backup can never inherit another app's backup-remote env vars
+# and write into another app's bucket (the shared-crontab footgun the dedicated
+# user + EnvironmentFile exist to prevent).
+#
+# Install:
+#   cp backup.env.example backup.env && chmod 600 backup.env   # fill BACKUP_REMOTE etc.
+#   sudo systemctl enable --now millennium-backup.timer
+
+[Unit]
+Description=Millennium — nightly Postgres backup (pg_dump -> R2)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=millennium
+WorkingDirectory=/home/millennium/millennium/infra/hetzner
+EnvironmentFile=/home/millennium/millennium/infra/hetzner/backup.env
+ExecStart=/home/millennium/millennium/infra/hetzner/backup_db.sh
+TimeoutStartSec=1800
