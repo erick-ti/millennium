@@ -1,5 +1,11 @@
 # Railway deploy runbook
 
+> **SUPERSEDED (2026-06-14).** Millennium deploys to a self-hosted Hetzner VPS —
+> see the local Hetzner deploy runbook. This Railway plan is retained as the
+> evaluated managed-PaaS alternative; it predates the DatabaseCache change that
+> dropped Redis, so its env matrix below still lists `REDIS_URL`/Redis as
+> required.
+
 How Millennium deploys to Railway (phase-1 deploy target). This is the authoritative
 companion to the config-as-code files in `infra/railway/*.railway.json` — JSON carries
 no comments, so **every "why" lives here**. The four topology decisions were settled at
