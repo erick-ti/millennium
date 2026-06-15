@@ -104,7 +104,6 @@ _PROD_IMPORT_ENV = {
     "DJANGO_ALLOWED_HOSTS": "build",
     "DJANGO_CSRF_TRUSTED_ORIGINS": "https://build",
     "DATABASE_URL": "postgres://build:build@build:5432/build",
-    "REDIS_URL": "redis://build:6379/0",
     "CELERY_BROKER_URL": "redis://build:6379/1",
     "CELERY_RESULT_BACKEND": "redis://build:6379/2",
 }
@@ -191,6 +190,34 @@ def test_prod_samesite_defaults_are_lax(monkeypatch: pytest.MonkeyPatch) -> None
     prod_module = _import_prod(monkeypatch)
     assert prod_module.SESSION_COOKIE_SAMESITE == "Lax"
     assert prod_module.CSRF_COOKIE_SAMESITE == "Lax"
+
+
+def test_prod_uses_database_cache_not_redis(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Redis was dropped from the deploy topology (2026-06-14). The only runtime
+    cache consumer is the login throttle, and DatabaseCache on the existing
+    Postgres keeps that bucket global across gunicorn workers without a Redis
+    service. Two guarantees:
+
+    1. prod.py must NOT read REDIS_URL — otherwise a no-longer-deployed service
+       becomes a fail-closed boot dependency again (Invariant 2).
+    2. CACHES must be DatabaseCache(LOCATION="millennium_cache").
+
+    _PROD_IMPORT_ENV deliberately omits REDIS_URL, so a clean import here also
+    proves prod boots without it.
+    """
+    assert "REDIS_URL" not in _PROD_SOURCE, (
+        "prod.py still references REDIS_URL — Redis was dropped from the deploy "
+        "topology (DatabaseCache on Postgres backs the login throttle). A "
+        "REDIS_URL read re-introduces a fail-closed dependency on a service that "
+        "is no longer deployed."
+    )
+    prod_module = _import_prod(monkeypatch)
+    cache = prod_module.CACHES["default"]
+    assert cache["BACKEND"] == "django.core.cache.backends.db.DatabaseCache", (
+        "prod CACHES is not DatabaseCache — the Redis-free deploy backs the "
+        "login throttle with the database cache."
+    )
+    assert cache["LOCATION"] == "millennium_cache"
 
 
 @pytest.mark.parametrize(
