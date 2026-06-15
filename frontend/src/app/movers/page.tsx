@@ -42,9 +42,7 @@ function deltaColorClass(value: number | null): string {
   if (value == null || value === 0) {
     return "text-muted-foreground";
   }
-  return value > 0
-    ? "text-emerald-600 dark:text-emerald-500"
-    : "text-red-600 dark:text-red-500";
+  return value > 0 ? "text-gain" : "text-loss";
 }
 
 function PriceCell({ value, day }: { value: string; day: string }) {

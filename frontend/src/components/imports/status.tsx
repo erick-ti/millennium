@@ -11,14 +11,14 @@ import { cn } from "@/lib/utils";
 // + the neutral muted chip + the destructive token for errors).
 type Tone = "neutral" | "amber" | "green" | "red" | "blue";
 
+// Vault semantic tones (the app runs dark): gain/flat/loss + a gold "in-flight"
+// tone and the neutral muted chip.
 const TONE_CLASSES: Record<Tone, string> = {
   neutral: "bg-muted text-muted-foreground",
-  amber:
-    "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300",
-  green:
-    "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300",
-  red: "bg-destructive/10 text-destructive",
-  blue: "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300",
+  amber: "bg-flat/12 text-flat",
+  green: "bg-gain/12 text-gain",
+  red: "bg-destructive/12 text-destructive",
+  blue: "bg-gold-700/12 text-gold-300",
 };
 
 export function Pill({

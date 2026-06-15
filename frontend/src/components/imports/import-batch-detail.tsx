@@ -123,11 +123,9 @@ async function overrideRow(args: { rowId: number; printing: number }): Promise<v
 type Feedback = { tone: "green" | "amber" | "red" | "neutral"; text: string };
 
 const FEEDBACK_CLASSES: Record<Feedback["tone"], string> = {
-  green:
-    "border-emerald-600/30 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
-  amber:
-    "border-amber-600/30 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
-  red: "border-destructive/30 bg-destructive/5 text-destructive",
+  green: "border-gain/30 bg-gain/10 text-gain",
+  amber: "border-flat/30 bg-flat/10 text-flat",
+  red: "border-destructive/30 bg-destructive/10 text-destructive",
   neutral: "border-border bg-muted/40 text-muted-foreground",
 };
 

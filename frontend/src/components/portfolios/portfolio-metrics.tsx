@@ -65,11 +65,7 @@ export function PortfolioMetrics({
           </span>
         ) : (
           <span
-            className={
-              gain >= 0
-                ? "text-emerald-600 dark:text-emerald-500"
-                : "text-red-600 dark:text-red-500"
-            }
+            className={gain >= 0 ? "text-gain" : "text-loss"}
           >
             {gain >= 0 ? "+" : "-"}
             {formatUsd(Math.abs(gain))} {gain >= 0 ? "▲" : "▼"}
