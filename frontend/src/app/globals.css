@@ -7,9 +7,16 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-archivo);
+  --font-mono: var(--font-plex-mono);
   --font-heading: var(--font-sans);
+  /* Vault typefaces, used across BOTH the landing and the authed app. Body/mono
+     are remapped to Archivo / IBM Plex Mono above (Geist removed); the
+     --font-display/accent/terminal aliases name the landing's display roles. */
+  --font-display: var(--font-fraunces);
+  --font-accent: var(--font-cormorant);
+  --font-body: var(--font-archivo);
+  --font-terminal: var(--font-plex-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -48,6 +55,37 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ============================================================
+   THE VAULT — design tokens. The @theme block below is purely
+   additive (it does NOT touch the shadcn semantic tokens above);
+   the .dark block further down remaps those semantic tokens to
+   this palette, which reskins the authed app. Aged gold on warm
+   tomb-black; every value WCAG-verified on --color-vault-950.
+   ============================================================ */
+@theme {
+  /* Canvas / surfaces — warm tomb-black, hue 70 (never neutral gray). */
+  --color-vault-950: oklch(0.13 0.006 70);
+  --color-vault-900: oklch(0.17 0.008 70);
+  --color-vault-800: oklch(0.22 0.01 68);
+  --color-vault-700: oklch(0.3 0.012 65);
+
+  /* Aged-gold ramp. #FFD700 chrome-gold is banned — this reads as
+     lamp-lit metal, not a trophy emoji. */
+  --color-gold-900: #9d814d; /* old gold, 5.35:1 — UI text, hairline base, eyebrows */
+  --color-gold-700: #c8a24a; /* core gold, 8.22:1 — links, KPIs, chart line, CTA */
+  --color-gold-500: #e6c063; /* bright leaf, 11.4:1 — headline gradient, active dot */
+  --color-gold-300: #f0d98a; /* pale leaf, 14.1:1 — hover sheen highlight only */
+
+  /* Text. bone is warm off-white (never cold #fff). */
+  --color-bone: #f5f1e6; /* body, 17.5:1 */
+  --color-bone-muted: #b8b09e; /* captions / axes, 9.2:1 */
+
+  /* Semantic deltas — always paired with a glyph + sign, never color alone. */
+  --color-gain: #4ade80; /* up, 10.9:1 on vault-900 */
+  --color-loss: #f87171; /* down, 6.9:1 */
+  --color-flat: #fbbf24; /* partial-coverage / null-pct / alert amber, 11.4:1 */
+}
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -83,38 +121,42 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* Dark = the Vault. The authed app runs in dark mode (html.dark) and inherits
+   this palette, so every shadcn-tokened component (tables, buttons, inputs,
+   cards, borders) adopts tomb-black + aged gold. Values reference the vault
+   @theme tokens so the system stays single-sourced. */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: var(--color-vault-950);
+  --foreground: var(--color-bone);
+  --card: var(--color-vault-900);
+  --card-foreground: var(--color-bone);
+  --popover: var(--color-vault-900);
+  --popover-foreground: var(--color-bone);
+  --primary: var(--color-gold-700);
+  --primary-foreground: var(--color-vault-950);
+  --secondary: var(--color-vault-800);
+  --secondary-foreground: var(--color-bone);
+  --muted: var(--color-vault-800);
+  --muted-foreground: var(--color-bone-muted);
+  --accent: var(--color-vault-800);
+  --accent-foreground: var(--color-bone);
+  --destructive: var(--color-loss);
+  --border: color-mix(in oklch, var(--color-gold-900) 26%, transparent);
+  --input: color-mix(in oklch, var(--color-gold-900) 38%, transparent);
+  --ring: var(--color-gold-700);
+  --chart-1: var(--color-gold-700);
+  --chart-2: var(--color-gold-500);
+  --chart-3: var(--color-gold-900);
+  --chart-4: var(--color-bone-muted);
+  --chart-5: var(--color-gain);
+  --sidebar: var(--color-vault-900);
+  --sidebar-foreground: var(--color-bone);
+  --sidebar-primary: var(--color-gold-700);
+  --sidebar-primary-foreground: var(--color-vault-950);
+  --sidebar-accent: var(--color-vault-800);
+  --sidebar-accent-foreground: var(--color-bone);
+  --sidebar-border: color-mix(in oklch, var(--color-gold-900) 26%, transparent);
+  --sidebar-ring: var(--color-gold-700);
 }
 
 @layer base {
@@ -126,5 +168,288 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* ============================================================
+   THE VAULT — utilities, helpers, and motion. All motion is an
+   opt-IN enhancement over a complete static base state, so a
+   reduced-motion user OR an unsupported browser sees a finished
+   page (nothing is ever animated-from-hidden).
+   ============================================================ */
+
+/* Trading-terminal numerals: tabular + slashed zero. Applied to every
+   figure so digits never reflow (and count-ups don't jitter). */
+@utility nums-terminal {
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: "tnum" 1, "zero" 1;
+}
+
+@layer components {
+  /* Gold-leaf display text (wordmark + the single hero figure only). */
+  .gold-leaf {
+    background: linear-gradient(
+      94deg,
+      #9d814d 0%,
+      #e6c063 28%,
+      #f4e6b0 48%,
+      #c8a24a 62%,
+      #8c6f3a 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+  }
+
+  /* A 1px gold hairline divider — the entire ornament budget. */
+  .gold-rule {
+    height: 1px;
+    border: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      oklch(0.72 0.1 80 / 0.7) 18%,
+      oklch(0.78 0.11 85) 50%,
+      oklch(0.72 0.1 80 / 0.7) 82%,
+      transparent
+    );
+  }
+
+  /* Lit display-case edge: gold-ornament border + inset top edge-light,
+     NO drop shadow anywhere (drop shadows read as generic SaaS cards). */
+  .vitrine {
+    border: 1px solid color-mix(in oklch, var(--color-gold-900) 35%, transparent);
+    box-shadow: inset 0 1px 0 0
+      color-mix(in oklch, var(--color-gold-700) 22%, transparent);
+    background-color: var(--color-vault-900);
+  }
+}
+
+/* Aged-stone tooth + OLED-banding kill: one inline feTurbulence noise,
+   ~3.5% opacity, fixed over the canvas. Zero image request. */
+.vault-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Scroll-driven reveal — one motion vocabulary for every plate/panel.
+   Base state IS the final visible state. */
+.relic {
+  opacity: 1;
+  transform: none;
+}
+@keyframes relic-rise {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Eye-of-Wadjet stroke draw-on (runs once on mount). */
+@keyframes eye-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.eye-stroke {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  /* pathLength="1" normalizes every path; base = fully drawn. */
+  stroke-dashoffset: 0;
+}
+
+/* Gold seam splitting from center. */
+@keyframes seam-split {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* One-shot gold-leaf sweep across the wordmark. */
+@keyframes foil-sweep {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 200% 50%;
+  }
+}
+.gold-leaf-sweep {
+  background-size: 200% 100%;
+}
+
+/* Marquee ticker (duplicated content → seamless -50% wrap). */
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Compositor-only scroll reveals, only where supported. */
+  @supports (animation-timeline: view()) {
+    .relic {
+      animation: relic-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 60%;
+    }
+  }
+
+  .eye-stroke {
+    stroke-dashoffset: 1;
+    animation: eye-draw 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .eye-stroke--2 {
+    animation-delay: 0.18s;
+  }
+  .eye-stroke--3 {
+    animation-delay: 0.36s;
+  }
+
+  .gold-seam {
+    transform: scaleX(0);
+    transform-origin: center;
+    animation: seam-split 0.9s 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .gold-leaf-sweep {
+    animation: foil-sweep 1.2s 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .ticker-track {
+    animation: ticker-scroll 48s linear infinite;
+  }
+  .ticker-rail:hover .ticker-track,
+  .ticker-rail[data-paused="true"] .ticker-track {
+    animation-play-state: paused;
+  }
+}
+
+/* ============================================================
+   The Eye as the live-catalog status light + the one foil card.
+   ============================================================ */
+
+/* Iris coin-dot pulse — the Eye IS the SYNCED indicator (the all-seeing eye
+   watching the live catalog). Static under reduced motion. */
+@keyframes iris-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.iris-glow {
+  opacity: 0.78;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .iris-glow {
+    animation: iris-pulse 2.6s ease-in-out infinite;
+  }
+}
+
+/* The single foil surface (Plate 02). Pointer-tracked tilt + a gold-biased
+   holographic sheen confined to the card's art window; the data panel stays
+   matte and crisp. Touch / reduced-motion get a gentle static sheen and no
+   pointer listener. The ONLY shimmering element on the page. */
+.foil-card {
+  --rx: 0deg;
+  --ry: 0deg;
+  --px: 50%;
+  --py: 50%;
+  --bg-x: 50%;
+  --bg-y: 50%;
+  --foil-opacity: 0;
+  transform: perspective(1100px) rotateY(var(--rx)) rotateX(var(--ry));
+  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+.foil-card[data-interacting="true"] {
+  transition: none;
+}
+.foil-card[data-static="true"] {
+  --foil-opacity: 0.4;
+  --bg-x: 36%;
+  --bg-y: 40%;
+}
+
+.foil-art {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.foil-shine,
+.foil-glare {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--foil-opacity);
+  transition: opacity 0.55s ease;
+}
+.foil-card[data-interacting="true"] .foil-shine,
+.foil-card[data-interacting="true"] .foil-glare {
+  transition: none;
+}
+.foil-shine {
+  /* Gold-dominant metallic sweep (hues ~52–92), with only two razor-thin,
+     low-opacity spectral glints flanking the brightest line — a whisper of
+     rainbow at the glare edge, never a stripe. Soft contrast so color-dodge
+     reads as lamp-lit gold leaf, not an oil slick. */
+  background-image: repeating-linear-gradient(
+    104deg,
+    transparent 0%,
+    oklch(0.78 0.075 84 / 0.4) 6%,
+    oklch(0.89 0.1 89 / 0.62) 10.5%,
+    oklch(0.84 0.1 200 / 0.12) 11.1%,
+    oklch(0.84 0.11 330 / 0.12) 11.7%,
+    oklch(0.74 0.085 66 / 0.42) 15.5%,
+    oklch(0.63 0.06 50 / 0.34) 21%,
+    transparent 28%
+  );
+  background-size: 250% 250%;
+  background-position: var(--bg-x) var(--bg-y);
+  mix-blend-mode: color-dodge;
+  filter: brightness(0.94) contrast(1.32) saturate(0.72);
+}
+.foil-glare {
+  background-image: radial-gradient(
+    circle at var(--px) var(--py),
+    rgba(255, 242, 208, 0.42),
+    rgba(255, 242, 208, 0.07) 16%,
+    transparent 40%
+  );
+  mix-blend-mode: overlay;
+}
+
+/* The Eye's appraisal-dial ticks slowly rotate — "scanning" the live catalog,
+   reinforcing that the mark is a status monitor, not decoration. */
+@keyframes dial-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.eye-dial {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .eye-dial {
+    animation: dial-rotate 16s linear infinite;
   }
 }

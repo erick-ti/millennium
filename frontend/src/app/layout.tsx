@@ -1,24 +1,47 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import {
+  Archivo,
+  Cormorant_Garamond,
+  Fraunces,
+  IBM_Plex_Mono,
+} from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth-provider";
 import { CsrfBootstrap } from "@/components/csrf-bootstrap";
 import { Nav } from "@/components/nav";
 import { Providers } from "@/components/providers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// The Vault typefaces — used across both the landing and the authed app.
+// Fraunces carries the SOFT/WONK axes for its inscriptional display character;
+// Archivo is the body workhorse, IBM Plex Mono the terminal numerics.
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  axes: ["SOFT", "WONK"],
+});
+
+const cormorant = Cormorant_Garamond({
+  variable: "--font-cormorant",
+  subsets: ["latin"],
+  weight: ["500", "600"],
+  style: ["normal", "italic"],
+});
+
+const archivo = Archivo({
+  variable: "--font-archivo",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
-  title: "Millennium",
-  description: "A personal Yu-Gi-Oh collection portfolio tracker.",
+  title: "Millennium — a collection, appraised like a portfolio",
+  description:
+    "A Yu-Gi-Oh collection tracked like an investment portfolio: per-lot cost basis, confidence-scored daily pricing, and coverage-aware valuation. Built, deployed, and operated by one engineer.",
 };
 
 export default function RootLayout({
@@ -29,7 +52,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${fraunces.variable} ${cormorant.variable} ${archivo.variable} ${plexMono.variable} dark h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <Providers>
