@@ -151,29 +151,35 @@ export function PriceLineChart({
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <table className="sr-only">
-        <caption>{caption}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Date</th>
-            <th scope="col">{seriesLabel}</th>
-            {hasCoverage ? <th scope="col">Coverage</th> : null}
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((point) => (
-            <tr key={point.date}>
-              <td>{point.date}</td>
-              <td>{formatUsd(point.price)}</td>
-              {hasCoverage ? (
-                <td>
-                  {point.complete === false ? "Partial coverage" : "Complete"}
-                </td>
-              ) : null}
+      {/* sr-only on the WRAPPER div, not the <table>: a table with
+          table-layout:auto ignores width:1px and grows to its content, which
+          leaks horizontal page overflow on narrow viewports — the div honors
+          width:1px + overflow:hidden and clips it. */}
+      <div className="sr-only">
+        <table>
+          <caption>{caption}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">{seriesLabel}</th>
+              {hasCoverage ? <th scope="col">Coverage</th> : null}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data.map((point) => (
+              <tr key={point.date}>
+                <td>{point.date}</td>
+                <td>{formatUsd(point.price)}</td>
+                {hasCoverage ? (
+                  <td>
+                    {point.complete === false ? "Partial coverage" : "Complete"}
+                  </td>
+                ) : null}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </figure>
   );
 }

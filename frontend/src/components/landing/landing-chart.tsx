@@ -100,31 +100,37 @@ export function LandingChart() {
         </ResponsiveContainer>
       </div>
 
-      {/* a11y mirror — visible on keyboard focus so a sighted reviewer sees it */}
-      <table
-        tabIndex={0}
-        className="sr-only mt-4 w-full rounded-md border border-gold-900/20 font-terminal text-sm focus:not-sr-only focus:block"
-      >
-        <caption className="px-3 pt-3 text-left text-bone-muted">
-          Portfolio value by date — the chart&rsquo;s data, as a table.
-        </caption>
-        <thead>
-          <tr className="text-left text-bone-muted">
-            <th scope="col" className="px-3 py-1.5">Date</th>
-            <th scope="col" className="px-3 py-1.5">Value</th>
-            <th scope="col" className="px-3 py-1.5">Coverage</th>
-          </tr>
-        </thead>
-        <tbody className="nums-terminal">
-          {CURVE.map((point) => (
-            <tr key={point.date}>
-              <td className="px-3 py-1">{point.date}</td>
-              <td className="px-3 py-1">{formatUsd(point.value)}</td>
-              <td className="px-3 py-1">{point.complete ? "Complete" : "Partial"}</td>
+      {/* a11y mirror — visible on keyboard focus so a sighted reviewer sees it.
+          The sr-only lives on the WRAPPER div (which honors width:1px +
+          overflow:hidden); a <table> with table-layout:auto ignores width:1px
+          and grows to its content, so sr-only on the table itself leaks
+          horizontal page overflow on narrow viewports. */}
+      <div className="sr-only focus-within:not-sr-only focus-within:mt-4">
+        <table
+          tabIndex={0}
+          className="w-full rounded-md border border-gold-900/20 font-terminal text-sm"
+        >
+          <caption className="px-3 pt-3 text-left text-bone-muted">
+            Portfolio value by date — the chart&rsquo;s data, as a table.
+          </caption>
+          <thead>
+            <tr className="text-left text-bone-muted">
+              <th scope="col" className="px-3 py-1.5">Date</th>
+              <th scope="col" className="px-3 py-1.5">Value</th>
+              <th scope="col" className="px-3 py-1.5">Coverage</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="nums-terminal">
+            {CURVE.map((point) => (
+              <tr key={point.date}>
+                <td className="px-3 py-1">{point.date}</td>
+                <td className="px-3 py-1">{formatUsd(point.value)}</td>
+                <td className="px-3 py-1">{point.complete ? "Complete" : "Partial"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </figure>
   );
 }

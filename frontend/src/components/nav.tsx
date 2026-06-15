@@ -26,14 +26,14 @@ export function Nav() {
 
   return (
     <nav className="border-b border-border bg-background">
-      <div className="mx-auto flex max-w-6xl items-center gap-8 px-6 py-3">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 gap-y-2 px-6 py-3">
         <Link
           href="/"
           className="font-semibold tracking-tight text-foreground"
         >
           Millennium
         </Link>
-        <ul className="flex gap-5 text-sm text-muted-foreground">
+        <ul className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted-foreground">
           {routes.map((route) => (
             <li key={route.href}>
               <Link
