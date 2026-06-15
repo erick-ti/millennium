@@ -1,3 +1,6 @@
+# DEV ONLY — local laptop compose (postgres/redis/backend/worker/beat/frontend on
+# 127.0.0.1). Do NOT run this on the shared Hetzner box: it binds host :8000, which
+# collides with the co-tenant app there. The box uses infra/hetzner/ instead.
 x-backend-env: &backend-env
   DJANGO_SETTINGS_MODULE: config.settings.dev
   DJANGO_SECRET_KEY: dev-secret-do-not-use-in-prod

@@ -43,6 +43,8 @@ celerybeat.pid
 .env
 .env.*
 !.env.example
+# Hetzner self-host backup config — real secrets (the .example is committed)
+backup.env
 
 # ===== Editor / IDE =====
 .idea/
@@ -61,5 +63,10 @@ Thumbs.db
 # Narrow paths only — `docs/` itself stays available for committed project docs.
 data/samples/
 docs/recon/
+# Hetzner deploy runbook — kept local (public repo): it carries box-specific
+# operational detail (the box's public IP, the SSH/admin-tunnel pattern, and
+# co-tenant coexistence internals) not meant for a public repo. The committed,
+# IP-clean config-as-code under infra/hetzner/ is the portfolio surface instead.
+docs/hetzner-deploy-runbook.md
 
 # Note: keep uv.lock checked in for reproducible builds — do not ignore it.

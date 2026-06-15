@@ -1,0 +1,22 @@
+# Millennium public edge. Caddy auto-provisions + renews a Let's Encrypt cert
+# for the host below (HTTP-01/TLS-ALPN challenge on :80/:443), so the DNS A
+# record MUST resolve straight to this box — keep it DNS-only (grey cloud) on
+# Cloudflare, not proxied (orange cloud), or the challenge fails.
+#
+# GUARDRAIL: this proxies ONLY the Millennium frontend. Never add a vhost for any
+# other service on this box — co-tenant apps stay loopback/SSH-only and must never
+# be exposed through this edge.
+{
+	# Optional but recommended: an email for Let's Encrypt expiry/recovery
+	# notices. Uncomment and set before go-live.
+	# email you@example.com
+}
+
+millennium.erickti.com {
+	encode zstd gzip
+
+	# Reach the Millennium frontend over the shared `edge_net` network by its
+	# stable alias (set in infra/hetzner/docker-compose.yml). The frontend's
+	# Next server then proxies /api/* to the Django backend internally.
+	reverse_proxy millennium-frontend:3000
+}

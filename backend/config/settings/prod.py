@@ -24,7 +24,26 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS")
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS")
 
 DATABASES = {"default": env.db("DATABASE_URL")}
-CACHES = {"default": env.cache("REDIS_URL")}
+# DatabaseCache on the existing Postgres — NOT Redis. Under the deploy topology
+# (scheduled work runs as standalone cron / systemd-timer management commands,
+# never a Celery worker), nothing dials a broker, and the ONLY runtime cache
+# consumer is the login ScopedRateThrottle. Backing it with the database keeps
+# that throttle bucket GLOBAL across gunicorn workers without standing up a
+# Redis service. Requires a one-time `manage.py createcachetable` to create the
+# `millennium_cache` table; the command is idempotent (safe to re-run each
+# deploy). Redis was dropped 2026-06-14 — it was deployment inertia from the
+# Celery-worker era; re-add it + repoint CACHES here if a real worker returns.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "millennium_cache",
+    }
+}
+
+# Celery broker/result are configured but never dialed under the cron topology
+# (no worker/beat process; the management commands call run_* directly). Kept as
+# required env (Invariant 2) so re-introducing a worker is an env change, not a
+# code change — set harmless `memory://` placeholders in the deploy env.
 CELERY_BROKER_URL = env("CELERY_BROKER_URL")
 CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND")
 

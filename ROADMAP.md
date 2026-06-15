@@ -10,18 +10,20 @@ A personal Yu-Gi-Oh collection portfolio tracker that treats a card collection l
 - **UI:** Tailwind CSS + shadcn/ui + TanStack Table + TanStack Query + Recharts
 - **Backend:** Django 5.2 LTS + Django REST Framework + drf-spectacular
 - **Database:** PostgreSQL 16+
-- **Queue/Cache:** Redis
+- **Queue/Cache:** Redis (dev cache/broker); prod drops Redis — Django DatabaseCache on Postgres (no Celery worker under the timer topology)
 - **Workers:** Celery + Celery Beat
 - **API contract:** OpenAPI spec → generated TypeScript client
 - **Testing:** pytest (backend), Vitest + React Testing Library (frontend)
 - **Containerization:** Docker + docker-compose
 - **CI:** GitHub Actions
-- **Deployment:** Railway (phase 1), AWS ECS/Fargate + RDS + ElastiCache (phase 2)
+- **Deployment:** Self-hosted Hetzner VPS (phase 1, coexisting with another self-hosted project; Railway evaluated + repo-prepped as an alternative), AWS ECS/Fargate + RDS + ElastiCache (phase 2)
 - **IaC:** Terraform (AWS phase only)
 
 ## Current milestone
 
-**Railway deployment (phase-1 deploy target).** Deploy backend + frontend + Postgres + Redis to Railway, with the daily sync/valuation/alert management commands as Railway cron services (no always-on worker/beat — DECISIONS 2026-06-12); prod hardening carried from prior slices: cookie tuning (`SESSION_COOKIE_SAMESITE`), edge-proxy `X-Forwarded-For` posture, real `DJANGO_CSRF_TRUSTED_ORIGINS`, env provisioning.
+**Self-hosted Hetzner VPS deployment (phase-1 deploy target) — pivoted from Railway (2026-06-14).** Deploy frontend + backend + Postgres on a **single Hetzner VPS coexisting with another self-hosted project**, behind a standalone Caddy edge (auto-TLS, the only public listener); the daily sync/valuation/alert management commands run as **systemd timers** (no always-on worker/beat, no Railway cron). **Redis is dropped** — prod cache is Django `DatabaseCache` on the existing Postgres (nothing dials a Celery broker under the timer topology). Chosen over Railway for a stronger recruiter-facing self-hosted infrastructure story (a coherent one-standard-across-projects server, not a PaaS click-deploy). Config-as-code under `infra/hetzner/`; the step-by-step deploy runbook is kept local (it carries box-specific operational detail). Work is on branch `deploy/hetzner-self-host` (in progress; reviewed across in-house + two cross-project ground-truth + 7 Codex adversarial passes). **Remaining:** live provisioning at the box (user-driven — `millennium` Linux user, Cloudflare DNS for `millennium.erickti.com`, Hetzner Cloud Firewall, secrets, `deploy.sh`), then post-deploy hardening (the empirical XFF spoof test → `DJANGO_NUM_PROXIES`, the HSTS ramp once HTTPS is proven).
+
+**Railway was evaluated + fully repo-prepped (#40–#44), now retained as the evaluated managed-PaaS alternative:** prod settings (env-tunable cookie SameSite + `DJANGO_NUM_PROXIES` knob), the backend + frontend production images, the CI image-build gate (`images.yml`, a required check), Railway config-as-code (`infra/railway/*.railway.json`), and `docs/railway-deploy-runbook.md` (banner-marked superseded; its env matrix predates the DatabaseCache change). Kept as a documented alternative + portfolio artifact, not the live target.
 
 ## Completed milestones
 

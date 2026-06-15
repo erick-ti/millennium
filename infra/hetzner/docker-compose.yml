@@ -1,0 +1,151 @@
+name: millennium
+
+# Millennium — Hetzner self-host stack, coexisting with another app on the same box.
+# Full rationale + operations: the deploy runbook (kept local — it carries box-
+# specific detail; this committed config is the public surface).
+#
+# Run FROM this directory (infra/hetzner/) so `.env` is auto-loaded and the
+# relative build contexts resolve:
+#
+#   docker compose build                 # build backend + frontend images
+#   docker compose run --rm migrate      # migrate + createcachetable (one-shot)
+#   docker compose up -d                 # postgres + backend + frontend
+#
+# This stack exposes NO public port. The public edge is the SEPARATE edge/
+# Caddy stack (edge/docker-compose.yml), which reaches the frontend over the
+# external `edge_net` network. The backend is published on 127.0.0.1:8001 for
+# SSH-tunnel /admin/ access ONLY — never the public internet.
+#
+# Coexistence guardrails (see runbook): runs under its own `millennium` Linux
+# user; Postgres/backend publish no internet-facing port; the edge proxies ONLY
+# this frontend, never the co-tenant app's internal API. mem_limit caps each
+# service so a Millennium runaway is OOM-killed within its own budget instead of
+# the box-wide OOM killer reaching for the co-tenant app's resident memory.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
+    # No host port — reachable only on the compose network as `postgres:5432`.
+    # Never publish it: postgres ships with trivial default-cred expectations
+    # and this box is internet-exposed at the edge (Invariant 5 posture).
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 512m
+    restart: unless-stopped
+
+  migrate:
+    # One-shot: apply migrations AND create the DatabaseCache table, then exit 0.
+    # Run it explicitly before `up` (never as an app entrypoint, Invariant-3
+    # style). createcachetable is idempotent — safe to re-run every deploy.
+    image: millennium-backend:latest
+    # Reuse the image `backend` builds (same tag). Never attempt a registry pull
+    # if it's missing locally — fail loudly so `docker compose build` is run first.
+    pull_policy: never
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py createcachetable"
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 512m
+    restart: "no"
+
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    image: millennium-backend:latest
+    # gunicorn binds [::]:8000 inside the container (image CMD, WEB_CONCURRENCY=2
+    # — kept modest for the memory-tight shared box). The frontend reaches it as
+    # `backend:8000` over the compose network. The 127.0.0.1:8001 publish is for
+    # SSH-tunnel /admin/ access ONLY (ssh -L 8001:127.0.0.1:8001 box) — the
+    # public edge never touches it.
+    ports:
+      - "127.0.0.1:8001:8000"
+    env_file: .env
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/health/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 512m
+    # Drain window (Docker default 10s) sized above gunicorn's --graceful-timeout
+    # 120s, so a deploy/restart mid-import lets the synchronous CSV import finish
+    # instead of leaving a stuck PROCESSING batch — the Docker analog of Railway's
+    # drainingSeconds:150 both-hops drain (Codex review 2026-06-14).
+    stop_grace_period: 150s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+      # Untargeted → the `runtime` stage (the standalone production image; the
+      # dev compose pins target:dev, this one wants production). BACKEND_URL is
+      # REQUIRED and baked into server.js at build time — it points at the
+      # backend over the compose network. Changing it needs a REBUILD.
+      args:
+        BACKEND_URL: ${BACKEND_URL:?set BACKEND_URL in .env to http://backend:8000}
+        # Optional Next-build heap cap (empty by default → no-op). Export
+        # NODE_OPTIONS (e.g. --max-old-space-size=2048) in the env / .env to bound
+        # the build spike on this memory-tight box; CI/other builds leave it empty.
+        NODE_OPTIONS: ${NODE_OPTIONS:-}
+    image: millennium-frontend:latest
+    # No host port. The edge Caddy reaches it on `edge_net` via the
+    # `millennium-frontend` alias; the Next /api/* rewrite forwards to `backend`
+    # over the default compose network (same-origin proxy, CORS-free).
+    # The healthcheck hits /api/health/ THROUGH the baked Next rewrite (not just
+    # /) and requires EXACTLY 200 — so a dead backend (502), a broken rewrite
+    # (404), or `backend` missing from ALLOWED_HOSTS (400 DisallowedHost) all mark
+    # the frontend unhealthy at deploy time instead of serving a green shell where
+    # every /api/* call fails. A <500 predicate would let the 400/404 cases pass
+    # (the Railway healthcheck rationale, tightened; Codex review 2026-06-14).
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get('http://localhost:3000/api/health/',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      backend:
+        condition: service_healthy
+    mem_limit: 384m
+    # Drain window > the 125s Next proxyTimeout, so a deploy/restart doesn't sever
+    # an in-flight /api/* import at the frontend hop (both-hops drain; Codex review).
+    stop_grace_period: 150s
+    restart: unless-stopped
+    networks:
+      default: {}
+      edge_net:
+        aliases:
+          - millennium-frontend
+
+networks:
+  # Internal stack network (postgres + backend + frontend talk here).
+  default: {}
+  # Shared public-edge network, created once out of band:
+  #   docker network create edge_net
+  # Only the frontend joins it; the edge Caddy stack proxies to it.
+  edge_net:
+    external: true
+
+volumes:
+  pgdata:

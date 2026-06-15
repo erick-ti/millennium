@@ -1,0 +1,12 @@
+[Unit]
+Description=Millennium — daily YGOPRODeck metadata sync (02:00 UTC)
+
+[Timer]
+# Metadata first: seeds the printings that the 03:00 pricing reconcile matches
+# against. UTC matches the app's USE_TZ=True / UTC scheduling.
+OnCalendar=*-*-* 02:00:00 UTC
+Persistent=true
+Unit=millennium-sync@sync_ygoprodeck.service
+
+[Install]
+WantedBy=timers.target

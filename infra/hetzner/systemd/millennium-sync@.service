@@ -1,0 +1,30 @@
+# Templated one-shot for Millennium's scheduled management commands. The
+# instance name (%i) IS the manage.py command, e.g.
+#   systemctl start millennium-sync@sync_tcgcsv.service
+# runs `manage.py sync_tcgcsv` in a fresh, --rm'd backend container against the
+# already-running stack. Driven by the per-command *.timer files (02:00-05:00
+# UTC), replacing the old Celery beat schedule. Runs as the `millennium` user
+# (in the docker group), so it does NOT inherit any other user's crontab env.
+#
+# Install (copy unit files to /etc/systemd/system/, then):
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now millennium-sync-ygoprodeck.timer \
+#        millennium-sync-tcgcsv.timer millennium-value-portfolios.timer \
+#        millennium-run-alerts.timer
+#
+# Each command is idempotent + downstream-gated (valuation/alerts refuse without
+# a same-day pricing SUCCESS), so a missed or interrupted run defers, never
+# corrupts. A bare `manage.py` traps no SIGTERM, so no drain window is needed.
+
+[Unit]
+Description=Millennium scheduled command (%i)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=millennium
+WorkingDirectory=/home/millennium/millennium/infra/hetzner
+ExecStart=/usr/bin/docker compose run --rm backend python manage.py %i
+# A full TCGCSV reconcile can run for minutes; well above systemd's 90s default.
+TimeoutStartSec=1800

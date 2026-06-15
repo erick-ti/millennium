@@ -1,0 +1,17 @@
+[Unit]
+Description=Millennium — daily portfolio valuation (04:00 UTC)
+
+[Timer]
+# Rolls the day's prices into append-only portfolio snapshots. run_valuation
+# refuses unless a same-day pricing SUCCESS exists, so the clock is only a hint.
+# Persistent=FALSE (unlike the syncs): a dependent job must NOT catch up after
+# downtime. On boot it would race the recovering sync, check its same-day-pricing
+# gate before today's SUCCESS lands, and record a SKIPPED run — losing the day
+# with no retry. Skipping the missed slot and waiting for tomorrow's clean run is
+# the deterministic outcome (manual recovery in the runbook's post-downtime note).
+OnCalendar=*-*-* 04:00:00 UTC
+Persistent=false
+Unit=millennium-sync@value_portfolios.service
+
+[Install]
+WantedBy=timers.target
