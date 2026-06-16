@@ -52,7 +52,7 @@ export function EngineRoom() {
             <span className="transition-transform group-hover:translate-x-0.5">→</span>
           </a>
           <p className="font-terminal text-[0.7rem] text-bone-muted">
-            Source · github.com/erickti/millennium
+            Source · github.com/erick-ti/millennium
           </p>
         </div>
 
