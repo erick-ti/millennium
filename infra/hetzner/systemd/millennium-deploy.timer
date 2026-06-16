@@ -1,0 +1,14 @@
+[Unit]
+Description=Millennium — poll origin/main for new deploys (~every 2 min)
+
+[Timer]
+# Monotonic, NOT OnCalendar: poll shortly after boot, then ~every 2 min. NOT
+# Persistent — a poll missed while powered off is meaningless (the next tick sees
+# the latest origin/main regardless). deploy_poll.sh is a near-instant no-op when
+# main hasn't moved and flock-guards against overlapping a slow in-flight deploy.
+OnBootSec=2min
+OnUnitActiveSec=2min
+Unit=millennium-deploy.service
+
+[Install]
+WantedBy=timers.target

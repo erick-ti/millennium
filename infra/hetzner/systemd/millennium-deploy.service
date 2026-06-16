@@ -1,0 +1,27 @@
+# Pull-based CD for Millennium — runs deploy_poll.sh, which deploys origin/main
+# when it moves (self-healing checkout + the existing deploy.sh). Runs as the
+# `millennium` user (docker group) with its OWN deploy.env, separate from
+# backup.env. Holds NO inbound credential — see deploy_poll.sh's header for why
+# pull (not push) on a docker-group ≈ root, shared box.
+#
+# Install:
+#   cp deploy.env.example deploy.env && chmod 600 deploy.env   # set DEPLOY_HEALTHCHECK_URL
+#   sudo systemctl enable --now millennium-deploy.timer
+# (deploy.sh also installs + enables this via its systemd-sync step.)
+
+[Unit]
+Description=Millennium — pull-based deploy of origin/main when it moves
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=millennium
+WorkingDirectory=/home/millennium/millennium
+# Optional (leading '-'): the deployer runs fine with no env — DEPLOY_HEALTHCHECK_URL
+# just stays unset (no pings), so the unit installs before the env is configured.
+EnvironmentFile=-/home/millennium/millennium/infra/hetzner/deploy.env
+ExecStart=/home/millennium/millennium/infra/hetzner/deploy_poll.sh
+# Above deploy_poll.sh's own DEPLOY_RUN_TIMEOUT (1200s) so the script's per-step
+# timeout fires first (cleaner /fail) before systemd's hard kill.
+TimeoutStartSec=1500
