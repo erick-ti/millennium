@@ -19,10 +19,19 @@ cd "$REPO_DIR"
 # Capture the currently-deployed revision up front so an unhealthy deploy can be
 # rolled back (the in-place recreate below goes live before --wait confirms health).
 PREV_SHA="$(git rev-parse --short HEAD)"
-# Skip the pull on a detached HEAD — that's the rollback path (`git checkout <sha>
-# && ./deploy.sh`), where `git pull` would fail (no upstream) during the exact
-# failure it's meant to recover from (Codex review 2026-06-14).
-if git symbolic-ref -q HEAD >/dev/null; then
+# Skip the pull when the caller already controls the checked-out revision:
+# deploy_poll.sh resets to a guarded origin/main SHA, then sets DEPLOY_SKIP_PULL=1
+# so deploy.sh builds EXACTLY that SHA. Without it, deploy.sh's own pull could
+# fast-forward PAST the guarded commit if origin/main advanced mid-deploy — bypassing
+# the poller's env-file guards (a later commit tracking .env/deploy.env would have
+# its content overwrite the ignored live secret on the ff-checkout) and drifting the
+# deployed-SHA marker (Codex review 2026-06-16).
+# Also skip on a detached HEAD — the rollback path (`git checkout <sha> &&
+# ./deploy.sh`), where `git pull` would fail (no upstream) during the exact failure
+# it's meant to recover from (Codex review 2026-06-14).
+if [[ "${DEPLOY_SKIP_PULL:-}" == "1" ]]; then
+    echo "deploy: DEPLOY_SKIP_PULL=1 — caller controls the revision, skipping git pull"
+elif git symbolic-ref -q HEAD >/dev/null; then
     echo "deploy: git pull"
     git pull --ff-only
 else
@@ -59,9 +68,12 @@ echo "deploy: validate + up edge + reload Caddy config"
 # the live edge: `caddy reload` already keeps the old config on a bad reload, but
 # the restart fallback below would boot the invalid config and take :80/:443 down
 # (Codex review 2026-06-14). `set -e` aborts here on an invalid config, leaving the
-# running edge on its last-good config.
+# running edge on its last-good config. `caddy` appears twice on purpose: the
+# service name, then the binary to run — the caddy:2-alpine image's CMD has no
+# ENTRYPOINT, so `run ... caddy validate` would try to exec `validate` itself
+# ("executable file not found"). The `caddy reload` below already has the prefix.
 docker compose -f edge/docker-compose.yml run --rm --no-deps caddy \
-    validate --config /etc/caddy/Caddyfile --adapter caddyfile
+    caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 docker compose -f edge/docker-compose.yml up -d
 # Config is now known-valid → reload in place (graceful, zero-downtime). The
 # restart fallback is SAFE because it can only ever boot a validated config (it
@@ -82,6 +94,15 @@ _timers=(
     millennium-value-portfolios.timer
     millennium-run-alerts.timer
     millennium-backup.timer
+    # Pull-based CD poller. Restarting its .timer here is safe even when THIS
+    # deploy was triggered by it: restarting the timer unit does not signal the
+    # running oneshot service (deploy_poll.sh keeps its flock and finishes). The
+    # `cp` + daemon-reload above likewise overwrite millennium-deploy.service while
+    # it runs — also safe (systemd neither kills nor re-execs a running oneshot on
+    # reload). INVARIANT: only .timer units may go in this array — NEVER add
+    # millennium-deploy.service, or a deploy it triggered would SIGTERM itself
+    # (flock blocks a new overlapping run; it cannot save the killed one).
+    millennium-deploy.timer
 )
 sudo systemctl enable "${_timers[@]}"    # persist across reboot (idempotent)
 sudo systemctl restart "${_timers[@]}"   # re-arm with the current schedule

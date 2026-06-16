@@ -45,6 +45,11 @@ celerybeat.pid
 !.env.example
 # Hetzner self-host backup config — real secrets (the .example is committed)
 backup.env
+# Hetzner self-host deploy (pull-based CD) config — holds the Healthchecks ping URL
+# (a credential); the .example is committed. Must stay ignored: the CD poller's
+# `git clean -fd` would otherwise delete it on the first deploy (and it could be
+# accidentally committed). deploy_poll.sh also fails closed if this isn't ignored.
+deploy.env
 
 # ===== Editor / IDE =====
 .idea/
