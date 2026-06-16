@@ -132,14 +132,30 @@ describe("LoginForm", () => {
     expect(invalidateSpy).toHaveBeenCalled();
   });
 
+  it("redirects to the app home (not the nav-less landing) when there is no ?next", async () => {
+    // h.search is "" (the beforeEach default) — a direct visit to /login. The
+    // landing ("/") hides the app nav, so a signed-in user must land in the app.
+    loginMock.mockResolvedValue(
+      resolved({ data: { id: 1, username: "reader", email: "r@x" }, response: { status: 200 } }),
+    );
+    renderForm();
+
+    await userEvent.type(screen.getByLabelText(/username/i), "reader");
+    await userEvent.type(screen.getByLabelText(/password/i), "hunter2");
+    await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+
+    await waitFor(() => expect(h.replace).toHaveBeenCalledWith("/collection"));
+  });
+
   // Each of these resolves OFF-ORIGIN via the WHATWG URL parser, so the guard
-  // must reject all of them and fall back to "/".
+  // must reject all of them and fall back to the app home (/collection), never
+  // off-origin.
   it.each([
     ["absolute URL", "next=https://evil.test"],
     ["protocol-relative", "next=//evil.test"],
     ["backslash authority", "next=/\\evil.test"],
     ["double backslash", "next=/\\\\evil.test"],
-  ])("ignores an unsafe ?next (%s) and falls back to /", async (_label, search) => {
+  ])("ignores an unsafe ?next (%s) and falls back to the app home", async (_label, search) => {
     h.search = search;
     loginMock.mockResolvedValue(
       resolved({ data: { id: 1, username: "reader", email: "r@x" }, response: { status: 200 } }),
@@ -150,7 +166,7 @@ describe("LoginForm", () => {
     await userEvent.type(screen.getByLabelText(/password/i), "hunter2");
     await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
 
-    await waitFor(() => expect(h.replace).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(h.replace).toHaveBeenCalledWith("/collection"));
   });
 
   it("bounces away immediately if already authenticated", async () => {

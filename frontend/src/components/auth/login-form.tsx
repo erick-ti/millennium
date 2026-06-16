@@ -9,17 +9,24 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth-provider";
 import { seedCsrf } from "@/lib/csrf";
 
+// Where a freshly-signed-in user lands when there's no (or an unsafe) `?next=`
+// — e.g. they opened /login directly. NOT "/": that's the public landing, which
+// hides the app nav, so a signed-in user dropped there has no chrome to reach
+// the app. An explicit `?next=` (e.g. the deep link the auth gate preserves) is
+// still honored.
+const POST_LOGIN_HOME = "/collection";
+
 /**
  * Only a same-site relative path is a safe post-login destination (open-redirect
  * guard). Must reject anything the WHATWG URL parser would resolve off-origin: a
  * scheme-relative `//host`, AND a backslash variant `/\host` or `/\\host` (the
  * URL parser treats `\` like `/` in the authority, so `new URL("/\\evil.com",
  * origin)` resolves to `https://evil.com`). Accept only a leading `/` NOT
- * followed by another `/` or `\`.
+ * followed by another `/` or `\`; otherwise fall back to the app home.
  */
 function safeNext(next: string | null): string {
   if (next && /^\/(?![/\\])/.test(next)) return next;
-  return "/";
+  return POST_LOGIN_HOME;
 }
 
 // Use the bare SDK fn (not the *Mutation helper) so we read response.status: a

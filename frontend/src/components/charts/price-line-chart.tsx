@@ -51,15 +51,7 @@ function renderCoverageDot(props: {
     return <g key={key} />;
   }
   return (
-    <circle
-      key={key}
-      cx={cx}
-      cy={cy}
-      r={3.5}
-      fill="#f59e0b"
-      stroke="white"
-      strokeWidth={1}
-    />
+    <circle key={key} cx={cx} cy={cy} r={4} fill="none" stroke="#fbbf24" strokeWidth={1.5} />
   );
 }
 
@@ -109,15 +101,29 @@ export function PriceLineChart({
               dataKey="date"
               tickFormatter={formatDayShort}
               minTickGap={24}
-              tick={{ fontSize: 12 }}
+              tick={{ fontSize: 12, fill: "#b8b09e", fontFamily: "var(--font-terminal)" }}
+              tickLine={false}
+              axisLine={{ stroke: "rgba(200,162,74,0.25)" }}
             />
             <YAxis
               width={72}
               tickFormatter={(value) => formatUsd(Number(value))}
               domain={["auto", "auto"]}
-              tick={{ fontSize: 12 }}
+              tick={{ fontSize: 12, fill: "#b8b09e", fontFamily: "var(--font-terminal)" }}
+              tickLine={false}
+              axisLine={false}
             />
             <Tooltip
+              cursor={{ stroke: "rgba(200,162,74,0.35)", strokeDasharray: "3 3" }}
+              contentStyle={{
+                background: "oklch(0.17 0.008 70)",
+                border: "1px solid rgba(200,162,74,0.35)",
+                borderRadius: 8,
+                fontFamily: "var(--font-terminal)",
+                fontSize: 12,
+                color: "#f5f1e6",
+              }}
+              labelStyle={{ color: "#b8b09e" }}
               formatter={(value, _name, item) => {
                 const point = item?.payload as PricePoint | undefined;
                 const name =
@@ -131,10 +137,10 @@ export function PriceLineChart({
             <Line
               type="monotone"
               dataKey="price"
-              // A fixed, always-visible color: a CSS-var stroke that fails to
-              // resolve would render an invisible line. Theme polish later.
-              stroke="#2563eb"
-              strokeWidth={2}
+              // Aged-gold line on the vault canvas (matches the landing chart).
+              stroke="#c8a24a"
+              strokeWidth={1.75}
+              activeDot={{ r: 3.5, fill: "#e6c063", stroke: "none" }}
               // Marker only on partial-coverage points (otherwise no dot);
               // see renderCoverageDot.
               dot={renderCoverageDot}
@@ -145,29 +151,35 @@ export function PriceLineChart({
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <table className="sr-only">
-        <caption>{caption}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Date</th>
-            <th scope="col">{seriesLabel}</th>
-            {hasCoverage ? <th scope="col">Coverage</th> : null}
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((point) => (
-            <tr key={point.date}>
-              <td>{point.date}</td>
-              <td>{formatUsd(point.price)}</td>
-              {hasCoverage ? (
-                <td>
-                  {point.complete === false ? "Partial coverage" : "Complete"}
-                </td>
-              ) : null}
+      {/* sr-only on the WRAPPER div, not the <table>: a table with
+          table-layout:auto ignores width:1px and grows to its content, which
+          leaks horizontal page overflow on narrow viewports — the div honors
+          width:1px + overflow:hidden and clips it. */}
+      <div className="sr-only">
+        <table>
+          <caption>{caption}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">{seriesLabel}</th>
+              {hasCoverage ? <th scope="col">Coverage</th> : null}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data.map((point) => (
+              <tr key={point.date}>
+                <td>{point.date}</td>
+                <td>{formatUsd(point.price)}</td>
+                {hasCoverage ? (
+                  <td>
+                    {point.complete === false ? "Partial coverage" : "Complete"}
+                  </td>
+                ) : null}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </figure>
   );
 }

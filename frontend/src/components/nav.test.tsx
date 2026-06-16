@@ -7,12 +7,18 @@ import { authLogoutCreate, csrfRetrieve } from "@/lib/api";
 
 import { Nav } from "./nav";
 
-const h = vi.hoisted(() => ({ isAuthenticated: true, username: "reader" }));
+const h = vi.hoisted(() => ({
+  isAuthenticated: true,
+  username: "reader",
+  pathname: "/collection",
+}));
 
 // LogoutButton no longer uses useRouter (it hard-navigates), but Nav's <Link>s
-// resolve a router internally — keep a minimal stub.
+// resolve a router internally — keep a minimal stub. Nav also reads usePathname
+// to hide itself on the landing route ("/"), so expose a controllable value.
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => h.pathname,
 }));
 
 vi.mock("@/components/auth-provider", () => ({
@@ -61,6 +67,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.isAuthenticated = true;
   h.username = "reader";
+  h.pathname = "/collection";
   assign.mockClear();
   Object.defineProperty(window, "location", {
     configurable: true,
@@ -88,6 +95,15 @@ describe("Nav", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText("reader")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /millennium/i })).toBeInTheDocument();
+  });
+
+  it("renders nothing on the public landing route (it has its own masthead)", () => {
+    h.pathname = "/";
+    const { container } = renderNav();
+    expect(container).toBeEmptyDOMElement();
+    expect(
+      screen.queryByRole("link", { name: /millennium/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("signs out: calls logout, then HARD-navigates to /login", async () => {
