@@ -110,7 +110,15 @@ for _samesite_var, _samesite_value in (
 # includeSubDomains and preload), recovery requires waiting out the timer.
 # Submitting to the HSTS preload list bakes the policy into browsers globally.
 #
-# Suggested rampup once HTTPS is proven:
+# LIVE TOPOLOGY NOTE (Hetzner self-host, 2026-06-16): the actual HSTS ramp is
+# implemented at the CADDY EDGE (infra/hetzner/edge/Caddyfile), NOT here. Django
+# sits behind the Next /api/* rewrite, which does not propagate X-Forwarded-Proto,
+# so request.is_secure() is False at the backend and SecurityMiddleware would emit
+# NOTHING even with SECONDS>0 — and Django only sees /api/*, never the HTML page
+# loads. These knobs are kept (off) for a topology where Django itself terminates
+# or directly sees TLS (e.g. the evaluated Railway path); on Hetzner, ramp Caddy.
+#
+# Suggested rampup once HTTPS is proven (mirrored by the Caddyfile ladder):
 #   SECONDS=300 → 86400 (1 day) → 31536000 (1 year)
 #   then INCLUDE_SUBDOMAINS=true once every subdomain is HTTPS-only
 #   then PRELOAD=true and submit to https://hstspreload.org
