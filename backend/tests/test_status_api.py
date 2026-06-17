@@ -7,6 +7,7 @@ from typing import Any
 
 import httpx
 import pytest
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import override_settings
@@ -68,7 +69,8 @@ def test_overview_shape(client: APIClient) -> None:
         "alerts",
     ]
     assert body["app"]["version"] == "unknown"  # no GIT_SHA build-arg under test
-    assert body["app"]["environment"] == "test"
+    # The settings module's last segment — "test" on sqlite, "test_postgres" in CI.
+    assert body["app"]["environment"] == settings.SETTINGS_MODULE.rsplit(".", 1)[-1]
     assert isinstance(body["app"]["uptime_seconds"], int)
     assert body["app"]["server_time"]
 
