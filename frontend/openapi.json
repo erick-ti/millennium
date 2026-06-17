@@ -1937,6 +1937,60 @@
                 }
             }
         },
+        "/api/status/checks/": {
+            "get": {
+                "operationId": "status_checks_retrieve",
+                "description": "Status dashboard — the Healthchecks tier (the flow's backup + CD dead-man nodes).\n\nSeparate endpoint (not folded into overview) so a slow/down external provider\ndegrades this tile alone and never blocks the live internal flow. The provider\ncaches + fails closed to ``available: false`` (always 200, never 500). Optional:\n``configured: false`` without a read-API key.",
+                "summary": "Status dashboard — Healthchecks backup + CD checks",
+                "tags": [
+                    "status"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChecksStatus"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/status/overview/": {
+            "get": {
+                "operationId": "status_overview_retrieve",
+                "description": "Status dashboard — the internal tier (the live pipeline flow + app state).\n\nInherits the global ``IsAuthenticated``: the dashboard exposes operational internals\n(run history, catalog size, deployed commit), not public data. A single typed dict\nvia ``@extend_schema`` (the ``HealthView`` shape), so the generated client gets a\ntyped ``statusOverviewRetrieve``. Pure DB reads, NOT cached — the heart of the page\nmust feel live; only the external provider tiers (Healthchecks/Hetzner) are cached.",
+                "summary": "Status dashboard — internal pipeline + app health",
+                "tags": [
+                    "status"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StatusOverview"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/valuation/movers/": {
             "get": {
                 "operationId": "valuation_movers_list",
@@ -2199,6 +2253,30 @@
                     "threshold_pct"
                 ]
             },
+            "AppMeta": {
+                "type": "object",
+                "properties": {
+                    "version": {
+                        "type": "string"
+                    },
+                    "environment": {
+                        "type": "string"
+                    },
+                    "server_time": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "uptime_seconds": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "environment",
+                    "server_time",
+                    "uptime_seconds",
+                    "version"
+                ]
+            },
             "CardDetail": {
                 "type": "object",
                 "description": "Card detail nests its printings (most cards have at most a handful, so the\nnested payload stays small). The flat ``/api/cards/printings/?card={id}``\nendpoint remains available for filterable browsing.",
@@ -2320,6 +2398,100 @@
                     "set_code",
                     "set_name",
                     "set_rarity"
+                ]
+            },
+            "Catalog": {
+                "type": "object",
+                "properties": {
+                    "cards": {
+                        "type": "integer"
+                    },
+                    "printings": {
+                        "type": "integer"
+                    },
+                    "price_snapshots": {
+                        "type": "integer"
+                    },
+                    "portfolios": {
+                        "type": "integer"
+                    },
+                    "owned_holdings": {
+                        "type": "integer"
+                    },
+                    "owned_copies": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "cards",
+                    "owned_copies",
+                    "owned_holdings",
+                    "portfolios",
+                    "price_snapshots",
+                    "printings"
+                ]
+            },
+            "CheckRow": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "last_ping_at": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "n_pings": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "last_ping_at",
+                    "n_pings",
+                    "name",
+                    "status"
+                ]
+            },
+            "ChecksStatus": {
+                "type": "object",
+                "description": "The Healthchecks tier — the backup + CD dead-man checks for the flow's trailing\nnodes. ``configured`` false = no read-API key; ``available`` false = a provider\nerror (the tile degrades, never 500s). backup/cd are null when unconfigured,\nunavailable, or their slug didn't match a check.",
+                "properties": {
+                    "configured": {
+                        "type": "boolean"
+                    },
+                    "available": {
+                        "type": "boolean"
+                    },
+                    "error": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "backup": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CheckRow"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "cd": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CheckRow"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "available",
+                    "backup",
+                    "cd",
+                    "configured",
+                    "error"
                 ]
             },
             "CollectionItemDetail": {
@@ -3485,6 +3657,53 @@
                     }
                 }
             },
+            "PipelineStage": {
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "scheduled_utc": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "last_run_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "green_today": {
+                        "type": "boolean"
+                    },
+                    "metric_label": {
+                        "type": "string"
+                    },
+                    "metric_value": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "depends_on": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "depends_on",
+                    "green_today",
+                    "key",
+                    "label",
+                    "last_run_at",
+                    "metric_label",
+                    "metric_value",
+                    "scheduled_utc",
+                    "status"
+                ]
+            },
             "Portfolio": {
                 "type": "object",
                 "description": "A portfolio + its latest ``PortfolioValueSnapshot`` inline (NULL when a\nportfolio has never been valued). Slice 5's portfolio summary shows\ntoday's value at a glance without a second round-trip; the value-history\nchart consumes ``/api/portfolio/snapshots/?portfolio=&from=&to=``.\n\nN+1 risk on list is bounded by portfolio count (single digits in practice\n— Yubel Deck, Long-term hold, etc.). If portfolios ever scale, switch this\nto a correlated subquery / prefetched-singleton.",
@@ -3684,6 +3903,46 @@
                     "source"
                 ]
             },
+            "RecentRun": {
+                "type": "object",
+                "properties": {
+                    "kind": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "card_count": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "printing_count": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "product_count": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "price_row_count": {
+                        "type": "integer",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "card_count",
+                    "created_at",
+                    "kind",
+                    "price_row_count",
+                    "printing_count",
+                    "product_count",
+                    "status"
+                ]
+            },
             "SourceEnum": {
                 "enum": [
                     "tcgcsv"
@@ -3697,6 +3956,40 @@
                 ],
                 "type": "string",
                 "description": "* `dragon_shield` - Dragon Shield"
+            },
+            "StatusOverview": {
+                "type": "object",
+                "description": "The internal status tier — app meta + the ordered pipeline-flow stages + catalog\ncardinality + latest valuation + recent run history. A computed aggregate (no model),\nso a plain Serializer; every nullable field sets ``allow_null=True`` by hand (the\nschema nullability gate only walks ModelSerializers — the ``MoverRowSerializer``\nrule, ``apps/valuation/serializers.py``).",
+                "properties": {
+                    "app": {
+                        "$ref": "#/components/schemas/AppMeta"
+                    },
+                    "pipeline": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PipelineStage"
+                        }
+                    },
+                    "catalog": {
+                        "$ref": "#/components/schemas/Catalog"
+                    },
+                    "valuation": {
+                        "$ref": "#/components/schemas/ValuationSummary"
+                    },
+                    "recent_runs": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/RecentRun"
+                        }
+                    }
+                },
+                "required": [
+                    "app",
+                    "catalog",
+                    "pipeline",
+                    "recent_runs",
+                    "valuation"
+                ]
             },
             "User": {
                 "type": "object",
@@ -3722,6 +4015,35 @@
                     "email",
                     "id",
                     "username"
+                ]
+            },
+            "ValuationSummary": {
+                "type": "object",
+                "properties": {
+                    "as_of": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "market_value": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,14}(?:\\.\\d{0,2})?$",
+                        "nullable": true
+                    },
+                    "complete": {
+                        "type": "boolean",
+                        "nullable": true
+                    },
+                    "portfolios_valued": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "as_of",
+                    "complete",
+                    "market_value",
+                    "portfolios_valued"
                 ]
             },
             "WindowDaysEnum": {

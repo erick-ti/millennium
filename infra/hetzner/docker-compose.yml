@@ -64,6 +64,10 @@ services:
     build:
       context: ../../backend
       dockerfile: Dockerfile
+      args:
+        # Deployed commit, baked into the image and shown on /api/status/. deploy.sh
+        # exports GIT_SHA=$(git rev-parse --short HEAD) before build; unset → "unknown".
+        GIT_SHA: ${GIT_SHA:-unknown}
     image: millennium-backend:latest
     # gunicorn binds [::]:8000 inside the container (image CMD, WEB_CONCURRENCY=2
     # — kept modest for the memory-tight shared box). The frontend reaches it as

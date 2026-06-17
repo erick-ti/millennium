@@ -66,6 +66,7 @@ LOCAL_APPS = [
     "apps.valuation",
     "apps.alerts",
     "apps.decks",
+    "apps.status",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -286,6 +287,31 @@ CELERY_BEAT_SCHEDULE: dict[str, Any] = {
 SYNC_GUARD_METADATA_TOLERANCE = env.float("SYNC_GUARD_METADATA_TOLERANCE", default=0.02)
 SYNC_GUARD_PRICING_TOLERANCE = env.float("SYNC_GUARD_PRICING_TOLERANCE", default=0.10)
 SYNC_GUARD_ARCHETYPE_TOLERANCE = env.float("SYNC_GUARD_ARCHETYPE_TOLERANCE", default=0.05)
+
+# ---------------------------------------------------------------------------
+# Status dashboard
+#
+# The deployed commit, baked into the image at build time (deploy.sh passes
+# --build-arg GIT_SHA=$(git rev-parse --short HEAD); the Dockerfile copies it to
+# ENV GIT_SHA) and surfaced by /api/status/. An OPTIONAL display value with a safe
+# default (the NUM_PROXIES precedent — read from the real process env, so a
+# repo-root .env is inert in dev), NOT a fail-closed required var: a local/CI build
+# that passes no build-arg shows "unknown", which is correct, not a boot failure.
+#
+# Healthchecks.io read API (the flow's backup + CD dead-man nodes). All OPTIONAL,
+# safe defaults: without the key the /api/status/checks/ tier degrades to
+# "not configured" (no network call) and those flow nodes render grey. The two
+# checks are identified by their Healthchecks SLUG (must be UNIQUE within the project)
+# so a co-tenant check in the same project is not surfaced. The read-only key returns
+# no ping URLs (no secret leak).
+# STATUS_CACHE_TTL bounds how long external-provider responses are cached.
+# ---------------------------------------------------------------------------
+
+GIT_SHA = env.str("GIT_SHA", default="unknown")
+HEALTHCHECKS_READ_API_KEY = env.str("HEALTHCHECKS_READ_API_KEY", default="")
+HEALTHCHECKS_BACKUP_SLUG = env.str("HEALTHCHECKS_BACKUP_SLUG", default="")
+HEALTHCHECKS_CD_SLUG = env.str("HEALTHCHECKS_CD_SLUG", default="")
+STATUS_CACHE_TTL = env.int("STATUS_CACHE_TTL", default=60)
 
 # ---------------------------------------------------------------------------
 # Logging — structlog + stdlib bridge

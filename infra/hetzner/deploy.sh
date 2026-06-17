@@ -41,6 +41,10 @@ fi
 cd "$REPO_DIR/infra/hetzner"
 
 echo "deploy: build images"
+# Bake the deployed commit into the backend image (shown on /api/status/). HEAD here is
+# the revision being deployed — after the pull above, or the poller's pre-reset under
+# DEPLOY_SKIP_PULL. The compose backend build arg reads GIT_SHA (default "unknown").
+export GIT_SHA="$(git rev-parse --short HEAD)"
 docker compose build
 
 echo "deploy: migrate + createcachetable"

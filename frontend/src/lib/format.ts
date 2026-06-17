@@ -76,3 +76,24 @@ export function formatDayShort(iso: string): string {
     timeZone: "UTC",
   });
 }
+
+// Fixed "en-US" + UTC so the string is identical on the server and the client
+// (an SSR/CSR locale or timezone mismatch would trip a hydration error) — the
+// status dashboard renders backend UTC timestamps (sync run times, server clock).
+const dateTimeUtc = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZone: "UTC",
+});
+
+/** Format an ISO datetime as a UTC label, e.g. `"Jun 16, 23:45 UTC"`. */
+export function formatDateTimeUtc(iso: string): string {
+  const date = new Date(iso);
+  // A passthrough external string (e.g. a Healthchecks last_ping) could be non-ISO;
+  // Intl.format throws RangeError on an Invalid Date, so fall back to the raw string
+  // rather than crashing the render.
+  return Number.isNaN(date.getTime()) ? iso : `${dateTimeUtc.format(date)} UTC`;
+}

@@ -76,6 +76,13 @@ export type AlertRuleRequest = {
     is_active?: boolean;
 };
 
+export type AppMeta = {
+    version: string;
+    environment: string;
+    server_time: string;
+    uptime_seconds: number;
+};
+
 /**
  * Card detail nests its printings (most cards have at most a handful, so the
  * nested payload stays small). The flat ``/api/cards/printings/?card={id}``
@@ -121,6 +128,36 @@ export type CardPrinting = {
     variant_label?: string | null;
     set_name: string;
     is_multi_variant?: boolean;
+};
+
+export type Catalog = {
+    cards: number;
+    printings: number;
+    price_snapshots: number;
+    portfolios: number;
+    owned_holdings: number;
+    owned_copies: number;
+};
+
+export type CheckRow = {
+    name: string;
+    status: string;
+    last_ping_at: string | null;
+    n_pings: number;
+};
+
+/**
+ * The Healthchecks tier — the backup + CD dead-man checks for the flow's trailing
+ * nodes. ``configured`` false = no read-API key; ``available`` false = a provider
+ * error (the tile degrades, never 500s). backup/cd are null when unconfigured,
+ * unavailable, or their slug didn't match a check.
+ */
+export type ChecksStatus = {
+    configured: boolean;
+    available: boolean;
+    error: string | null;
+    backup: CheckRow | null;
+    cd: CheckRow | null;
 };
 
 /**
@@ -594,6 +631,18 @@ export type PatchedDeckRequest = {
     description?: string;
 };
 
+export type PipelineStage = {
+    key: string;
+    label: string;
+    scheduled_utc: string;
+    status: string;
+    last_run_at: string | null;
+    green_today: boolean;
+    metric_label: string;
+    metric_value: number | null;
+    depends_on: string | null;
+};
+
 /**
  * A portfolio + its latest ``PortfolioValueSnapshot`` inline (NULL when a
  * portfolio has never been valued). Slice 5's portfolio summary shows
@@ -664,6 +713,16 @@ export type PriceSnapshot = {
     readonly created_at: string;
 };
 
+export type RecentRun = {
+    kind: string;
+    status: string;
+    created_at: string;
+    card_count: number | null;
+    printing_count: number | null;
+    product_count: number | null;
+    price_row_count: number | null;
+};
+
 /**
  * * `tcgcsv` - TCGCSV
  */
@@ -673,6 +732,21 @@ export type SourceEnum = 'tcgcsv';
  * * `dragon_shield` - Dragon Shield
  */
 export type SourceFormatEnum = 'dragon_shield';
+
+/**
+ * The internal status tier — app meta + the ordered pipeline-flow stages + catalog
+ * cardinality + latest valuation + recent run history. A computed aggregate (no model),
+ * so a plain Serializer; every nullable field sets ``allow_null=True`` by hand (the
+ * schema nullability gate only walks ModelSerializers — the ``MoverRowSerializer``
+ * rule, ``apps/valuation/serializers.py``).
+ */
+export type StatusOverview = {
+    app: AppMeta;
+    pipeline: Array<PipelineStage>;
+    catalog: Catalog;
+    valuation: ValuationSummary;
+    recent_runs: Array<RecentRun>;
+};
 
 /**
  * The current user, least-disclosure (Phase 5 auth slice).
@@ -692,6 +766,13 @@ export type User = {
      * Email address
      */
     readonly email: string;
+};
+
+export type ValuationSummary = {
+    as_of: string | null;
+    market_value: string | null;
+    complete: boolean | null;
+    portfolios_valued: number;
 };
 
 /**
@@ -1958,6 +2039,32 @@ export type PricingSnapshotsLatestRetrieveResponses = {
 };
 
 export type PricingSnapshotsLatestRetrieveResponse = PricingSnapshotsLatestRetrieveResponses[keyof PricingSnapshotsLatestRetrieveResponses];
+
+export type StatusChecksRetrieveData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/status/checks/';
+};
+
+export type StatusChecksRetrieveResponses = {
+    200: ChecksStatus;
+};
+
+export type StatusChecksRetrieveResponse = StatusChecksRetrieveResponses[keyof StatusChecksRetrieveResponses];
+
+export type StatusOverviewRetrieveData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/status/overview/';
+};
+
+export type StatusOverviewRetrieveResponses = {
+    200: StatusOverview;
+};
+
+export type StatusOverviewRetrieveResponse = StatusOverviewRetrieveResponses[keyof StatusOverviewRetrieveResponses];
 
 export type ValuationMoversListData = {
     body?: never;

@@ -14,6 +14,7 @@ const routes: Array<{ href: string; label: string }> = [
   { href: "/alerts", label: "Alerts" },
   { href: "/decks", label: "Decks" },
   { href: "/imports", label: "Imports" },
+  { href: "/status", label: "Status" },
 ];
 
 export function Nav() {

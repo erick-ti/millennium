@@ -3,8 +3,8 @@
 import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { alertsEventsList, alertsRulesCreate, alertsRulesList, authLoginCreate, authLogoutCreate, authMeRetrieve, cardsCardsArchetypesRetrieve, cardsCardsList, cardsCardsRetrieve, cardsPrintingsList, cardsPrintingsRetrieve, collectionItemsList, collectionItemsRetrieve, collectionLotsList, collectionLotsRetrieve, csrfRetrieve, decksDecksCreate, decksDecksDestroy, decksDecksList, decksDecksPartialUpdate, decksDecksRetrieve, decksDecksUpdate, decksMembershipsCreate, decksMembershipsDestroy, decksMembershipsList, healthRetrieve, importsBatchesCreate, importsBatchesList, importsBatchesRetrieve, importsRowsApproveCreate, importsRowsList, importsRowsOverrideCreate, importsRowsRejectCreate, importsRowsRetrieve, type Options, portfolioPortfoliosList, portfolioPortfoliosRetrieve, portfolioSnapshotsList, portfolioSnapshotsRetrieve, pricingSnapshotsLatestRetrieve, pricingSnapshotsList, pricingSnapshotsRetrieve, valuationMoversList } from '../sdk.gen';
-import type { AlertsEventsListData, AlertsEventsListResponse, AlertsRulesCreateData, AlertsRulesCreateError, AlertsRulesCreateResponse, AlertsRulesListData, AlertsRulesListResponse, AuthLoginCreateData, AuthLoginCreateResponse, AuthLogoutCreateData, AuthMeRetrieveData, AuthMeRetrieveResponse, CardsCardsArchetypesRetrieveData, CardsCardsArchetypesRetrieveResponse, CardsCardsListData, CardsCardsListResponse, CardsCardsRetrieveData, CardsCardsRetrieveResponse, CardsPrintingsListData, CardsPrintingsListResponse, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponse, CollectionItemsListData, CollectionItemsListResponse, CollectionItemsRetrieveData, CollectionItemsRetrieveResponse, CollectionLotsListData, CollectionLotsListResponse, CollectionLotsRetrieveData, CollectionLotsRetrieveResponse, CsrfRetrieveData, DecksDecksCreateData, DecksDecksCreateError, DecksDecksCreateResponse, DecksDecksDestroyData, DecksDecksDestroyResponse, DecksDecksListData, DecksDecksListResponse, DecksDecksPartialUpdateData, DecksDecksPartialUpdateResponse, DecksDecksRetrieveData, DecksDecksRetrieveResponse, DecksDecksUpdateData, DecksDecksUpdateResponse, DecksMembershipsCreateData, DecksMembershipsCreateError, DecksMembershipsCreateResponse, DecksMembershipsDestroyData, DecksMembershipsDestroyResponse, DecksMembershipsListData, DecksMembershipsListResponse, HealthRetrieveData, ImportsBatchesCreateData, ImportsBatchesCreateError, ImportsBatchesCreateResponse, ImportsBatchesListData, ImportsBatchesListResponse, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponse, ImportsRowsApproveCreateData, ImportsRowsApproveCreateError, ImportsRowsApproveCreateResponse, ImportsRowsListData, ImportsRowsListResponse, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateError, ImportsRowsOverrideCreateResponse, ImportsRowsRejectCreateData, ImportsRowsRejectCreateError, ImportsRowsRejectCreateResponse, ImportsRowsRetrieveData, ImportsRowsRetrieveResponse, PortfolioPortfoliosListData, PortfolioPortfoliosListResponse, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponse, PortfolioSnapshotsListData, PortfolioSnapshotsListResponse, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponse, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveError, PricingSnapshotsLatestRetrieveResponse, PricingSnapshotsListData, PricingSnapshotsListResponse, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponse, ValuationMoversListData, ValuationMoversListResponse } from '../types.gen';
+import { alertsEventsList, alertsRulesCreate, alertsRulesList, authLoginCreate, authLogoutCreate, authMeRetrieve, cardsCardsArchetypesRetrieve, cardsCardsList, cardsCardsRetrieve, cardsPrintingsList, cardsPrintingsRetrieve, collectionItemsList, collectionItemsRetrieve, collectionLotsList, collectionLotsRetrieve, csrfRetrieve, decksDecksCreate, decksDecksDestroy, decksDecksList, decksDecksPartialUpdate, decksDecksRetrieve, decksDecksUpdate, decksMembershipsCreate, decksMembershipsDestroy, decksMembershipsList, healthRetrieve, importsBatchesCreate, importsBatchesList, importsBatchesRetrieve, importsRowsApproveCreate, importsRowsList, importsRowsOverrideCreate, importsRowsRejectCreate, importsRowsRetrieve, type Options, portfolioPortfoliosList, portfolioPortfoliosRetrieve, portfolioSnapshotsList, portfolioSnapshotsRetrieve, pricingSnapshotsLatestRetrieve, pricingSnapshotsList, pricingSnapshotsRetrieve, statusChecksRetrieve, statusOverviewRetrieve, valuationMoversList } from '../sdk.gen';
+import type { AlertsEventsListData, AlertsEventsListResponse, AlertsRulesCreateData, AlertsRulesCreateError, AlertsRulesCreateResponse, AlertsRulesListData, AlertsRulesListResponse, AuthLoginCreateData, AuthLoginCreateResponse, AuthLogoutCreateData, AuthMeRetrieveData, AuthMeRetrieveResponse, CardsCardsArchetypesRetrieveData, CardsCardsArchetypesRetrieveResponse, CardsCardsListData, CardsCardsListResponse, CardsCardsRetrieveData, CardsCardsRetrieveResponse, CardsPrintingsListData, CardsPrintingsListResponse, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponse, CollectionItemsListData, CollectionItemsListResponse, CollectionItemsRetrieveData, CollectionItemsRetrieveResponse, CollectionLotsListData, CollectionLotsListResponse, CollectionLotsRetrieveData, CollectionLotsRetrieveResponse, CsrfRetrieveData, DecksDecksCreateData, DecksDecksCreateError, DecksDecksCreateResponse, DecksDecksDestroyData, DecksDecksDestroyResponse, DecksDecksListData, DecksDecksListResponse, DecksDecksPartialUpdateData, DecksDecksPartialUpdateResponse, DecksDecksRetrieveData, DecksDecksRetrieveResponse, DecksDecksUpdateData, DecksDecksUpdateResponse, DecksMembershipsCreateData, DecksMembershipsCreateError, DecksMembershipsCreateResponse, DecksMembershipsDestroyData, DecksMembershipsDestroyResponse, DecksMembershipsListData, DecksMembershipsListResponse, HealthRetrieveData, ImportsBatchesCreateData, ImportsBatchesCreateError, ImportsBatchesCreateResponse, ImportsBatchesListData, ImportsBatchesListResponse, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponse, ImportsRowsApproveCreateData, ImportsRowsApproveCreateError, ImportsRowsApproveCreateResponse, ImportsRowsListData, ImportsRowsListResponse, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateError, ImportsRowsOverrideCreateResponse, ImportsRowsRejectCreateData, ImportsRowsRejectCreateError, ImportsRowsRejectCreateResponse, ImportsRowsRetrieveData, ImportsRowsRetrieveResponse, PortfolioPortfoliosListData, PortfolioPortfoliosListResponse, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponse, PortfolioSnapshotsListData, PortfolioSnapshotsListResponse, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponse, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveError, PricingSnapshotsLatestRetrieveResponse, PricingSnapshotsListData, PricingSnapshotsListResponse, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponse, StatusChecksRetrieveData, StatusChecksRetrieveResponse, StatusOverviewRetrieveData, StatusOverviewRetrieveResponse, ValuationMoversListData, ValuationMoversListResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -1478,6 +1478,57 @@ export const pricingSnapshotsLatestRetrieveOptions = (options: Options<PricingSn
         return data;
     },
     queryKey: pricingSnapshotsLatestRetrieveQueryKey(options)
+});
+
+export const statusChecksRetrieveQueryKey = (options?: Options<StatusChecksRetrieveData>) => createQueryKey('statusChecksRetrieve', options);
+
+/**
+ * Status dashboard — Healthchecks backup + CD checks
+ *
+ * Status dashboard — the Healthchecks tier (the flow's backup + CD dead-man nodes).
+ *
+ * Separate endpoint (not folded into overview) so a slow/down external provider
+ * degrades this tile alone and never blocks the live internal flow. The provider
+ * caches + fails closed to ``available: false`` (always 200, never 500). Optional:
+ * ``configured: false`` without a read-API key.
+ */
+export const statusChecksRetrieveOptions = (options?: Options<StatusChecksRetrieveData>) => queryOptions<StatusChecksRetrieveResponse, DefaultError, StatusChecksRetrieveResponse, ReturnType<typeof statusChecksRetrieveQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await statusChecksRetrieve({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: statusChecksRetrieveQueryKey(options)
+});
+
+export const statusOverviewRetrieveQueryKey = (options?: Options<StatusOverviewRetrieveData>) => createQueryKey('statusOverviewRetrieve', options);
+
+/**
+ * Status dashboard — internal pipeline + app health
+ *
+ * Status dashboard — the internal tier (the live pipeline flow + app state).
+ *
+ * Inherits the global ``IsAuthenticated``: the dashboard exposes operational internals
+ * (run history, catalog size, deployed commit), not public data. A single typed dict
+ * via ``@extend_schema`` (the ``HealthView`` shape), so the generated client gets a
+ * typed ``statusOverviewRetrieve``. Pure DB reads, NOT cached — the heart of the page
+ * must feel live; only the external provider tiers (Healthchecks/Hetzner) are cached.
+ */
+export const statusOverviewRetrieveOptions = (options?: Options<StatusOverviewRetrieveData>) => queryOptions<StatusOverviewRetrieveResponse, DefaultError, StatusOverviewRetrieveResponse, ReturnType<typeof statusOverviewRetrieveQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await statusOverviewRetrieve({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: statusOverviewRetrieveQueryKey(options)
 });
 
 export const valuationMoversListQueryKey = (options?: Options<ValuationMoversListData>) => createQueryKey('valuationMoversList', options);
