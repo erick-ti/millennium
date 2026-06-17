@@ -111,7 +111,7 @@ for _samesite_var, _samesite_value in (
 # Submitting to the HSTS preload list bakes the policy into browsers globally.
 #
 # LIVE TOPOLOGY NOTE (Hetzner self-host, 2026-06-16): the actual HSTS ramp is
-# implemented at the CADDY EDGE (infra/hetzner/edge/Caddyfile), NOT here. Django
+# implemented at the CADDY EDGE (infra/hetzner/edge/caddy/Caddyfile), NOT here. Django
 # sits behind the Next /api/* rewrite, which does not propagate X-Forwarded-Proto,
 # so request.is_secure() is False at the backend and SecurityMiddleware would emit
 # NOTHING even with SECONDS>0 — and Django only sees /api/*, never the HTML page

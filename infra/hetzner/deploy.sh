@@ -5,7 +5,11 @@
 #   - the migrate + createcachetable one-shot
 #   - the separate Caddy edge — WITH a config reload, because a change to the
 #     bind-mounted Caddyfile is NOT picked up by `up -d` (the mount spec is
-#     unchanged), so the running Caddy keeps its old config until reloaded
+#     unchanged), so the running Caddy keeps its old config until reloaded. The
+#     reload only WORKS because edge/docker-compose.yml mounts the caddy/ DIRECTORY
+#     (not the single file): `git reset --hard` replaces the Caddyfile inode, which
+#     a single-file mount would never see (it pins the original inode → reload says
+#     "config is unchanged"). See the mount comment in edge/docker-compose.yml.
 #   - the systemd units, which are COPIES in /etc/systemd/system untouched by
 #     `git pull`
 #

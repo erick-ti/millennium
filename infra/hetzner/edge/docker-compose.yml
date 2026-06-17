@@ -27,7 +27,17 @@ services:
       - "0.0.0.0:443:443"
       - "0.0.0.0:443:443/udp"   # HTTP/3 (QUIC)
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Mount the DIRECTORY, not the single Caddyfile. A single-file bind mount
+      # pins to the file's inode at container-create time, and `git reset --hard`
+      # (the CD poller's mechanism) REPLACES the Caddyfile with a new inode rather
+      # than editing in place — so the container would keep reading the original,
+      # stale inode forever and `caddy reload` would report "config is unchanged".
+      # A directory mount resolves `Caddyfile` by path on every open, so a
+      # git-replaced file is seen live and the zero-downtime reload in deploy.sh
+      # actually applies it. (Bit us 2026-06-17: HSTS shipped to the repo but the
+      # live edge kept its old config. Keep the caddy/ subdir mount — never revert
+      # to `./caddy/Caddyfile:/etc/caddy/Caddyfile`.)
+      - ./caddy:/etc/caddy:ro
       # Persist ACME account + issued certs so a restart does NOT re-request
       # from Let's Encrypt (which rate-limits issuance).
       - caddy_data:/data
