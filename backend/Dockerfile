@@ -24,6 +24,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 COPY . .
 
+# Deployed commit, baked at build time and surfaced by /api/status/ (the dashboard's
+# "what's live"). deploy.sh passes --build-arg GIT_SHA=$(git rev-parse --short HEAD);
+# CI/local builds pass nothing → "unknown" (base.py reads it with that safe default, so
+# collectstatic below — which runs prod settings — never fails on it). Placed after
+# `COPY . .` so a SHA change doesn't bust the deps layer beyond what the copy already does.
+ARG GIT_SHA=unknown
+ENV GIT_SHA=$GIT_SHA
+
 # collectstatic for prod (manifest storage). Inline placeholder env vars satisfy
 # prod settings' fail-closed validators; none of these reach a network call.
 RUN DJANGO_SETTINGS_MODULE=config.settings.prod \
