@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import io
+import json
 from collections.abc import Generator
 from datetime import timedelta
 from decimal import Decimal
@@ -10,6 +12,8 @@ import pytest
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import override_settings
 from django.utils import timezone
 from rest_framework import status
@@ -22,6 +26,7 @@ from apps.core.enums import Edition
 from apps.core.models import SyncKind, SyncRun, SyncStatus
 from apps.core.sync_history import record_run
 from apps.portfolio.models import Portfolio, PortfolioValueSnapshot
+from apps.status.models import HostMetricSample
 from apps.status.providers.healthchecks import _fetch_raw
 from apps.valuation.models import ValuationRun, ValuationStatus
 
@@ -469,3 +474,158 @@ def test_fetch_raw_raises_on_http_error(monkeypatch: pytest.MonkeyPatch) -> None
     _stub_httpx_get(monkeypatch, 404, {})
     with pytest.raises(httpx.HTTPStatusError):
         _fetch_raw("k")
+
+
+# --- Host-box infra tier (/api/status/infra/) --------------------------------
+
+INFRA = "/api/status/infra/"
+
+_SAMPLE_DEFAULTS: dict[str, Any] = {
+    "cpu_percent": 12.5,
+    "load_1m": 0.4,
+    "mem_used_mb": 1400,
+    "mem_total_mb": 7751,
+    "disk_used_gb": 21.0,
+    "disk_total_gb": 75.0,
+    "net_rx_bytes": 1_000_000,
+    "net_tx_bytes": 500_000,
+}
+
+
+def _make_sample(**overrides: Any) -> HostMetricSample:
+    return HostMetricSample.objects.create(**{**_SAMPLE_DEFAULTS, **overrides})
+
+
+def _backdate(sample: HostMetricSample, **delta: float) -> None:
+    # update() bypasses auto_now_add to set created_at to a known earlier time.
+    HostMetricSample.objects.filter(pk=sample.pk).update(
+        created_at=timezone.now() - timedelta(**delta)
+    )
+
+
+def test_infra_requires_authentication() -> None:
+    assert APIClient().get(INFRA).status_code == status.HTTP_403_FORBIDDEN
+
+
+@pytest.mark.django_db
+def test_infra_awaiting_when_no_samples(client: APIClient) -> None:
+    # No collector has run (dev / pre-deploy) → degraded, all-null, never a 500.
+    body = client.get(INFRA).json()
+    assert body["available"] is False
+    assert body["stale"] is False
+    assert body["sampled_at"] is None
+    assert body["cpu_percent"] is None
+    assert body["cpu_series"] == []
+
+
+@pytest.mark.django_db
+def test_infra_serves_latest_with_series(client: APIClient) -> None:
+    # Three samples; the endpoint serves the newest values + the CPU series oldest→newest.
+    _make_sample(cpu_percent=10.0)
+    _make_sample(cpu_percent=20.0)
+    _make_sample(cpu_percent=30.0)  # newest
+    body = client.get(INFRA).json()
+    assert body["available"] is True
+    assert body["stale"] is False
+    assert body["cpu_percent"] == 30.0  # the latest sample
+    assert body["mem_total_mb"] == 7751
+    assert body["cpu_series"] == [10.0, 20.0, 30.0]  # oldest → newest, left-to-right
+    assert body["sampled_at"] is not None
+
+
+@pytest.mark.django_db
+def test_infra_net_throughput_from_two_samples(client: APIClient) -> None:
+    prev = _make_sample(net_rx_bytes=0, net_tx_bytes=0)
+    _make_sample(net_rx_bytes=60_000, net_tx_bytes=7_500)  # +60000 rx / +7500 tx
+    _backdate(prev, seconds=60)  # 60s between the two samples
+    body = client.get(INFRA).json()
+    # 60000 bytes * 8 / 1000 / 60s = 8.0 kbit/s; 7500 * 8 / 1000 / 60 = 1.0
+    assert body["net_rx_kbps"] == 8.0
+    assert body["net_tx_kbps"] == 1.0
+
+
+@pytest.mark.django_db
+def test_infra_net_null_after_counter_reset(client: APIClient) -> None:
+    # A reboot resets the cumulative counter → latest < prev → no fabricated negative rate.
+    prev = _make_sample(net_rx_bytes=1_000_000)
+    _make_sample(net_rx_bytes=10)  # counter reset
+    _backdate(prev, seconds=60)
+    assert client.get(INFRA).json()["net_rx_kbps"] is None
+
+
+@pytest.mark.django_db
+def test_infra_stale_when_latest_is_old(client: APIClient) -> None:
+    # The only sample is past the freshness window → stale + not available, but the
+    # last-known values are still shown (the UI greys them), not nulled.
+    old = _make_sample(cpu_percent=42.0)
+    _backdate(old, minutes=30)
+    body = client.get(INFRA).json()
+    assert body["available"] is False
+    assert body["stale"] is True
+    assert body["cpu_percent"] == 42.0  # last-known, not nulled
+
+
+# --- record_host_metrics command --------------------------------------------
+
+_PAYLOAD: dict[str, Any] = {
+    "cpu_percent": 12.5,
+    "load_1m": 0.4,
+    "mem_used_mb": 1400,
+    "mem_total_mb": 7751,
+    "disk_used_gb": 21.0,
+    "disk_total_gb": 75.0,
+    "net_rx_bytes": 1000,
+    "net_tx_bytes": 2000,
+}
+
+
+def _run_command(monkeypatch: pytest.MonkeyPatch, payload: Any) -> None:
+    # The command reads sys.stdin (the host pipes JSON in); inject a StringIO for tests.
+    text = payload if isinstance(payload, str) else json.dumps(payload)
+    monkeypatch.setattr("sys.stdin", io.StringIO(text))
+    call_command("record_host_metrics")
+
+
+@pytest.mark.django_db
+def test_record_host_metrics_creates_sample(monkeypatch: pytest.MonkeyPatch) -> None:
+    _run_command(monkeypatch, _PAYLOAD)
+    sample = HostMetricSample.objects.get()
+    assert sample.cpu_percent == 12.5
+    assert sample.mem_total_mb == 7751
+    assert sample.net_tx_bytes == 2000
+
+
+@pytest.mark.django_db
+def test_record_host_metrics_rejects_missing_field(monkeypatch: pytest.MonkeyPatch) -> None:
+    bad = {k: v for k, v in _PAYLOAD.items() if k != "disk_used_gb"}
+    with pytest.raises(CommandError, match="missing field: disk_used_gb"):
+        _run_command(monkeypatch, bad)
+    assert HostMetricSample.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_record_host_metrics_rejects_out_of_range_cpu(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with pytest.raises(CommandError, match="cpu_percent out of range"):
+        _run_command(monkeypatch, {**_PAYLOAD, "cpu_percent": 250.0})
+    assert HostMetricSample.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_record_host_metrics_rejects_non_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    with pytest.raises(CommandError, match="invalid JSON"):
+        _run_command(monkeypatch, "not json at all")
+    assert HostMetricSample.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_record_host_metrics_prunes_old_samples(monkeypatch: pytest.MonkeyPatch) -> None:
+    stale = _make_sample()
+    _backdate(stale, days=8)  # older than the 7-day retention window
+    fresh = _make_sample()
+    _run_command(monkeypatch, _PAYLOAD)  # writes a new sample AND prunes
+    ids = set(HostMetricSample.objects.values_list("pk", flat=True))
+    assert stale.pk not in ids  # pruned
+    assert fresh.pk in ids  # kept
+    assert HostMetricSample.objects.count() == 2  # fresh + the just-recorded one

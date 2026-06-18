@@ -1,0 +1,16 @@
+[Unit]
+Description=Millennium — sample host metrics every 2 minutes
+
+[Timer]
+# A continuous sampler, unlike the once-a-day sync timers: every 2 min, first run 2 min
+# after boot. Persistent=false — these are point-in-time samples, so a tick missed
+# during downtime must NOT be backfilled (it would stamp a stale 'now'). The dashboard
+# tolerates gaps: past a 15-min staleness window the infra tile degrades to "awaiting
+# host metrics" rather than charting a frozen value.
+OnBootSec=2min
+OnUnitActiveSec=2min
+Persistent=false
+Unit=millennium-host-metrics.service
+
+[Install]
+WantedBy=timers.target

@@ -5,8 +5,10 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   type RecentRun,
   statusChecksRetrieveOptions,
+  statusInfraRetrieveOptions,
   statusOverviewRetrieveOptions,
 } from "@/lib/api";
+import { InfraTile } from "@/components/status/infra-tile";
 import { PipelineFlow } from "@/components/status/pipeline-flow";
 import { MetricRow, StatusTile } from "@/components/status/status-tile";
 import { QueryErrorState } from "@/components/ui/query-error-state";
@@ -19,6 +21,10 @@ const LOCALE = "en-US";
 // polls at that cadence. The *Options spread merges these extra useQuery options.
 const REFETCH_MS = 20_000;
 const CHECKS_REFETCH_MS = 60_000;
+// The infra tier is an internal DB read (uncached) like overview, but the host sampler
+// only writes every ~2 min, so polling every 30s catches a new sample promptly without
+// hammering for unchanged data.
+const INFRA_REFETCH_MS = 30_000;
 
 const RUN_KIND_LABELS: Record<string, string> = {
   ygoprodeck_metadata: "Metadata",
@@ -97,6 +103,15 @@ export default function StatusPage() {
     placeholderData: keepPreviousData,
   });
 
+  // The host-box tier loads INDEPENDENTLY too — it degrades to "awaiting host metrics"
+  // on its own (no sampler yet / a stale sample) without touching the live flow.
+  const infraQuery = useQuery({
+    ...statusInfraRetrieveOptions(),
+    refetchInterval: INFRA_REFETCH_MS,
+    refetchOnWindowFocus: true,
+    placeholderData: keepPreviousData,
+  });
+
   // Keep the last-good dashboard on a transient poll failure (a single failed
   // refetch must not blank a live dashboard); only the FIRST load shows the error
   // panel. `query.data` survives a failed refetch, so `overview` stays populated.
@@ -151,7 +166,7 @@ export default function StatusPage() {
               checksError={checksQuery.isError && checksQuery.data === undefined}
             />
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatusTile title="Catalog">
                 <dl className="space-y-0.5">
                   <MetricRow label="Cards">
@@ -215,6 +230,11 @@ export default function StatusPage() {
                   </MetricRow>
                 </dl>
               </StatusTile>
+
+              <InfraTile
+                infra={infraQuery.data}
+                error={infraQuery.isError && infraQuery.data === undefined}
+              />
             </div>
 
             <RecentRuns runs={overview.recent_runs} />

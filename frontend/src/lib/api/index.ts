@@ -90,6 +90,7 @@ export {
   pricingSnapshotsList,
   pricingSnapshotsRetrieve,
   statusChecksRetrieve,
+  statusInfraRetrieve,
   statusOverviewRetrieve,
   valuationMoversList,
 } from "./generated/sdk.gen";
@@ -165,6 +166,8 @@ export {
   type QueryKey,
   statusChecksRetrieveOptions,
   statusChecksRetrieveQueryKey,
+  statusInfraRetrieveOptions,
+  statusInfraRetrieveQueryKey,
   statusOverviewRetrieveOptions,
   statusOverviewRetrieveQueryKey,
   valuationMoversListOptions,

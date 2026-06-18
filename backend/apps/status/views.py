@@ -5,9 +5,13 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.status.collectors import build_overview
+from apps.status.collectors import build_infra_status, build_overview
 from apps.status.providers.healthchecks import build_checks_status
-from apps.status.serializers import ChecksStatusSerializer, StatusOverviewSerializer
+from apps.status.serializers import (
+    ChecksStatusSerializer,
+    InfraStatusSerializer,
+    StatusOverviewSerializer,
+)
 
 
 class StatusOverviewView(APIView):
@@ -41,3 +45,19 @@ class ChecksStatusView(APIView):
     )
     def get(self, request: Request) -> Response:
         return Response(ChecksStatusSerializer(build_checks_status()).data)
+
+
+class InfraStatusView(APIView):
+    """Status dashboard — the host-box tier (CPU/mem/disk/load + a CPU sparkline).
+
+    Internal like overview: it reads the ``HostMetricSample`` rows the host collector
+    writes, NOT an external API or a host call (the container can't read host /proc), so
+    it's uncached + near-live. Degrades to ``available: false`` ("awaiting host
+    metrics") when no collector has run."""
+
+    @extend_schema(
+        summary="Status dashboard — host box metrics",
+        responses={200: InfraStatusSerializer},
+    )
+    def get(self, request: Request) -> Response:
+        return Response(InfraStatusSerializer(build_infra_status()).data)
