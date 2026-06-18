@@ -82,6 +82,29 @@ class ChecksStatusSerializer(serializers.Serializer[dict[str, Any]]):
     cd = CheckRowSerializer(allow_null=True)
 
 
+class InfraStatusSerializer(serializers.Serializer[dict[str, Any]]):
+    """The host-box tier — CPU/mem/disk/load + a CPU sparkline, from the samples the
+    host collector writes (NOT a host call — the container can't read host /proc). No
+    external token, so no ``configured`` flag: ``available`` is whether a RECENT sample
+    exists, ``stale`` whether the latest is past the freshness window. Every value is
+    nullable — the no-sample state (dev, or before the first timer tick) returns
+    all-null, which the tile renders as "awaiting host metrics" (a plain Serializer
+    doesn't auto-detect nullability, so each ``allow_null`` is set by hand)."""
+
+    available = serializers.BooleanField()
+    stale = serializers.BooleanField()
+    sampled_at = serializers.DateTimeField(allow_null=True)
+    cpu_percent = serializers.FloatField(allow_null=True)
+    load_1m = serializers.FloatField(allow_null=True)
+    mem_used_mb = serializers.IntegerField(allow_null=True)
+    mem_total_mb = serializers.IntegerField(allow_null=True)
+    disk_used_gb = serializers.FloatField(allow_null=True)
+    disk_total_gb = serializers.FloatField(allow_null=True)
+    net_rx_kbps = serializers.FloatField(allow_null=True)
+    net_tx_kbps = serializers.FloatField(allow_null=True)
+    cpu_series = serializers.ListField(child=serializers.FloatField())
+
+
 class StatusOverviewSerializer(serializers.Serializer[dict[str, Any]]):
     """The internal status tier — app meta + the ordered pipeline-flow stages + catalog
     cardinality + latest valuation + recent run history. A computed aggregate (no model),

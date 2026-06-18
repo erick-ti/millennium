@@ -1964,6 +1964,33 @@
                 }
             }
         },
+        "/api/status/infra/": {
+            "get": {
+                "operationId": "status_infra_retrieve",
+                "description": "Status dashboard — the host-box tier (CPU/mem/disk/load + a CPU sparkline).\n\nInternal like overview: it reads the ``HostMetricSample`` rows the host collector\nwrites, NOT an external API or a host call (the container can't read host /proc), so\nit's uncached + near-live. Degrades to ``available: false`` (\"awaiting host\nmetrics\") when no collector has run.",
+                "summary": "Status dashboard — host box metrics",
+                "tags": [
+                    "status"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InfraStatus"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/status/overview/": {
             "get": {
                 "operationId": "status_overview_retrieve",
@@ -3055,6 +3082,82 @@
                 },
                 "required": [
                     "file"
+                ]
+            },
+            "InfraStatus": {
+                "type": "object",
+                "description": "The host-box tier — CPU/mem/disk/load + a CPU sparkline, from the samples the\nhost collector writes (NOT a host call — the container can't read host /proc). No\nexternal token, so no ``configured`` flag: ``available`` is whether a RECENT sample\nexists, ``stale`` whether the latest is past the freshness window. Every value is\nnullable — the no-sample state (dev, or before the first timer tick) returns\nall-null, which the tile renders as \"awaiting host metrics\" (a plain Serializer\ndoesn't auto-detect nullability, so each ``allow_null`` is set by hand).",
+                "properties": {
+                    "available": {
+                        "type": "boolean"
+                    },
+                    "stale": {
+                        "type": "boolean"
+                    },
+                    "sampled_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "cpu_percent": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "load_1m": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "mem_used_mb": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "mem_total_mb": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "disk_used_gb": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "disk_total_gb": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "net_rx_kbps": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "net_tx_kbps": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "cpu_series": {
+                        "type": "array",
+                        "items": {
+                            "type": "number",
+                            "format": "double"
+                        }
+                    }
+                },
+                "required": [
+                    "available",
+                    "cpu_percent",
+                    "cpu_series",
+                    "disk_total_gb",
+                    "disk_used_gb",
+                    "load_1m",
+                    "mem_total_mb",
+                    "mem_used_mb",
+                    "net_rx_kbps",
+                    "net_tx_kbps",
+                    "sampled_at",
+                    "stale"
                 ]
             },
             "LanguageEnum": {

@@ -93,6 +93,13 @@ docker compose -f edge/docker-compose.yml exec -T caddy \
 # Needs root: the runbook grants `millennium` a NOPASSWD sudoers drop-in scoped to
 # cp + systemctl (it's --disabled-password, so passworded sudo can't work; and the
 # docker group already makes it root-equivalent, so this is no new boundary).
+#
+# ROLLBACK CAVEAT: this only ADDS/updates units — it never disables or removes a unit
+# that disappeared from the repo. So a `git revert` of a feature that added a timer
+# leaves that timer enabled in /etc/systemd/system, firing against a now-missing
+# ExecStart (a zombie failed unit). When a revert removes a unit file, ALSO run
+# `sudo systemctl disable --now <unit>` on the box. (TODO: a unit-retirement pass here
+# would automate this for all units, not just the host-metrics timer.)
 echo "deploy: sync systemd units (sudo)"
 sudo cp systemd/millennium-* /etc/systemd/system/
 sudo systemctl daemon-reload
@@ -102,6 +109,8 @@ _timers=(
     millennium-value-portfolios.timer
     millennium-run-alerts.timer
     millennium-backup.timer
+    # Continuous host-metrics sampler (every 2 min) feeding the /status infra tile.
+    millennium-host-metrics.timer
     # Pull-based CD poller. Restarting its .timer here is safe even when THIS
     # deploy was triggered by it: restarting the timer unit does not signal the
     # running oneshot service (deploy_poll.sh keeps its flock and finishes). The

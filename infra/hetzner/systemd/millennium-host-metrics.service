@@ -1,0 +1,23 @@
+# Host load sampler for Millennium's /status dashboard. Reads the box's CPU / memory /
+# disk / load / network on the HOST (the backend container is isolated from host /proc
+# and the host disk) and pipes one JSON sample into a one-off backend container (run
+# --rm, NOT exec into the mem-capped live backend), which persists it as a
+# HostMetricSample. The dashboard's infra tile then serves the latest
+# sample + a short trailing series. No external token, no Hetzner Cloud API — just the
+# box reading itself, the same timer→Postgres→backend pattern as the nightly syncs.
+#
+# Install: copied to /etc/systemd/system/ by deploy.sh's systemd sync; armed via the
+# millennium-host-metrics.timer entry in deploy.sh's _timers array.
+
+[Unit]
+Description=Millennium — host metrics sample (CPU/mem/disk/load -> Postgres)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=millennium
+WorkingDirectory=/home/millennium/millennium/infra/hetzner
+ExecStart=/home/millennium/millennium/infra/hetzner/record_host_metrics.sh
+# The collector sleeps ~0.3s for the CPU delta plus a docker exec; 60s is ample.
+TimeoutStartSec=60

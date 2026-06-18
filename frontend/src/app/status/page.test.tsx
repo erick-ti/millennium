@@ -4,12 +4,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   ChecksStatus,
+  InfraStatus,
   PipelineStage,
   RecentRun,
   StatusOverview,
 } from "@/lib/api";
 import {
   statusChecksRetrieveOptions,
+  statusInfraRetrieveOptions,
   statusOverviewRetrieveOptions,
 } from "@/lib/api";
 
@@ -18,10 +20,12 @@ import StatusPage from "./page";
 vi.mock("@/lib/api", () => ({
   statusOverviewRetrieveOptions: vi.fn(),
   statusChecksRetrieveOptions: vi.fn(),
+  statusInfraRetrieveOptions: vi.fn(),
 }));
 
 const overviewOptions = vi.mocked(statusOverviewRetrieveOptions);
 const checksOptions = vi.mocked(statusChecksRetrieveOptions);
+const infraOptions = vi.mocked(statusInfraRetrieveOptions);
 
 function makeStage(overrides: Partial<PipelineStage> = {}): PipelineStage {
   return {
@@ -136,6 +140,33 @@ function stubChecks(impl: () => ChecksStatus) {
   );
 }
 
+function awaitingInfra(): InfraStatus {
+  return {
+    available: false,
+    stale: false,
+    sampled_at: null,
+    cpu_percent: null,
+    load_1m: null,
+    mem_used_mb: null,
+    mem_total_mb: null,
+    disk_used_gb: null,
+    disk_total_gb: null,
+    net_rx_kbps: null,
+    net_tx_kbps: null,
+    cpu_series: [],
+  };
+}
+
+function stubInfra(impl: () => InfraStatus) {
+  infraOptions.mockImplementation(
+    () =>
+      ({
+        queryKey: [{ _id: "statusInfraRetrieve" }],
+        queryFn: async () => impl(),
+      }) as unknown as ReturnType<typeof statusInfraRetrieveOptions>,
+  );
+}
+
 function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -164,6 +195,9 @@ beforeEach(() => {
   // Default: the Healthchecks tier is unconfigured, so the backup/CD flow nodes render
   // grey. Tests exercising the lit-up / unavailable paths override with stubChecks().
   stubChecks(() => notConfiguredChecks());
+  // Default: no host sampler has run, so the infra tile shows "awaiting host metrics".
+  // The one host-metrics test overrides with a fresh sample via stubInfra().
+  stubInfra(() => awaitingInfra());
 });
 
 describe("StatusPage", () => {
@@ -269,6 +303,52 @@ describe("StatusPage", () => {
     expect(await screen.findByText("abc1234")).toBeInTheDocument();
     expect(screen.getByText("prod")).toBeInTheDocument();
     expect(screen.getByText("5h 16m")).toBeInTheDocument();
+  });
+
+  it("renders the host box tile from infra metrics", async () => {
+    stubOverview(() => makeOverview());
+    stubInfra(() => ({
+      available: true,
+      stale: false,
+      sampled_at: "2026-06-18T04:30:00Z",
+      cpu_percent: 11,
+      load_1m: 0.12,
+      mem_used_mb: 1411,
+      mem_total_mb: 7751,
+      disk_used_gb: 20.17,
+      disk_total_gb: 74.78,
+      net_rx_kbps: 8,
+      net_tx_kbps: 1,
+      cpu_series: [10, 12, 11, 13, 11],
+    }));
+    renderPage();
+
+    expect(await screen.findByText("Host box")).toBeInTheDocument();
+    expect(screen.getByText("11%")).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: /CPU over the last hour/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("degrades the host box tile to 'awaiting' with no sampler", async () => {
+    stubOverview(() => makeOverview()); // beforeEach already stubs awaitingInfra()
+    renderPage();
+
+    expect(await screen.findByText("Host box")).toBeInTheDocument();
+    expect(screen.getByText("Awaiting host metrics.")).toBeInTheDocument();
+  });
+
+  it("surfaces an infra-query failure as 'unavailable', NOT a green-washed 'awaiting'", async () => {
+    stubOverview(() => makeOverview());
+    stubInfra(() => {
+      throw new Error("infra 500");
+    });
+    renderPage();
+
+    expect(await screen.findByText("Host metrics unavailable.")).toBeInTheDocument();
+    expect(screen.queryByText("Awaiting host metrics.")).not.toBeInTheDocument();
+    // the rest of the dashboard is unaffected by the isolated infra failure
+    expect(screen.getByText("Owned holdings")).toBeInTheDocument();
   });
 
   it("lists recent sync runs newest first", async () => {

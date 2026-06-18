@@ -437,6 +437,30 @@ export type ImportUploadRequest = {
 };
 
 /**
+ * The host-box tier — CPU/mem/disk/load + a CPU sparkline, from the samples the
+ * host collector writes (NOT a host call — the container can't read host /proc). No
+ * external token, so no ``configured`` flag: ``available`` is whether a RECENT sample
+ * exists, ``stale`` whether the latest is past the freshness window. Every value is
+ * nullable — the no-sample state (dev, or before the first timer tick) returns
+ * all-null, which the tile renders as "awaiting host metrics" (a plain Serializer
+ * doesn't auto-detect nullability, so each ``allow_null`` is set by hand).
+ */
+export type InfraStatus = {
+    available: boolean;
+    stale: boolean;
+    sampled_at: string | null;
+    cpu_percent: number | null;
+    load_1m: number | null;
+    mem_used_mb: number | null;
+    mem_total_mb: number | null;
+    disk_used_gb: number | null;
+    disk_total_gb: number | null;
+    net_rx_kbps: number | null;
+    net_tx_kbps: number | null;
+    cpu_series: Array<number>;
+};
+
+/**
  * * `en` - English
  * * `fr` - French
  * * `de` - German
@@ -2052,6 +2076,19 @@ export type StatusChecksRetrieveResponses = {
 };
 
 export type StatusChecksRetrieveResponse = StatusChecksRetrieveResponses[keyof StatusChecksRetrieveResponses];
+
+export type StatusInfraRetrieveData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/status/infra/';
+};
+
+export type StatusInfraRetrieveResponses = {
+    200: InfraStatus;
+};
+
+export type StatusInfraRetrieveResponse = StatusInfraRetrieveResponses[keyof StatusInfraRetrieveResponses];
 
 export type StatusOverviewRetrieveData = {
     body?: never;

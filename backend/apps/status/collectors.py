@@ -11,7 +11,7 @@ read host ``systemctl``/``docker`` anyway).
 from __future__ import annotations
 
 import time
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -27,6 +27,7 @@ from apps.core.models import SyncKind, SyncRun
 from apps.core.sync_history import last_successful_count
 from apps.portfolio.models import Portfolio, PortfolioValueSnapshot
 from apps.pricing.models import PriceSnapshot
+from apps.status.models import HostMetricSample
 from apps.valuation.models import ValuationRun
 
 # Captured once per worker at import — uptime is per-worker (WEB_CONCURRENCY starts N
@@ -238,4 +239,85 @@ def build_overview() -> dict[str, Any]:
         "catalog": _catalog(),
         "valuation": _latest_valuation(),
         "recent_runs": _recent_runs(),
+    }
+
+
+# --- Host-box (infra) tier ---------------------------------------------------
+# The samples are written by the host-side collector (the container can't read host
+# /proc/disk), so this is still a pure DB read — internal, uncached, like the overview.
+
+# Beyond this gap the host collector isn't running (dev, pre-deploy, or a stopped
+# timer); the tile degrades to "awaiting host metrics" rather than charting a frozen
+# value. The timer samples every ~2 min, so 15 min tolerates a few missed ticks.
+_INFRA_STALE_AFTER = timedelta(minutes=15)
+_INFRA_SERIES_LIMIT = 60  # ~2h of 2-min samples for the sparkline
+# Past this gap between the two newest samples, their counter delta no longer means a
+# CURRENT throughput (a missed tick, or the timer being restarted on a deploy) — report
+# no rate rather than a long-window average smeared across the gap. 2x the 120s cadence.
+_NET_RATE_MAX_GAP_SECONDS = 240.0
+
+_INFRA_EMPTY: dict[str, Any] = {
+    "available": False,
+    "stale": False,
+    "sampled_at": None,
+    "cpu_percent": None,
+    "load_1m": None,
+    "mem_used_mb": None,
+    "mem_total_mb": None,
+    "disk_used_gb": None,
+    "disk_total_gb": None,
+    "net_rx_kbps": None,
+    "net_tx_kbps": None,
+    "cpu_series": [],
+}
+
+
+def _net_throughput(recent: list[HostMetricSample]) -> dict[str, float | None]:
+    """Throughput in kbit/s from the delta between the two newest samples (the stored
+    counters are cumulative since boot). Null on the first sample or after a reboot (a
+    counter that went backwards) — never a negative or fabricated rate."""
+    if len(recent) < 2:
+        return {"net_rx_kbps": None, "net_tx_kbps": None}
+    latest, prev = recent[0], recent[1]
+    seconds = (latest.created_at - prev.created_at).total_seconds()
+    rx = latest.net_rx_bytes - prev.net_rx_bytes
+    tx = latest.net_tx_bytes - prev.net_tx_bytes
+    # seconds<=0: clock skew. >max gap: stale pairing (see the constant). rx/tx<0: a
+    # counter reset across a reboot. Any of these → no meaningful current rate.
+    if seconds <= 0 or seconds > _NET_RATE_MAX_GAP_SECONDS or rx < 0 or tx < 0:
+        return {"net_rx_kbps": None, "net_tx_kbps": None}
+    return {
+        "net_rx_kbps": round(rx * 8 / 1000 / seconds, 2),
+        "net_tx_kbps": round(tx * 8 / 1000 / seconds, 2),
+    }
+
+
+def build_infra_status() -> dict[str, Any]:
+    """The host-box tier — CPU/mem/disk/load + a CPU sparkline, from the samples the
+    host collector writes. No external token/env to configure, so there is no
+    ``configured`` flag — only ``available`` (a RECENT sample exists) and ``stale`` (the
+    latest is past the freshness window). All-null when no collector has run (dev, or
+    before the first timer tick) → the tile shows "awaiting host metrics"."""
+    # The (-created_at, -id) tiebreaker is the codebase convention for a deterministic
+    # "latest" (co-timestamped auto_now_add rows would otherwise sort arbitrarily).
+    recent = list(
+        HostMetricSample.objects.order_by("-created_at", "-id")[:_INFRA_SERIES_LIMIT]
+    )
+    if not recent:
+        return dict(_INFRA_EMPTY)
+    latest = recent[0]
+    stale = timezone.now() - latest.created_at > _INFRA_STALE_AFTER
+    return {
+        "available": not stale,
+        "stale": stale,
+        "sampled_at": latest.created_at,
+        "cpu_percent": latest.cpu_percent,
+        "load_1m": latest.load_1m,
+        "mem_used_mb": latest.mem_used_mb,
+        "mem_total_mb": latest.mem_total_mb,
+        "disk_used_gb": latest.disk_used_gb,
+        "disk_total_gb": latest.disk_total_gb,
+        **_net_throughput(recent),
+        # oldest→newest so the sparkline reads left-to-right in time.
+        "cpu_series": [s.cpu_percent for s in reversed(recent)],
     }
