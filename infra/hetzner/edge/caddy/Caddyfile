@@ -24,13 +24,14 @@ millennium.erickti.com {
 	#
 	# RAMP (never jump straight to a year on an unproven host: a long max-age pins
 	# browsers to HTTPS and recovery means waiting out the timer):
-	#   max-age=86400 (1 day — HERE NOW) → 31536000 (1 year) after a clean ~24h soak.
+	#   max-age=86400 (1 day) → 31536000 (1 year — HERE NOW, ramped 2026-06-18
+	#   after a clean ~24h soak at 1 day with HTTPS serving cleanly).
 	# includeSubDomains scopes to *.millennium.erickti.com (none exist today) — correct
 	# and harmless, and it does NOT touch the apex erickti.com or any co-tenant host.
 	# Deliberately NO `preload`: near-irreversible (months to delist) and the preload
 	# list targets registrable domains, not a personal subdomain. Verified safe to set
 	# here on 2026-06-16 — HTTPS has served cleanly via Let's Encrypt since 2026-06-15.
-	header Strict-Transport-Security "max-age=86400; includeSubDomains"
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
 
 	# Reach the Millennium frontend over the shared `edge_net` network by its
 	# stable alias (set in infra/hetzner/docker-compose.yml). The frontend's
