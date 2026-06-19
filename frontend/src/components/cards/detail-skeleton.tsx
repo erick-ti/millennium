@@ -15,10 +15,14 @@ export function DetailSkeleton({ label = "card" }: { label?: string } = {}) {
       aria-label={`Loading ${label}`}
     >
       <span className="sr-only">{`Loading ${label}…`}</span>
-      <div className="h-8 w-72 animate-pulse rounded bg-muted" />
-      <div className="mt-3 h-4 w-40 animate-pulse rounded bg-muted" />
-      <div className="mt-8 h-48 animate-pulse rounded-lg border border-border bg-muted/20" />
-      <div className="mt-8 h-72 animate-pulse rounded-lg border border-border bg-muted/20" />
+      {/* Masthead echo: kicker · Fraunces title · subtitle, then the gold rule —
+          the loading shell hints at the crafted PageHeader it resolves into. */}
+      <div className="h-3 w-24 animate-pulse rounded bg-gold-900/20" />
+      <div className="mt-3 h-9 w-72 animate-pulse rounded bg-gold-900/15" />
+      <div className="mt-3 h-4 w-44 animate-pulse rounded bg-gold-900/10" />
+      <hr className="gold-rule mt-6" />
+      <div className="vitrine mt-8 h-48 animate-pulse rounded-lg" />
+      <div className="vitrine mt-8 h-72 animate-pulse rounded-lg" />
     </div>
   );
 }

@@ -19,14 +19,14 @@ export function TableSkeleton({
       aria-label={label}
       className="overflow-hidden rounded-lg border border-border"
     >
-      <div className="h-10 border-b border-border bg-muted/30" />
+      <div className="h-10 border-b border-border bg-gold-900/10" />
       <div className="divide-y divide-border">
         {Array.from({ length: 8 }).map((_, rowIndex) => (
           <div key={rowIndex} className="flex gap-3 px-3 py-2.5">
             {Array.from({ length: columnCount }).map((_, cellIndex) => (
               <div
                 key={cellIndex}
-                className="h-4 flex-1 animate-pulse rounded bg-muted"
+                className="h-4 flex-1 animate-pulse rounded bg-gold-900/15"
               />
             ))}
           </div>
