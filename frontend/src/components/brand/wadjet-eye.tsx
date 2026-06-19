@@ -17,13 +17,19 @@ export function WadjetEye({
   animate = false,
   live = false,
   title,
+  irisColor,
 }: {
   className?: string;
   animate?: boolean;
   /** When true, the appraisal-dial ticks slowly rotate ("scanning" the live catalog). */
   live?: boolean;
   title?: string;
+  /** Override the iris coin-dot + glow colour (the /status sentinel ties it to the
+   * rollup severity). Omitted on the landing → the original gold gradient, unchanged. */
+  irisColor?: string;
 }) {
+  const irisGid = irisColor ? `wadjet-iris-${irisColor.replace(/[^a-z0-9]/gi, "")}` : "wadjet-iris";
+  const irisDot = irisColor ?? "#e6c063";
   const draw = (variant?: "2" | "3") =>
     animate
       ? cn(
@@ -47,10 +53,20 @@ export function WadjetEye({
     >
       {title ? <title>{title}</title> : null}
       <defs>
-        <radialGradient id="wadjet-iris" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#f0d98a" stopOpacity="0.95" />
-          <stop offset="55%" stopColor="#c8a24a" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#c8a24a" stopOpacity="0" />
+        <radialGradient id={irisGid} cx="50%" cy="50%" r="50%">
+          {irisColor ? (
+            <>
+              <stop offset="0%" stopColor={irisColor} stopOpacity="0.95" />
+              <stop offset="55%" stopColor={irisColor} stopOpacity="0.4" />
+              <stop offset="100%" stopColor={irisColor} stopOpacity="0" />
+            </>
+          ) : (
+            <>
+              <stop offset="0%" stopColor="#f0d98a" stopOpacity="0.95" />
+              <stop offset="55%" stopColor="#c8a24a" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#c8a24a" stopOpacity="0" />
+            </>
+          )}
         </radialGradient>
       </defs>
 
@@ -60,7 +76,7 @@ export function WadjetEye({
         cx="100"
         cy="70"
         r="30"
-        fill="url(#wadjet-iris)"
+        fill={`url(#${irisGid})`}
         stroke="none"
       />
 
@@ -100,7 +116,7 @@ export function WadjetEye({
       {/* iris ring */}
       <circle cx="100" cy="70" r="15" fill="none" strokeWidth={3} pathLength={1} className={draw("3")} />
       {/* coin-dot pupil — the price / status dot (pulses) */}
-      <circle className="iris-glow" cx="100" cy="70" r="5.5" fill="#e6c063" stroke="none" />
+      <circle className="iris-glow" cx="100" cy="70" r="5.5" fill={irisDot} stroke="none" />
     </svg>
   );
 }
