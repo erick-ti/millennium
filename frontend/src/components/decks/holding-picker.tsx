@@ -103,17 +103,19 @@ export function HoldingPicker({
   const hasMoreMatches = Boolean(holdingsQuery.data?.next);
 
   return (
-    <div className="rounded-lg border border-border p-4">
+    <div className="vitrine rounded-lg p-5">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-medium">Add a holding to this deck</h3>
+        <h3 className="font-terminal text-xs uppercase tracking-[0.16em] text-gold-700">
+          Add a holding to this deck
+        </h3>
         <Button size="xs" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
           Cancel
         </Button>
       </div>
 
-      <div className="mt-3">
+      <div className="mt-4">
         <label className="flex flex-col gap-1 text-sm">
-          <span className="text-muted-foreground">Search your collection by card name</span>
+          <span className="text-bone-muted">Search your collection by card name</span>
           <input
             ref={searchRef}
             type="search"
@@ -127,13 +129,13 @@ export function HoldingPicker({
 
         <div className="mt-3">
           {!searchEnabled ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-bone-muted">
               Type at least 2 characters to search your collection.
             </p>
           ) : holdingsQuery.isPending ? (
-            <p className="text-sm text-muted-foreground">Searching…</p>
+            <p className="text-sm text-bone-muted">Searching…</p>
           ) : holdingsQuery.isError ? (
-            <p className="text-sm text-destructive">
+            <p className="text-sm text-loss">
               Couldn&apos;t search your collection.{" "}
               <button
                 type="button"
@@ -145,7 +147,7 @@ export function HoldingPicker({
             </p>
           ) : holdings.length === 0 ? (
             // No matches, OR page 1 matched only zero-copy holdings (filtered out).
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-bone-muted">
               No held copies match that name.
             </p>
           ) : (
@@ -157,15 +159,15 @@ export function HoldingPicker({
                       type="button"
                       disabled={isSubmitting}
                       onClick={() => onSelect(item)}
-                      className="flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50"
+                      className="flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm transition-colors hover:bg-gold-700/[0.06] disabled:opacity-50"
                     >
-                      <span className="font-medium text-foreground">
+                      <span className="font-medium text-bone">
                         {item.card_name}
-                        <span className="ml-2 text-xs font-normal text-muted-foreground tabular-nums">
+                        <span className="ml-2 font-terminal text-xs font-normal text-bone-muted nums-terminal">
                           {item.quantity}×
                         </span>
                       </span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-bone-muted">
                         {holdingDescriptor(item)}
                       </span>
                     </button>
@@ -173,7 +175,7 @@ export function HoldingPicker({
                 ))}
               </ul>
               {hasMoreMatches ? (
-                <p className="mt-2 text-xs text-muted-foreground">
+                <p className="mt-2 text-xs text-bone-muted">
                   Showing the first 100 matches. Refine your search to narrow the list.
                 </p>
               ) : null}

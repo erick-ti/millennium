@@ -41,15 +41,16 @@ describe("PortfolioMetrics", () => {
     expect(screen.getByText("$1,240.50")).toBeInTheDocument();
     expect(screen.getByText("$1,054.40")).toBeInTheDocument();
     expect(screen.getByText("$980.00")).toBeInTheDocument();
-    // Signed value + up-arrow direction marker for a gain.
-    expect(screen.getByText(/\+\$260\.50\s*▲/)).toBeInTheDocument();
+    // Up-arrow direction marker + signed value for a gain (glyph-first, the
+    // Vault delta convention).
+    expect(screen.getByText(/▲\s*\+\$260\.50/)).toBeInTheDocument();
     expect(screen.getByText(/15\/15 priced/)).toBeInTheDocument();
   });
 
   it("renders a negative gain (a real loss) when complete", () => {
     render(<PortfolioMetrics snapshot={makeSnapshot({ unrealized_gain: "-30.00" })} />);
-    // Signed value + down-arrow direction marker for a loss.
-    expect(screen.getByText(/-\$30\.00\s*▼/)).toBeInTheDocument();
+    // Down-arrow direction marker + signed value for a loss (glyph-first).
+    expect(screen.getByText(/▼\s*-\$30\.00/)).toBeInTheDocument();
   });
 
   it("shows 'partial coverage' for a NULL gain instead of $0", () => {

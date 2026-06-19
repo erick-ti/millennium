@@ -15,6 +15,8 @@ import {
   importsBatchesListQueryKey,
 } from "@/lib/api";
 import { DataTable } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
@@ -33,7 +35,7 @@ const columns: Array<ColumnDef<ImportBatch>> = [
     cell: ({ row }) => (
       <Link
         href={`/imports/${row.original.id}`}
-        className="font-medium text-foreground underline-offset-4 hover:underline"
+        className="font-medium text-gold-300 underline-offset-4 transition-colors hover:text-gold-500 hover:underline"
       >
         {row.original.original_filename}
       </Link>
@@ -48,7 +50,9 @@ const columns: Array<ColumnDef<ImportBatch>> = [
     accessorKey: "rows_total",
     header: () => <div className="text-right">Rows</div>,
     cell: ({ row }) => (
-      <div className="text-right tabular-nums">{row.original.rows_total}</div>
+      <div className="text-right nums-terminal text-bone">
+        {row.original.rows_total}
+      </div>
     ),
   },
   {
@@ -60,8 +64,8 @@ const columns: Array<ColumnDef<ImportBatch>> = [
         <div
           className={
             needsReview > 0
-              ? "text-right font-medium tabular-nums text-foreground"
-              : "text-right tabular-nums text-muted-foreground"
+              ? "text-right nums-terminal font-medium text-flat"
+              : "text-right nums-terminal text-bone-muted"
           }
         >
           {needsReview}
@@ -73,7 +77,11 @@ const columns: Array<ColumnDef<ImportBatch>> = [
     accessorKey: "created_at",
     header: "Imported",
     // created_at is an ISO datetime; formatDayShort wants a bare YYYY-MM-DD (UTC-pinned).
-    cell: ({ row }) => formatDayShort(row.original.created_at.slice(0, 10)),
+    cell: ({ row }) => (
+      <span className="nums-terminal text-bone-muted">
+        {formatDayShort(row.original.created_at.slice(0, 10))}
+      </span>
+    ),
   },
 ];
 
@@ -95,14 +103,13 @@ export default function ImportsPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Imports</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Upload a Dragon Shield CSV export, then review and approve its matches.
-        </p>
-      </div>
+      <PageHeader
+        kicker="RECONCILIATION"
+        title="Imports"
+        subtitle="Upload a Dragon Shield CSV; review and reconcile every row before it touches the ledger."
+      />
 
-      <div className="mt-6">
+      <div>
         <ImportUpload
           onUploaded={() => {
             // Newest-first list; jump to page 1 so the new batch is visible, and
@@ -115,8 +122,10 @@ export default function ImportsPage() {
         />
       </div>
 
-      <div className="mt-8">
-        <h2 className="text-lg font-medium">Import history</h2>
+      <div className="mt-10">
+        <h2 className="font-terminal text-xs uppercase tracking-[0.16em] text-gold-700">
+          Import history
+        </h2>
         <div className="mt-3">
           {query.isPending ? (
             <TableSkeleton columnCount={columns.length} label="Loading imports" />
@@ -130,6 +139,13 @@ export default function ImportsPage() {
                   ? () => setPage((current) => Math.max(1, current - 1))
                   : undefined
               }
+            />
+          ) : count === 0 ? (
+            // A genuinely empty history gets the lit display-case empty state; the
+            // upload control above is the implicit CTA, so no duplicate action here.
+            <EmptyState
+              title="No imports yet"
+              description="Upload a Dragon Shield CSV export above and each row is staged, matched, and held for your review before it ever reaches the ledger."
             />
           ) : (
             <div

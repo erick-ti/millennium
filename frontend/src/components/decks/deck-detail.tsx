@@ -25,6 +25,8 @@ import {
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
@@ -117,8 +119,8 @@ type Feedback = { tone: "green" | "amber" | "red" | "neutral"; text: string };
 const FEEDBACK_CLASSES: Record<Feedback["tone"], string> = {
   green: "border-gain/30 bg-gain/10 text-gain",
   amber: "border-flat/30 bg-flat/10 text-flat",
-  red: "border-destructive/30 bg-destructive/10 text-destructive",
-  neutral: "border-border bg-muted/40 text-muted-foreground",
+  red: "border-loss/30 bg-loss/10 text-loss",
+  neutral: "border-gold-900/20 bg-vault-900 text-bone-muted",
 };
 
 export function DeckDetail({ deckId }: { deckId: number }) {
@@ -253,8 +255,8 @@ export function DeckDetail({ deckId }: { deckId: number }) {
       header: "Card",
       cell: ({ row }) => (
         <div>
-          <div className="font-medium text-foreground">{row.original.card_name}</div>
-          <div className="text-xs text-muted-foreground">
+          <div className="font-medium text-bone">{row.original.card_name}</div>
+          <div className="text-xs text-bone-muted">
             {row.original.set_code} · {row.original.set_rarity}
             {row.original.variant_label ? ` · ${row.original.variant_label}` : ""}
           </div>
@@ -267,7 +269,7 @@ export function DeckDetail({ deckId }: { deckId: number }) {
       // The holding's copy count (SUM of its lots). A deck counts distinct holdings, but a
       // single tagged holding can be N physical copies — show that here.
       cell: ({ row }) => (
-        <div className="text-right tabular-nums">{row.original.quantity}</div>
+        <div className="text-right nums-terminal">{row.original.quantity}</div>
       ),
     },
     {
@@ -291,14 +293,14 @@ export function DeckDetail({ deckId }: { deckId: number }) {
       accessorKey: "portfolio_name",
       header: "Portfolio",
       cell: ({ row }) => (
-        <span className="text-muted-foreground">{row.original.portfolio_name}</span>
+        <span className="text-bone-muted">{row.original.portfolio_name}</span>
       ),
     },
     {
       accessorKey: "created_at",
       header: () => <div className="text-right">Added</div>,
       cell: ({ row }) => (
-        <div className="text-right text-muted-foreground">
+        <div className="text-right nums-terminal text-bone-muted">
           {formatDayShort(row.original.created_at.slice(0, 10))}
         </div>
       ),
@@ -324,55 +326,57 @@ export function DeckDetail({ deckId }: { deckId: number }) {
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
       <BackLink />
-      <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{deck.name}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {deck.description?.trim()
-              ? deck.description
-              : "No description."}{" "}
-            · {deck.member_count}{" "}
+      <PageHeader
+        className="mt-3"
+        kicker="DECK"
+        title={deck.name}
+        subtitle={
+          <>
+            {deck.description?.trim() ? deck.description : "No description."} ·{" "}
+            {deck.member_count}{" "}
             {deck.member_count === 1 ? "holding" : "holdings"}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {confirmingDelete ? (
-            <>
-              <span className="text-sm text-muted-foreground">Delete this deck?</span>
-              <Button
-                size="sm"
-                variant="destructive"
-                disabled={deleteMutation.isPending}
-                onClick={() => deleteMutation.mutate(deckId)}
-              >
-                {deleteMutation.isPending ? "Deleting…" : "Confirm delete"}
-              </Button>
+          </>
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            {confirmingDelete ? (
+              <>
+                <span className="text-sm text-bone-muted">Delete this deck?</span>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  disabled={deleteMutation.isPending}
+                  onClick={() => deleteMutation.mutate(deckId)}
+                >
+                  {deleteMutation.isPending ? "Deleting…" : "Confirm delete"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={deleteMutation.isPending}
+                  onClick={() => setConfirmingDelete(false)}
+                >
+                  Cancel
+                </Button>
+              </>
+            ) : (
               <Button
                 size="sm"
                 variant="ghost"
-                disabled={deleteMutation.isPending}
-                onClick={() => setConfirmingDelete(false)}
+                onClick={() => setConfirmingDelete(true)}
               >
-                Cancel
+                Delete deck
               </Button>
-            </>
-          ) : (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setConfirmingDelete(true)}
-            >
-              Delete deck
-            </Button>
-          )}
-        </div>
-      </div>
+            )}
+          </div>
+        }
+      />
 
       {feedback ? (
         <div
           role="status"
           className={cn(
-            "mt-4 flex items-start justify-between gap-3 rounded-lg border p-3 text-sm",
+            "flex items-start justify-between gap-3 rounded-lg border p-3 text-sm",
             FEEDBACK_CLASSES[feedback.tone],
           )}
         >
@@ -387,12 +391,18 @@ export function DeckDetail({ deckId }: { deckId: number }) {
         </div>
       ) : null}
 
-      <div className="mt-6 flex items-center justify-between gap-3">
-        <h2 className="text-lg font-medium">Holdings in this deck</h2>
+      <div
+        className={cn(
+          "flex items-center justify-between gap-3",
+          feedback ? "mt-6" : "mt-0",
+        )}
+      >
+        <h2 className="font-terminal text-xs uppercase tracking-[0.16em] text-gold-700">
+          Holdings in this deck
+        </h2>
         <Button
           ref={addButtonRef}
           size="sm"
-          variant="outline"
           onClick={() => setShowPicker((open) => !open)}
         >
           {showPicker ? "Close" : "Add holdings"}
@@ -418,6 +428,13 @@ export function DeckDetail({ deckId }: { deckId: number }) {
             onRetry={() => membersQuery.refetch()}
             backLabel={page > 1 ? `Back to page ${page - 1}` : undefined}
             onBack={page > 1 ? () => goToPage(Math.max(1, page - 1)) : undefined}
+          />
+        ) : count === 0 ? (
+          // No holdings tagged into this deck yet → the lit display-case empty
+          // state (the "Add holdings" trigger above is the CTA).
+          <EmptyState
+            title="No holdings in this deck yet"
+            description="Use “Add holdings” above to tag cards from your collection into this deck."
           />
         ) : (
           <div
@@ -450,7 +467,7 @@ function BackLink() {
   return (
     <Link
       href="/decks"
-      className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+      className="font-terminal text-xs uppercase tracking-[0.12em] text-gold-700 transition-colors hover:text-gold-500"
     >
       ← Decks
     </Link>

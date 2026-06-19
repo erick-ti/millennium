@@ -7,6 +7,8 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import { type MoverRow, valuationMoversListOptions } from "@/lib/api";
 import { DataTable } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
@@ -36,42 +38,66 @@ const EDITION_LABELS: Record<string, string> = {
   limited: "Limited",
 };
 
-// Gain → emerald, loss → red, flat/unknown → muted (the portfolio-metrics
-// convention). A null delta (no percent under the floor) is muted, never colored.
+// Gain → emerald, loss → red, flat/unknown → flat-muted (the landing Watch
+// convention: text-gain/loss/flat). A null delta (no percent under the floor)
+// reads as flat, never colored.
 function deltaColorClass(value: number | null): string {
   if (value == null || value === 0) {
-    return "text-muted-foreground";
+    return "text-flat";
   }
   return value > 0 ? "text-gain" : "text-loss";
+}
+
+// The ▲/▼ glyph that always accompanies a colored delta (CVD-safe — never color
+// alone, the landing's deltaGlyph rule). Flat/null carries no directional glyph.
+function deltaGlyph(value: number | null): string {
+  if (value == null || value === 0) {
+    return "";
+  }
+  return value > 0 ? "▲" : "▼";
 }
 
 function PriceCell({ value, day }: { value: string; day: string }) {
   const price = parseDecimal(value);
   return (
-    <div className="text-right tabular-nums">
-      <div>{price == null ? "—" : formatUsd(price)}</div>
-      <div className="text-xs text-muted-foreground">{formatDayShort(day)}</div>
+    <div className="text-right nums-terminal">
+      <div className="text-bone">{price == null ? "—" : formatUsd(price)}</div>
+      <div className="font-terminal text-[0.7rem] text-bone-muted">
+        {formatDayShort(day)}
+      </div>
     </div>
   );
 }
 
 function DeltaUsdCell({ value }: { value: string }) {
   const delta = parseDecimal(value);
+  const glyph = deltaGlyph(delta);
   return (
-    <div className={`text-right tabular-nums ${deltaColorClass(delta)}`}>
-      {delta == null ? "—" : formatSignedUsd(delta)}
+    <div className={`text-right nums-terminal ${deltaColorClass(delta)}`}>
+      {delta == null ? (
+        "—"
+      ) : (
+        <>
+          {glyph ? <span aria-hidden>{glyph} </span> : null}
+          {formatSignedUsd(delta)}
+        </>
+      )}
     </div>
   );
 }
 
 function DeltaPctCell({ value }: { value: number | null }) {
+  const glyph = deltaGlyph(value);
   return (
-    <div className={`text-right tabular-nums ${deltaColorClass(value)}`}>
+    <div className={`text-right nums-terminal ${deltaColorClass(value)}`}>
       {value == null ? (
         // Sub-floor base price → percent is undefined, not 0% (partial ≠ zero).
         <span title="Base price too low for a meaningful percent">—</span>
       ) : (
-        formatPercent(value)
+        <>
+          {glyph ? <span aria-hidden>{glyph} </span> : null}
+          {formatPercent(value)}
+        </>
       )}
     </div>
   );
@@ -118,10 +144,14 @@ function SortableHeader({
             ? `Sort by ${label}, currently ${descending ? "descending" : "ascending"}`
             : `Sort by ${label}`
         }
-        className="inline-flex items-center gap-1 rounded font-medium text-foreground outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+        // Inherits the shared table header's mono-uppercase gold-900 treatment;
+        // the active column lifts to gold-700 so the sorted axis reads at a glance.
+        className={`inline-flex items-center gap-1 rounded outline-none transition-colors hover:text-gold-700 focus-visible:ring-3 focus-visible:ring-ring/50 ${
+          active ? "text-gold-700" : ""
+        }`}
       >
         <span>{label}</span>
-        <span aria-hidden className={active ? undefined : "text-muted-foreground"}>
+        <span aria-hidden className={active ? undefined : "text-gold-900/60"}>
           {indicator}
         </span>
       </button>
@@ -164,7 +194,7 @@ export default function MoversPage() {
       cell: ({ row }) => (
         <Link
           href={`/cards/${row.original.card_id}`}
-          className="font-medium text-foreground underline-offset-4 hover:underline"
+          className="font-medium text-gold-300 underline-offset-4 transition-colors hover:text-gold-500 hover:underline"
         >
           {row.original.card_name}
         </Link>
@@ -175,8 +205,8 @@ export default function MoversPage() {
       header: "Printing",
       cell: ({ row }) => (
         <div>
-          <div>{row.original.set_code}</div>
-          <div className="text-xs text-muted-foreground">
+          <div className="text-bone">{row.original.set_code}</div>
+          <div className="font-terminal text-[0.7rem] text-bone-muted">
             {row.original.set_rarity}
             {row.original.variant_label ? ` · ${row.original.variant_label}` : ""}
           </div>
@@ -233,33 +263,31 @@ export default function MoversPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Movers</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Biggest price movers among the cards you own, over your selected window.
-          </p>
-        </div>
-
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>Window</span>
-          <select
-            aria-label="Lookback window"
-            value={windowDays}
-            onChange={(event) => {
-              setWindowDays(Number(event.target.value) as WindowDays);
-              setPage(1);
-            }}
-            className="h-8 rounded-lg border border-border bg-background px-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-          >
-            {WINDOW_CHOICES.map((days) => (
-              <option key={days} value={days}>
-                {days} days
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <PageHeader
+        kicker="THE WATCH"
+        title="Movers"
+        subtitle="Owned (printing, edition) pairs ranked by price change over a window. A pair missing a usable price at either anchor is excluded — a gap is never a fake +100%."
+        actions={
+          <label className="flex items-center gap-2 font-terminal text-xs uppercase tracking-[0.12em] text-bone-muted">
+            <span>Window</span>
+            <select
+              aria-label="Lookback window"
+              value={windowDays}
+              onChange={(event) => {
+                setWindowDays(Number(event.target.value) as WindowDays);
+                setPage(1);
+              }}
+              className="h-8 rounded-sm border border-gold-900/25 bg-vault-900 px-2.5 font-terminal text-xs uppercase tracking-[0.12em] text-gold-300 outline-none focus-visible:border-gold-700/50 focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              {WINDOW_CHOICES.map((days) => (
+                <option key={days} value={days}>
+                  {days} days
+                </option>
+              ))}
+            </select>
+          </label>
+        }
+      />
 
       <div className="mt-6">
         {moversQuery.isPending ? (
@@ -277,6 +305,13 @@ export default function MoversPage() {
                 : undefined
             }
           />
+        ) : count === 0 ? (
+          // No movers at all — the lit display-case empty state. (Movers has no
+          // filter bar, so there's no filtered-vs-unfiltered distinction.)
+          <EmptyState
+            title="Nothing has moved"
+            description="No movers over this window. An owned (printing, edition) pair needs a usable price at both anchors — the start and the latest — to rank here."
+          />
         ) : (
           <div
             aria-busy={isPaging}
@@ -287,6 +322,10 @@ export default function MoversPage() {
               data={data?.results ?? []}
               emptyMessage="No movers. Owned cards need a usable price at both the start and end of the window."
             />
+            <p className="mt-3 font-terminal text-[0.7rem] text-bone-muted">
+              Sub-$1.00 base → percent withheld, dollar move still shown. No fake
+              volatility off a five-cent card.
+            </p>
             <PaginationControls
               page={page}
               totalPages={totalPages}

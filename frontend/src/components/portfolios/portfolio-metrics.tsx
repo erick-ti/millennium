@@ -16,8 +16,8 @@ function money(value: string | null | undefined): string {
 function MetricRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-4">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="tabular-nums text-foreground">{children}</dd>
+      <dt className="text-bone-muted">{label}</dt>
+      <dd className="nums-terminal text-bone">{children}</dd>
     </div>
   );
 }
@@ -42,7 +42,7 @@ export function PortfolioMetrics({
 }) {
   if (snapshot == null) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-bone-muted">
         Not yet valued. The daily valuation run records the first snapshot.
       </p>
     );
@@ -60,23 +60,24 @@ export function PortfolioMetrics({
       <MetricRow label="Cost basis">{money(snapshot.cost_basis)}</MetricRow>
       <MetricRow label="Unrealized gain">
         {gain == null ? (
-          <span className="text-muted-foreground">
-            — <span className="text-xs">(partial coverage)</span>
+          <span className="text-flat">
+            —{" "}
+            <span className="font-terminal text-[0.7rem] text-flat">
+              (partial coverage)
+            </span>
           </span>
         ) : (
-          <span
-            className={gain >= 0 ? "text-gain" : "text-loss"}
-          >
-            {gain >= 0 ? "+" : "-"}
-            {formatUsd(Math.abs(gain))} {gain >= 0 ? "▲" : "▼"}
+          <span className={gain >= 0 ? "text-gain" : "text-loss"}>
+            {gain >= 0 ? "▲" : "▼"} {gain >= 0 ? "+" : "-"}
+            {formatUsd(Math.abs(gain))}
           </span>
         )}
       </MetricRow>
       <MetricRow label="Coverage">
         {total === 0 ? (
-          <span className="text-muted-foreground">No cards</span>
+          <span className="text-bone-muted">No cards</span>
         ) : (
-          <span className="text-muted-foreground">
+          <span className="text-bone-muted">
             {snapshot.priced_card_count}/{total} priced ·{" "}
             {snapshot.costed_card_count}/{total} costed
           </span>

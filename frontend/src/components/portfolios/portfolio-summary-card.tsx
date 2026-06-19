@@ -11,11 +11,11 @@ import { PortfolioMetrics } from "@/components/portfolios/portfolio-metrics";
  */
 export function PortfolioSummaryCard({ portfolio }: { portfolio: Portfolio }) {
   return (
-    <div className="h-full rounded-lg border border-border p-4 transition-colors hover:border-foreground/30">
-      <h2 className="text-base font-semibold tracking-tight">
+    <div className="vitrine h-full rounded-lg p-5">
+      <h2 className="font-display text-base font-semibold tracking-tight">
         <Link
           href={`/portfolios/${portfolio.id}`}
-          className="underline-offset-4 hover:underline"
+          className="text-gold-700 transition-colors hover:text-gold-500"
         >
           {portfolio.name}
         </Link>

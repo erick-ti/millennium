@@ -187,7 +187,9 @@ describe("AlertsPage — feed", () => {
 
   it("renders a friendly empty state and no pagination footer", async () => {
     renderPage();
-    expect(await screen.findByText(/No alerts yet/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/No alerts have fired yet/i),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/Page 1 of/)).not.toBeInTheDocument();
   });
 

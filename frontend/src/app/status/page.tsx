@@ -11,6 +11,7 @@ import {
 import { InfraTile } from "@/components/status/infra-tile";
 import { PipelineFlow } from "@/components/status/pipeline-flow";
 import { MetricRow, StatusTile } from "@/components/status/status-tile";
+import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { formatDateTimeUtc, formatDayShort, formatUsd, parseDecimal } from "@/lib/format";
 
@@ -132,19 +133,17 @@ export default function StatusPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Status</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            How a day flows through the system — the live pipeline, the catalog it
-            maintains, and the box it runs on.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 font-terminal text-xs text-muted-foreground">
-          <span className={`h-2 w-2 rounded-full ${liveDot}`} aria-hidden />
-          {liveText}
-        </div>
-      </header>
+      <PageHeader
+        kicker="ENGINE ROOM"
+        title="Status"
+        subtitle="How a day flows through the system — the live pipeline, the catalog it maintains, and the box it runs on."
+        actions={
+          <span className="flex items-center gap-2 font-terminal text-xs text-bone-muted">
+            <span className={`h-2 w-2 rounded-full ${liveDot}`} aria-hidden />
+            {liveText}
+          </span>
+        }
+      />
 
       {/* SR-only announcer: speak ONLY the meaningful connection-state change, never the
           20s polling tick (a timer-driven aria-live region is screen-reader noise). The

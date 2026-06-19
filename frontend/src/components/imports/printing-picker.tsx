@@ -72,9 +72,16 @@ export function PrintingPicker({
   const printings = printingsQuery.data?.results ?? [];
 
   return (
-    <div className="rounded-lg border border-border p-4">
+    <div className="vitrine rounded-lg p-5">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-medium">Choose the correct printing</h3>
+        <div>
+          <p className="font-terminal text-xs uppercase tracking-[0.16em] text-gold-700">
+            Override
+          </p>
+          <h3 className="mt-1 font-display text-base font-semibold text-bone">
+            Choose the correct printing
+          </h3>
+        </div>
         <Button size="xs" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
           Cancel
         </Button>
@@ -83,7 +90,7 @@ export function PrintingPicker({
       {selectedCardId == null ? (
         <div className="mt-3">
           <label className="flex flex-col gap-1 text-sm">
-            <span className="text-muted-foreground">Search a card by name</span>
+            <span className="text-bone-muted">Search a card by name</span>
             <input
               ref={searchRef}
               type="search"
@@ -97,13 +104,13 @@ export function PrintingPicker({
 
           <div className="mt-3">
             {!searchEnabled ? (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-bone-muted">
                 Type at least 2 characters to search.
               </p>
             ) : cardsQuery.isPending ? (
-              <p className="text-sm text-muted-foreground">Searching…</p>
+              <p className="text-sm text-bone-muted">Searching…</p>
             ) : cardsQuery.isError ? (
-              <p className="text-sm text-destructive">
+              <p className="text-sm text-loss">
                 Couldn&apos;t search cards.{" "}
                 <button
                   type="button"
@@ -114,20 +121,20 @@ export function PrintingPicker({
                 </button>
               </p>
             ) : cards.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-bone-muted">
                 No cards match that name.
               </p>
             ) : (
-              <ul className="max-h-60 divide-y divide-border overflow-y-auto rounded-md border border-border">
+              <ul className="max-h-60 divide-y divide-gold-900/15 overflow-y-auto rounded-md border border-gold-900/25">
                 {cards.map((card) => (
                   <li key={card.id}>
                     <button
                       type="button"
                       onClick={() => setSelectedCardId(card.id)}
-                      className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-muted"
+                      className="flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-gold-700/[0.06]"
                     >
-                      <span className="font-medium text-foreground">{card.name}</span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="font-medium text-bone">{card.name}</span>
+                      <span className="nums-terminal text-xs text-bone-muted">
                         {card.printings_count}{" "}
                         {card.printings_count === 1 ? "printing" : "printings"}
                       </span>
@@ -144,7 +151,7 @@ export function PrintingPicker({
             ref={backRef}
             type="button"
             onClick={() => setSelectedCardId(null)}
-            className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            className="font-terminal text-xs uppercase tracking-[0.12em] text-gold-700 transition-colors hover:text-gold-500 disabled:opacity-50"
             disabled={isSubmitting}
           >
             ‹ Back to results
@@ -152,9 +159,9 @@ export function PrintingPicker({
 
           <div className="mt-3">
             {printingsQuery.isPending ? (
-              <p className="text-sm text-muted-foreground">Loading printings…</p>
+              <p className="text-sm text-bone-muted">Loading printings…</p>
             ) : printingsQuery.isError ? (
-              <p className="text-sm text-destructive">
+              <p className="text-sm text-loss">
                 Couldn&apos;t load printings.{" "}
                 <button
                   type="button"
@@ -165,27 +172,27 @@ export function PrintingPicker({
                 </button>
               </p>
             ) : printings.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-bone-muted">
                 This card has no printings recorded.
               </p>
             ) : (
-              <ul className="max-h-60 divide-y divide-border overflow-y-auto rounded-md border border-border">
+              <ul className="max-h-60 divide-y divide-gold-900/15 overflow-y-auto rounded-md border border-gold-900/25">
                 {printings.map((printing) => (
                   <li key={printing.id}>
                     <button
                       type="button"
                       disabled={isSubmitting}
                       onClick={() => onSelect(printing.id)}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50"
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-gold-700/[0.06] disabled:opacity-50"
                     >
-                      <span className="font-medium text-foreground">
+                      <span className="font-medium text-bone">
                         {printing.set_code}
                       </span>
-                      <span className="text-muted-foreground">
+                      <span className="text-bone-muted">
                         {printing.set_rarity}
                       </span>
                       {printing.variant_label ? (
-                        <span className="text-muted-foreground">
+                        <span className="text-bone-muted">
                           · {printing.variant_label}
                         </span>
                       ) : null}

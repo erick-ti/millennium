@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { portfolioPortfoliosListOptions } from "@/lib/api";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { PortfolioSummaryCard } from "@/components/portfolios/portfolio-summary-card";
 import { QueryErrorState } from "@/components/ui/query-error-state";
@@ -39,13 +42,11 @@ export default function PortfoliosPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Portfolios</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Each portfolio&apos;s latest value, cost basis, and coverage-aware
-          unrealized gain.
-        </p>
-      </div>
+      <PageHeader
+        kicker="VALUATION"
+        title="Portfolios"
+        subtitle="Your collection, grouped and valued like investment portfolios."
+      />
 
       <div className="mt-6">
         {query.isPending ? (
@@ -59,7 +60,7 @@ export default function PortfoliosPage() {
             {SKELETON_KEYS.map((key) => (
               <div
                 key={key}
-                className="h-44 animate-pulse rounded-lg border border-border bg-muted/20"
+                className="vitrine h-44 animate-pulse rounded-lg"
               />
             ))}
           </div>
@@ -77,9 +78,18 @@ export default function PortfoliosPage() {
             }
           />
         ) : portfolios.length === 0 ? (
-          <p className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
-            No portfolios yet. Import a collection to get started.
-          </p>
+          <EmptyState
+            title="No portfolios yet"
+            description="Import a collection and your holdings are grouped into portfolios — each one valued daily like an investment position."
+            action={
+              <Link
+                href="/imports"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gold-700/50 bg-gold-700/10 px-4 py-2 font-terminal text-xs uppercase tracking-[0.12em] text-gold-300 transition-colors hover:bg-gold-700/20"
+              >
+                Import a CSV →
+              </Link>
+            }
+          />
         ) : (
           <div
             aria-busy={isPaging}

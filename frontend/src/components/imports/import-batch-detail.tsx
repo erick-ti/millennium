@@ -23,6 +23,7 @@ import {
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
+import { PageHeader } from "@/components/ui/page-header";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
@@ -125,8 +126,8 @@ type Feedback = { tone: "green" | "amber" | "red" | "neutral"; text: string };
 const FEEDBACK_CLASSES: Record<Feedback["tone"], string> = {
   green: "border-gain/30 bg-gain/10 text-gain",
   amber: "border-flat/30 bg-flat/10 text-flat",
-  red: "border-destructive/30 bg-destructive/10 text-destructive",
-  neutral: "border-border bg-muted/40 text-muted-foreground",
+  red: "border-loss/30 bg-loss/10 text-loss",
+  neutral: "border-gold-900/25 bg-vault-800/40 text-bone-muted",
 };
 
 export function ImportBatchDetail({ batchId }: { batchId: number }) {
@@ -257,7 +258,7 @@ export function ImportBatchDetail({ batchId }: { batchId: number }) {
       accessorKey: "row_number",
       header: () => <div className="text-right">#</div>,
       cell: ({ row }) => (
-        <div className="text-right tabular-nums text-muted-foreground">
+        <div className="text-right nums-terminal text-bone-muted">
           {row.original.row_number}
         </div>
       ),
@@ -270,7 +271,7 @@ export function ImportBatchDetail({ batchId }: { batchId: number }) {
         const name = data.matched_printing?.card_name ?? normField(data, "card_name") ?? "—";
         return (
           <div className="flex items-center gap-2">
-            <span className="font-medium text-foreground">{name}</span>
+            <span className="font-medium text-bone">{name}</span>
             {data.matched_printing?.is_multi_variant ? (
               <Pill tone="amber">multi-variant</Pill>
             ) : null}
@@ -303,7 +304,7 @@ export function ImportBatchDetail({ batchId }: { batchId: number }) {
           <RowStatusPill status={row.original.status ?? "pending"} />
           {row.original.error_message ? (
             <span
-              className="max-w-48 truncate text-xs text-destructive"
+              className="max-w-48 truncate text-xs text-loss"
               title={row.original.error_message}
             >
               {row.original.error_message}
@@ -318,7 +319,7 @@ export function ImportBatchDetail({ batchId }: { batchId: number }) {
       cell: ({ row }) => {
         const data = row.original;
         if (data.status !== "pending") {
-          return <div className="text-right text-muted-foreground">—</div>;
+          return <div className="text-right text-bone-muted">—</div>;
         }
         const canApprove = data.matched_printing != null;
         return (
@@ -359,20 +360,26 @@ export function ImportBatchDetail({ batchId }: { batchId: number }) {
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
       <BackLink />
-      <h1 className="mt-3 text-2xl font-semibold tracking-tight">
-        {batch.original_filename}
-      </h1>
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-        <BatchStatusPill status={batch.status ?? "review"} />
-        <span>Imported {formatDayShort(batch.created_at.slice(0, 10))}</span>
-        <span className="tabular-nums">
-          {batch.rows_total} rows · {batch.rows_materialized} materialized ·{" "}
-          {batch.rows_skipped} skipped · {batch.rows_needs_review} need review ·{" "}
-          {batch.rows_error} errors
-        </span>
-      </div>
+      <PageHeader
+        className="mt-3"
+        kicker="RECONCILIATION"
+        title={batch.original_filename}
+        subtitle={
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <BatchStatusPill status={batch.status ?? "review"} />
+            <span className="nums-terminal">
+              Imported {formatDayShort(batch.created_at.slice(0, 10))}
+            </span>
+            <span className="nums-terminal">
+              {batch.rows_total} rows · {batch.rows_materialized} materialized ·{" "}
+              {batch.rows_skipped} skipped · {batch.rows_needs_review} need
+              review · {batch.rows_error} errors
+            </span>
+          </span>
+        }
+      />
       {batch.status === "failed" && batch.error ? (
-        <p className="mt-2 text-sm text-destructive">{batch.error}</p>
+        <p className="-mt-2 mb-8 text-sm text-loss">{batch.error}</p>
       ) : null}
 
       {feedback ? (
@@ -396,8 +403,11 @@ export function ImportBatchDetail({ batchId }: { batchId: number }) {
 
       {overridingRowId != null ? (
         <div className="mt-4">
-          <p className="mb-2 text-sm text-muted-foreground">
-            Override match for row {overridingRow?.row_number}
+          <p className="mb-2 font-terminal text-xs uppercase tracking-[0.12em] text-gold-700">
+            Override match for row{" "}
+            <span className="nums-terminal text-bone">
+              {overridingRow?.row_number}
+            </span>
             {overridingRow ? ` · ${normField(overridingRow, "card_name") ?? "—"}` : ""}
           </p>
           <PrintingPicker
@@ -414,9 +424,11 @@ export function ImportBatchDetail({ batchId }: { batchId: number }) {
         </div>
       ) : null}
 
-      <div className="mt-6 flex items-center justify-between gap-3">
-        <h2 className="text-lg font-medium">Rows</h2>
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="mt-10 flex items-center justify-between gap-3">
+        <h2 className="font-terminal text-xs uppercase tracking-[0.16em] text-gold-700">
+          Rows
+        </h2>
+        <label className="flex items-center gap-2 text-sm text-bone-muted">
           <span>Show</span>
           <select
             value={filter}
@@ -478,7 +490,7 @@ function BackLink() {
   return (
     <Link
       href="/imports"
-      className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+      className="font-terminal text-xs uppercase tracking-[0.12em] text-gold-700 transition-colors hover:text-gold-500"
     >
       ← Imports
     </Link>

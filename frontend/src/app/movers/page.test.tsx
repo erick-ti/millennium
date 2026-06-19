@@ -147,7 +147,7 @@ describe("MoversPage", () => {
     stubMovers(() => ({ count: 0, next: null, previous: null, results: [] }));
     renderPage();
 
-    expect(await screen.findByText(/No movers\./i)).toBeInTheDocument();
+    expect(await screen.findByText(/Nothing has moved/i)).toBeInTheDocument();
     expect(screen.queryByText(/Page 1 of/)).not.toBeInTheDocument();
   });
 

@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import {
   PriceLineChart,
@@ -183,22 +184,31 @@ export function CardDetail({ cardId }: { cardId: number }) {
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
       <BackLink />
-      <h1 className="mt-3 text-2xl font-semibold tracking-tight">{card.name}</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {card.archetype != null ? `${card.archetype} · ` : ""}
-        {printings.length} {printings.length === 1 ? "printing" : "printings"}
-        {card.passcode != null ? ` · passcode ${card.passcode}` : ""}
-      </p>
+      <PageHeader
+        className="mt-3"
+        kicker="CATALOG"
+        title={card.name}
+        subtitle={
+          <>
+            {card.archetype != null ? `${card.archetype} · ` : ""}
+            {printings.length}{" "}
+            {printings.length === 1 ? "printing" : "printings"}
+            {card.passcode != null ? ` · passcode ${card.passcode}` : ""}
+          </>
+        }
+      />
 
       {printings.length === 0 ? (
-        <p className="mt-8 rounded-lg border border-border p-6 text-sm text-muted-foreground">
+        <p className="vitrine rounded-lg p-6 text-sm text-bone-muted">
           No printings recorded for this card yet.
         </p>
       ) : (
         <>
-          <section className="mt-8">
-            <h2 className="text-lg font-medium">Printings</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
+          <section>
+            <h2 className="font-terminal text-xs uppercase tracking-[0.16em] text-gold-700">
+              Printings
+            </h2>
+            <p className="mt-1.5 text-sm text-bone-muted">
               Select a printing to chart its price history below.
             </p>
             <div className="mt-3 overflow-hidden rounded-lg border border-border">
@@ -231,11 +241,11 @@ export function CardDetail({ cardId }: { cardId: number }) {
                             className="accent-primary"
                           />
                         </TableCell>
-                        <TableCell className="font-medium text-foreground">
+                        <TableCell className="font-medium text-bone">
                           {printing.set_code}
                           {printing.is_multi_variant ? (
                             <span
-                              className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground"
+                              className="ml-2 rounded bg-vault-800 px-1.5 py-0.5 font-terminal text-[0.65rem] font-normal uppercase tracking-[0.08em] text-bone-muted"
                               title="This generic printing covers multiple sellable variants."
                             >
                               multi-variant
@@ -252,10 +262,12 @@ export function CardDetail({ cardId }: { cardId: number }) {
             </div>
           </section>
 
-          <section className="mt-8">
+          <section className="mt-10">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-medium">Price history</h2>
-              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <h2 className="font-terminal text-xs uppercase tracking-[0.16em] text-gold-700">
+                Price history
+              </h2>
+              <label className="flex items-center gap-2 text-sm text-bone-muted">
                 <span>Edition</span>
                 <select
                   aria-label="Edition"
@@ -285,7 +297,7 @@ export function CardDetail({ cardId }: { cardId: number }) {
                   role="status"
                   aria-busy="true"
                   aria-label="Loading price history"
-                  className="h-72 animate-pulse rounded-lg border border-border bg-muted/20"
+                  className="vitrine h-72 animate-pulse rounded-lg"
                 >
                   <span className="sr-only">Loading price history…</span>
                 </div>
@@ -295,7 +307,7 @@ export function CardDetail({ cardId }: { cardId: number }) {
                   onRetry={() => historyQuery.refetch()}
                 />
               ) : series.length === 0 ? (
-                <p className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
+                <p className="vitrine rounded-lg p-6 text-sm text-bone-muted">
                   {effectiveEdition != null
                     ? `No price history for the ${EDITION_LABELS[effectiveEdition]} edition yet.`
                     : "No price history for this printing yet."}
@@ -303,15 +315,26 @@ export function CardDetail({ cardId }: { cardId: number }) {
               ) : (
                 <div
                   aria-busy={historyQuery.isPlaceholderData}
-                  className={
+                  className={`vitrine rounded-lg p-4 sm:p-6 ${
                     historyQuery.isPlaceholderData
                       ? "opacity-60 transition-opacity"
-                      : undefined
-                  }
+                      : ""
+                  }`}
                 >
                   <PriceLineChart data={series} label={chartLabel} />
+                  <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1 font-terminal text-[0.7rem] text-bone-muted">
+                    <span className="flex items-center gap-2">
+                      <span className="inline-block h-px w-5 bg-gold-700" />
+                      {effectiveEdition != null
+                        ? `${EDITION_LABELS[effectiveEdition]} market price`
+                        : "Market price"}
+                    </span>
+                    <span className="ml-auto hidden sm:inline">
+                      Tab to the chart for a screen-reader data table.
+                    </span>
+                  </div>
                   {historyTruncated ? (
-                    <p className="mt-2 text-xs text-muted-foreground">
+                    <p className="mt-2 font-terminal text-[0.7rem] text-bone-muted">
                       Showing the most recent price points; older history was
                       truncated.
                     </p>
@@ -330,7 +353,7 @@ function BackLink() {
   return (
     <Link
       href="/cards"
-      className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+      className="font-terminal text-xs uppercase tracking-[0.12em] text-gold-700 transition-colors hover:text-gold-500"
     >
       ← Cards
     </Link>
