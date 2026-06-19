@@ -48,5 +48,11 @@
     "typescript": "^5",
     "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.1.7"
+  },
+  "overrides": {
+    "postcss": "^8.5.10",
+    "undici": "^7.28.0",
+    "hono": "^4.12.25",
+    "js-yaml": "^4.2.0"
   }
 }
