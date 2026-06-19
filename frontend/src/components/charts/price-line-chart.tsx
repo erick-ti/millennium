@@ -1,10 +1,10 @@
 "use client";
 
-import type { ReactElement } from "react";
+import { type ReactElement, useId } from "react";
 import {
+  Area,
+  AreaChart,
   CartesianGrid,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -56,7 +56,8 @@ function renderCoverageDot(props: {
 }
 
 /**
- * A pure price-over-time line chart. The caller fetches snapshots, maps them to
+ * A pure price-over-time area chart (gold line + faint gold gradient fill, the
+ * landing chart's treatment). The caller fetches snapshots, maps them to
  * an ascending `PricePoint[]`, and owns loading / empty / error — this stays a
  * props-in, chart-out component so it's trivially testable (mock
  * `ResponsiveContainer` to a fixed size under jsdom; DECISIONS 2026-05-29
@@ -89,14 +90,26 @@ export function PriceLineChart({
   // Only an aggregate (coverage-carrying) series turns on the coverage column;
   // a coverage-agnostic series (card prices) keeps the original 2-column table.
   const hasCoverage = data.some((point) => point.complete !== undefined);
+  // Unique per instance so two charts on one page never share a <defs> gradient
+  // id. useId carries colons (invalid in a CSS selector) — strip them; the SVG
+  // `url(#id)` attribute reference works regardless.
+  const gradientId = `pchart-${useId().replace(/:/g, "")}`;
   return (
     <figure className="m-0">
       {/* role="img" hides the SVG subtree from AT and exposes only `label`; the
           full series is the sibling sr-only table below. */}
       <div role="img" aria-label={caption} className="h-72 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+          <AreaChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
+            <defs>
+              {/* Aged-gold area fill, 0.26 → 0 — the landing chart's treatment,
+                  so the authed series reads as the same instrument. */}
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#c8a24a" stopOpacity={0.26} />
+                <stop offset="100%" stopColor="#c8a24a" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid stroke="rgba(200,162,74,0.09)" vertical={false} />
             <XAxis
               dataKey="date"
               tickFormatter={formatDayShort}
@@ -134,12 +147,14 @@ export function PriceLineChart({
               }}
               labelFormatter={(value) => formatDayShort(String(value))}
             />
-            <Line
+            <Area
               type="monotone"
               dataKey="price"
-              // Aged-gold line on the vault canvas (matches the landing chart).
+              // Aged-gold line + gradient fill on the vault canvas (the landing
+              // chart's exact treatment).
               stroke="#c8a24a"
               strokeWidth={1.75}
+              fill={`url(#${gradientId})`}
               activeDot={{ r: 3.5, fill: "#e6c063", stroke: "none" }}
               // Marker only on partial-coverage points (otherwise no dot);
               // see renderCoverageDot.
@@ -148,7 +163,7 @@ export function PriceLineChart({
               // and no flicker when the series changes on a refetch.
               isAnimationActive={false}
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
       {/* sr-only on the WRAPPER div, not the <table>: a table with

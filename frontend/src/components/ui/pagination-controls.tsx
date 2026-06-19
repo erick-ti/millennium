@@ -48,8 +48,12 @@ export function PaginationControls({
     return null;
   }
   return (
-    <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-      <span role="status" aria-live="polite">
+    <div className="mt-4 flex items-center justify-between text-sm text-bone-muted">
+      <span
+        role="status"
+        aria-live="polite"
+        className="font-terminal nums-terminal text-xs"
+      >
         Page {page} of {totalPages} · {count} {count === 1 ? noun : `${noun}s`}
       </span>
       <div className="flex items-center gap-2">

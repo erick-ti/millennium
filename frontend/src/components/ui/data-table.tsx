@@ -100,7 +100,7 @@ export function DataTable<TData, TValue>({
             <TableRow>
               <TableCell
                 colSpan={table.getVisibleLeafColumns().length}
-                className="h-24 text-center text-muted-foreground"
+                className="h-28 text-center font-display text-base text-bone-muted"
               >
                 {emptyMessage}
               </TableCell>

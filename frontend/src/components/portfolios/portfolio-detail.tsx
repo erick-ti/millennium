@@ -9,6 +9,7 @@ import {
   portfolioPortfoliosRetrieveOptions,
   portfolioSnapshotsList,
 } from "@/lib/api";
+import { PageHeader } from "@/components/ui/page-header";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import {
   PriceLineChart,
@@ -128,31 +129,37 @@ export function PortfolioDetail({ portfolioId }: { portfolioId: number }) {
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
       <BackLink />
-      <h1 className="mt-3 text-2xl font-semibold tracking-tight">
-        {portfolio.name}
-      </h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {latest != null
-          ? `Valued ${formatDayShort(latest.snapshot_date)}`
-          : "Not yet valued"}
-      </p>
+      <PageHeader
+        className="mt-3"
+        kicker="PORTFOLIO"
+        title={portfolio.name}
+        subtitle={
+          latest != null
+            ? `Valued ${formatDayShort(latest.snapshot_date)}`
+            : "Not yet valued"
+        }
+      />
 
-      <section className="mt-8">
-        <h2 className="text-lg font-medium">Summary</h2>
-        <div className="mt-3 max-w-sm rounded-lg border border-border p-4">
+      <section>
+        <h2 className="font-terminal text-xs uppercase tracking-[0.16em] text-gold-700">
+          Summary
+        </h2>
+        <div className="vitrine mt-3 max-w-sm rounded-lg p-5">
           <PortfolioMetrics snapshot={latest} />
         </div>
       </section>
 
-      <section className="mt-8">
-        <h2 className="text-lg font-medium">Value history</h2>
+      <section className="mt-10">
+        <h2 className="font-terminal text-xs uppercase tracking-[0.16em] text-gold-700">
+          Value history
+        </h2>
         <div className="mt-4">
           {historyQuery.isPending ? (
             <div
               role="status"
               aria-busy="true"
               aria-label="Loading value history"
-              className="h-72 animate-pulse rounded-lg border border-border bg-muted/20"
+              className="vitrine h-72 animate-pulse rounded-lg"
             >
               <span className="sr-only">Loading value history…</span>
             </div>
@@ -162,33 +169,46 @@ export function PortfolioDetail({ portfolioId }: { portfolioId: number }) {
               onRetry={() => historyQuery.refetch()}
             />
           ) : series.length === 0 ? (
-            <p className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
+            <p className="vitrine rounded-lg p-6 text-sm text-bone-muted">
               No value history for this portfolio yet. Snapshots are recorded by
               the daily valuation run.
             </p>
           ) : (
             <div
               aria-busy={historyQuery.isPlaceholderData}
-              className={
+              className={`vitrine rounded-lg p-4 sm:p-6 ${
                 historyQuery.isPlaceholderData
                   ? "opacity-60 transition-opacity"
-                  : undefined
-              }
+                  : ""
+              }`}
             >
               <PriceLineChart
                 data={series}
                 label={chartLabel}
                 seriesLabel="Portfolio value"
               />
+              <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1 font-terminal text-[0.7rem] text-bone-muted">
+                <span className="flex items-center gap-2">
+                  <span className="inline-block h-px w-5 bg-gold-700" />
+                  Portfolio value
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="inline-block size-2 rounded-full border border-flat" />
+                  Partial coverage
+                </span>
+                <span className="ml-auto hidden sm:inline">
+                  Tab to the chart for a screen-reader data table.
+                </span>
+              </div>
               {partialCount > 0 ? (
-                <p className="mt-2 text-xs text-muted-foreground">
+                <p className="mt-2 font-terminal text-[0.7rem] text-bone-muted">
                   {partialCount === 1
                     ? "1 snapshot had partial pricing coverage and is marked on the chart; its value reflects only the priced cards, not the whole portfolio."
                     : `${partialCount} snapshots had partial pricing coverage and are marked on the chart; their values reflect only the priced cards, not the whole portfolio.`}
                 </p>
               ) : null}
               {historyTruncated ? (
-                <p className="mt-2 text-xs text-muted-foreground">
+                <p className="mt-2 font-terminal text-[0.7rem] text-bone-muted">
                   Showing the most recent snapshots; older history was
                   truncated.
                 </p>
@@ -205,7 +225,7 @@ function BackLink() {
   return (
     <Link
       href="/portfolios"
-      className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+      className="font-terminal text-xs uppercase tracking-[0.12em] text-gold-700 transition-colors hover:text-gold-500"
     >
       ← Portfolios
     </Link>

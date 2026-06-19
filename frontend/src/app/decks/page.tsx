@@ -19,6 +19,8 @@ import {
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
@@ -73,16 +75,19 @@ function CreateDeckForm({ onCreated }: { onCreated: () => void }) {
 
   return (
     <form
-      className="rounded-lg border border-border p-4"
+      className="vitrine rounded-lg p-5"
       onSubmit={(event) => {
         event.preventDefault();
         if (invalid || mutation.isPending) return;
         mutation.mutate({ name: name.trim(), description: description.trim() });
       }}
     >
-      <div className="flex flex-wrap items-end gap-3">
+      <h2 className="font-terminal text-xs uppercase tracking-[0.16em] text-gold-700">
+        New deck
+      </h2>
+      <div className="mt-4 flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-sm">
-          <span className="text-muted-foreground">Deck name</span>
+          <span className="text-bone-muted">Deck name</span>
           <input
             type="text"
             value={name}
@@ -94,7 +99,7 @@ function CreateDeckForm({ onCreated }: { onCreated: () => void }) {
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          <span className="text-muted-foreground">Description (optional)</span>
+          <span className="text-bone-muted">Description (optional)</span>
           <input
             type="text"
             value={description}
@@ -111,12 +116,12 @@ function CreateDeckForm({ onCreated }: { onCreated: () => void }) {
       </div>
 
       {mutation.isError ? (
-        <p role="alert" className="mt-3 text-sm text-destructive">
+        <p role="alert" className="mt-3 text-sm text-loss">
           {mutation.error?.message}
         </p>
       ) : null}
       {mutation.isSuccess ? (
-        <p role="status" className="mt-3 text-sm text-muted-foreground">
+        <p role="status" className="mt-3 text-sm text-bone-muted">
           Deck created.
         </p>
       ) : null}
@@ -131,7 +136,7 @@ const columns: Array<ColumnDef<Deck>> = [
     cell: ({ row }) => (
       <Link
         href={`/decks/${row.original.id}`}
-        className="font-medium text-foreground underline-offset-4 hover:underline"
+        className="font-medium text-gold-300 underline-offset-4 transition-colors hover:text-gold-500 hover:underline"
       >
         {row.original.name}
       </Link>
@@ -142,9 +147,9 @@ const columns: Array<ColumnDef<Deck>> = [
     header: "Description",
     cell: ({ row }) =>
       row.original.description?.trim() ? (
-        <span className="text-muted-foreground">{row.original.description}</span>
+        <span className="text-bone-muted">{row.original.description}</span>
       ) : (
-        <span className="text-muted-foreground">—</span>
+        <span className="text-bone-muted">—</span>
       ),
   },
   {
@@ -153,7 +158,7 @@ const columns: Array<ColumnDef<Deck>> = [
     // (shown per-row on the deck detail). Labeled "Holdings" to stay honest.
     header: () => <div className="text-right">Holdings</div>,
     cell: ({ row }) => (
-      <div className="text-right tabular-nums">{row.original.member_count}</div>
+      <div className="text-right nums-terminal">{row.original.member_count}</div>
     ),
   },
 ];
@@ -180,14 +185,13 @@ export default function DecksPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Decks</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Group cards you own into decks. Open a deck to add or remove holdings.
-        </p>
-      </div>
+      <PageHeader
+        kicker="ARCHIVE"
+        title="Decks"
+        subtitle="Group owned holdings into named decks."
+      />
 
-      <div className="mt-6">
+      <div>
         <CreateDeckForm onCreated={handleDeckCreated} />
       </div>
 
@@ -202,6 +206,14 @@ export default function DecksPage() {
             onBack={
               page > 1 ? () => setPage((current) => Math.max(1, current - 1)) : undefined
             }
+          />
+        ) : count === 0 ? (
+          // No decks at all → the lit display-case empty state. Decks have no
+          // filters, so a zero count is always the genuinely-empty case (the
+          // create form above is the CTA).
+          <EmptyState
+            title="No decks yet"
+            description="Create one above to start tagging cards from your collection into named decks."
           />
         ) : (
           <div

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { useAuth } from "@/components/auth-provider";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { cn } from "@/lib/utils";
 
 const routes: Array<{ href: string; label: string }> = [
   { href: "/collection", label: "Collection" },
@@ -26,29 +27,39 @@ export function Nav() {
   if (pathname === "/") return null;
 
   return (
-    <nav className="border-b border-border bg-background">
+    <nav className="border-b border-gold-900/25 bg-vault-950/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 gap-y-2 px-6 py-3">
         <Link
           href="/"
-          className="font-semibold tracking-tight text-foreground"
+          className="font-display text-lg font-semibold tracking-tight text-gold-700 transition-colors hover:text-gold-500"
         >
           Millennium
         </Link>
-        <ul className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted-foreground">
-          {routes.map((route) => (
-            <li key={route.href}>
-              <Link
-                href={route.href}
-                className="transition-colors hover:text-foreground"
-              >
-                {route.label}
-              </Link>
-            </li>
-          ))}
+        <ul className="flex flex-wrap gap-x-5 gap-y-1.5">
+          {routes.map((route) => {
+            const active =
+              pathname === route.href || pathname.startsWith(`${route.href}/`);
+            return (
+              <li key={route.href}>
+                <Link
+                  href={route.href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "font-terminal text-xs uppercase tracking-[0.12em] transition-colors",
+                    active ? "text-gold-500" : "text-bone-muted hover:text-bone"
+                  )}
+                >
+                  {route.label}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
         {isAuthenticated ? (
-          <div className="ml-auto flex items-center gap-3 text-sm">
-            <span className="text-muted-foreground">{user?.username}</span>
+          <div className="ml-auto flex items-center gap-3">
+            <span className="font-terminal text-xs tracking-wide text-bone-muted">
+              {user?.username}
+            </span>
             <LogoutButton />
           </div>
         ) : null}

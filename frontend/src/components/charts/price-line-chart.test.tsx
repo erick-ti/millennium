@@ -27,11 +27,12 @@ describe("PriceLineChart", () => {
     { date: "2026-05-12", price: 11 },
   ];
 
-  it("renders an SVG line chart for the given points", () => {
+  it("renders an SVG area chart for the given points", () => {
     const { container } = render(<PriceLineChart data={data} />);
     expect(container.querySelector("svg")).toBeTruthy();
-    // recharts draws the series as a <g class="recharts-line"> with a curve path.
-    expect(container.querySelector(".recharts-line")).toBeTruthy();
+    // recharts draws the series as a <g class="recharts-area"> — the gold line
+    // (.recharts-area-curve) over the gradient fill (.recharts-area-area).
+    expect(container.querySelector(".recharts-area")).toBeTruthy();
   });
 
   it("exposes every point as accessible text (date + formatted price)", () => {

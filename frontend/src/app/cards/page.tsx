@@ -11,6 +11,7 @@ import {
   cardsCardsListOptions,
 } from "@/lib/api";
 import { DataTable } from "@/components/ui/data-table";
+import { PageHeader } from "@/components/ui/page-header";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
@@ -27,7 +28,7 @@ const columns: Array<ColumnDef<CardList>> = [
     cell: ({ row }) => (
       <Link
         href={`/cards/${row.original.id}`}
-        className="font-medium text-foreground underline-offset-4 hover:underline"
+        className="font-medium text-gold-300 underline-offset-4 transition-colors hover:text-gold-500 hover:underline"
       >
         {row.original.name}
       </Link>
@@ -38,13 +39,13 @@ const columns: Array<ColumnDef<CardList>> = [
     header: "Archetype",
     // ~40% of cards have no archetype (NULL) — render an em-dash, never "".
     cell: ({ row }) =>
-      row.original.archetype ?? <span className="text-muted-foreground">—</span>,
+      row.original.archetype ?? <span className="text-bone-muted">—</span>,
   },
   {
     accessorKey: "printings_count",
     header: () => <div className="text-right">Printings</div>,
     cell: ({ row }) => (
-      <div className="text-right tabular-nums">
+      <div className="text-right nums-terminal">
         {row.original.printings_count}
       </div>
     ),
@@ -86,15 +87,14 @@ export default function CardsPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Cards</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            The card catalog — open a card for its printings and price history.
-          </p>
-        </div>
+      <PageHeader
+        kicker="CATALOG"
+        title="Cards"
+        subtitle="The full Yu-Gi-Oh catalog — search, filter, and chart any printing."
+      />
 
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-2 text-sm text-bone-muted">
           <span>Archetype</span>
           <select
             aria-label="Filter by archetype"

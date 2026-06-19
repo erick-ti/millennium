@@ -22,6 +22,8 @@ import {
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
@@ -58,9 +60,18 @@ const DIRECTION_LABELS: Record<string, string> = {
 // Gain → emerald, loss → red, flat → muted (the movers / portfolio-metrics convention).
 function deltaColorClass(value: number | null): string {
   if (value == null || value === 0) {
-    return "text-muted-foreground";
+    return "text-flat";
   }
   return value > 0 ? "text-gain" : "text-loss";
+}
+
+// The ▲/▼ glyph that always accompanies a colored delta (CVD-safe — never color
+// alone, the landing/movers rule). Flat/null carries no directional glyph.
+function deltaGlyph(value: number | null): string {
+  if (value == null || value === 0) {
+    return "";
+  }
+  return value > 0 ? "▲" : "▼";
 }
 
 /** Pull a DRF field-error string (`{field: ["..."]}` or `{detail: "..."}`) out of a body. */
@@ -120,7 +131,7 @@ function CreateRuleForm({ onCreated }: { onCreated: () => void }) {
 
   return (
     <form
-      className="rounded-lg border border-border p-4"
+      className="vitrine rounded-lg p-5 sm:p-6"
       onSubmit={(event) => {
         event.preventDefault();
         if (invalid || mutation.isPending) return;
@@ -132,9 +143,12 @@ function CreateRuleForm({ onCreated }: { onCreated: () => void }) {
         });
       }}
     >
-      <div className="flex flex-wrap items-end gap-3">
+      <h2 className="font-terminal text-xs uppercase tracking-[0.16em] text-gold-700">
+        New rule
+      </h2>
+      <div className="mt-4 flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-sm">
-          <span className="text-muted-foreground">Name</span>
+          <span className="text-bone-muted">Name</span>
           <input
             type="text"
             value={name}
@@ -146,7 +160,7 @@ function CreateRuleForm({ onCreated }: { onCreated: () => void }) {
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          <span className="text-muted-foreground">Threshold %</span>
+          <span className="text-bone-muted">Threshold %</span>
           <input
             type="number"
             min="0.01"
@@ -158,11 +172,11 @@ function CreateRuleForm({ onCreated }: { onCreated: () => void }) {
             aria-label="Threshold %"
             disabled={mutation.isPending}
             onChange={(event) => setThreshold(event.target.value)}
-            className="h-8 w-28 rounded-lg border border-border bg-background px-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
+            className="nums-terminal h-8 w-28 rounded-lg border border-border bg-background px-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          <span className="text-muted-foreground">Window</span>
+          <span className="text-bone-muted">Window</span>
           <select
             value={windowDays}
             aria-label="Window"
@@ -178,7 +192,7 @@ function CreateRuleForm({ onCreated }: { onCreated: () => void }) {
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          <span className="text-muted-foreground">Direction</span>
+          <span className="text-bone-muted">Direction</span>
           <select
             value={direction}
             aria-label="Direction"
@@ -199,12 +213,12 @@ function CreateRuleForm({ onCreated }: { onCreated: () => void }) {
       </div>
 
       {mutation.isError ? (
-        <p role="alert" className="mt-3 text-sm text-destructive">
+        <p role="alert" className="mt-3 text-sm text-loss">
           {mutation.error?.message}
         </p>
       ) : null}
       {mutation.isSuccess ? (
-        <p role="status" className="mt-3 text-sm text-muted-foreground">
+        <p role="status" className="mt-3 text-sm text-bone-muted">
           Rule created — it will be evaluated on the next daily run.
         </p>
       ) : null}
@@ -217,18 +231,34 @@ function PctMoveCell({ value }: { value: string }) {
   // RATIO (it ×100s), so divide by 100. Non-null on every event (the model field is NOT
   // NULL — an event only fires on a real, above-floor percent move).
   const pct = parseDecimal(value);
+  const glyph = deltaGlyph(pct);
   return (
-    <div className={`text-right tabular-nums ${deltaColorClass(pct)}`}>
-      {pct == null ? "—" : formatPercent(pct / 100)}
+    <div className={`nums-terminal text-right ${deltaColorClass(pct)}`}>
+      {pct == null ? (
+        "—"
+      ) : (
+        <>
+          {glyph ? <span aria-hidden>{glyph} </span> : null}
+          {formatPercent(pct / 100)}
+        </>
+      )}
     </div>
   );
 }
 
 function DollarMoveCell({ value }: { value: string }) {
   const delta = parseDecimal(value);
+  const glyph = deltaGlyph(delta);
   return (
-    <div className={`text-right tabular-nums ${deltaColorClass(delta)}`}>
-      {delta == null ? "—" : formatSignedUsd(delta)}
+    <div className={`nums-terminal text-right ${deltaColorClass(delta)}`}>
+      {delta == null ? (
+        "—"
+      ) : (
+        <>
+          {glyph ? <span aria-hidden>{glyph} </span> : null}
+          {formatSignedUsd(delta)}
+        </>
+      )}
     </div>
   );
 }
@@ -278,8 +308,8 @@ export default function AlertsPage() {
         const event = row.original;
         return (
           <div>
-            <div className="font-medium text-foreground">{event.rule_name}</div>
-            <div className="text-xs text-muted-foreground">
+            <div className="font-medium text-bone">{event.rule_name}</div>
+            <div className="nums-terminal font-terminal text-xs text-bone-muted">
               ≥{event.rule_threshold_pct}% · {event.rule_window_days}d ·{" "}
               {DIRECTION_LABELS[event.rule_direction] ?? event.rule_direction}
             </div>
@@ -293,7 +323,7 @@ export default function AlertsPage() {
       cell: ({ row }) => (
         <Link
           href={`/cards/${row.original.card_id}`}
-          className="font-medium text-foreground underline-offset-4 hover:underline"
+          className="font-medium text-gold-300 underline-offset-4 transition-colors hover:text-gold-500 hover:underline"
         >
           {row.original.card_name}
         </Link>
@@ -304,8 +334,8 @@ export default function AlertsPage() {
       header: "Printing",
       cell: ({ row }) => (
         <div>
-          <div>{row.original.set_code}</div>
-          <div className="text-xs text-muted-foreground">
+          <div className="text-bone">{row.original.set_code}</div>
+          <div className="text-xs text-bone-muted">
             {row.original.set_rarity}
             {row.original.variant_label ? ` · ${row.original.variant_label}` : ""}
           </div>
@@ -332,7 +362,7 @@ export default function AlertsPage() {
       accessorKey: "triggered_on",
       header: () => <div className="text-right">Triggered</div>,
       cell: ({ row }) => (
-        <div className="text-right text-muted-foreground">
+        <div className="nums-terminal text-right text-bone-muted">
           {formatDayShort(row.original.triggered_on)}
         </div>
       ),
@@ -341,21 +371,21 @@ export default function AlertsPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Price alerts</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Get notified when a card you own moves past a percent threshold over a window.
-          Rules are evaluated once a day, after pricing refreshes.
-        </p>
-      </div>
+      <PageHeader
+        kicker="SIGNALS"
+        title="Price alerts"
+        subtitle="Watch any card for a percent move over a window; matching rules fire once a day."
+      />
 
-      <div className="mt-6">
+      <div>
         <CreateRuleForm onCreated={handleRuleCreated} />
       </div>
 
       <div className="mt-8 flex items-center justify-between gap-3">
-        <h2 className="text-lg font-medium">Alert feed</h2>
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+        <h2 className="font-terminal text-xs uppercase tracking-[0.16em] text-gold-700">
+          Alert feed
+        </h2>
+        <label className="flex items-center gap-2 text-sm text-bone-muted">
           <span>Rule</span>
           <select
             value={ruleFilter === "all" ? "all" : String(ruleFilter)}
@@ -391,6 +421,16 @@ export default function AlertsPage() {
               page > 1 ? () => setPage((current) => Math.max(1, current - 1)) : undefined
             }
           />
+        ) : count === 0 && ruleFilter === "all" ? (
+          // Genuinely-empty (unfiltered) feed → the lit display-case empty state
+          // explaining what a fired alert is. A rule-FILTERED empty result instead
+          // keeps the table chrome + the in-table "No alerts match this filter."
+          // message (the collection reference's count===0 && !hasFilter pattern) —
+          // "No alerts have fired yet" would misread when other rules have fired.
+          <EmptyState
+            title="No alerts have fired yet"
+            description="A fired alert is logged when a card you own crosses a rule's percent threshold over its window. Create a rule above — matches appear here after the daily evaluation runs."
+          />
         ) : (
           <div
             aria-busy={isPaging}
@@ -399,7 +439,7 @@ export default function AlertsPage() {
             <DataTable
               columns={columns}
               data={data?.results ?? []}
-              emptyMessage="No alerts yet. Create a rule above — matches appear here after the daily evaluation runs."
+              emptyMessage="No alerts match this filter."
             />
             <PaginationControls
               page={page}

@@ -53,7 +53,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b border-border transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
+        "border-b border-border transition-colors hover:bg-gold-700/[0.05] data-[state=selected]:bg-gold-700/[0.08]",
         className
       )}
       {...props}
@@ -66,7 +66,9 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-3 text-left align-middle font-medium whitespace-nowrap text-muted-foreground",
+        // Trading-desk header: dim mono gold-leaf labels (the landing's Watch
+        // tape), so the data — not the chrome — carries the weight.
+        "h-10 px-3 text-left align-middle whitespace-nowrap font-terminal text-[0.7rem] font-medium uppercase tracking-[0.1em] text-gold-900",
         className
       )}
       {...props}

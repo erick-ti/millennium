@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 
@@ -13,6 +14,8 @@ import {
   portfolioPortfoliosListOptions,
 } from "@/lib/api";
 import { DataTable } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
@@ -76,7 +79,7 @@ function FacetSelect<T extends string>({
   onChange: (value: T | "") => void;
 }) {
   return (
-    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+    <label className="flex items-center gap-2 text-sm text-bone-muted">
       <span>{label}</span>
       <select
         aria-label={`Filter by ${label.toLowerCase()}`}
@@ -123,7 +126,7 @@ const columns: Array<ColumnDef<CollectionItemList>> = [
     accessorKey: "quantity",
     header: () => <div className="text-right">Qty</div>,
     cell: ({ row }) => (
-      <div className="text-right tabular-nums">{row.original.quantity}</div>
+      <div className="text-right nums-terminal">{row.original.quantity}</div>
     ),
   },
   { accessorKey: "portfolio_name", header: "Portfolio" },
@@ -182,15 +185,14 @@ export default function CollectionPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Collection</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Every holding across your portfolios.
-        </p>
-      </div>
+      <PageHeader
+        kicker="LEDGER"
+        title="Collection"
+        subtitle="Every holding across your portfolios, valued like positions."
+      />
 
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-2 text-sm text-bone-muted">
           <span className="sr-only">Search by card name</span>
           <input
             type="search"
@@ -205,7 +207,7 @@ export default function CollectionPage() {
           />
         </label>
 
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+        <label className="flex items-center gap-2 text-sm text-bone-muted">
           <span>Portfolio</span>
           <select
             aria-label="Filter by portfolio"
@@ -270,6 +272,22 @@ export default function CollectionPage() {
               page > 1
                 ? () => setPage((current) => Math.max(1, current - 1))
                 : undefined
+            }
+          />
+        ) : count === 0 && !hasFilter ? (
+          // A genuinely empty collection gets the lit display-case empty state
+          // with a CTA; a *filtered*-empty result keeps the table chrome + the
+          // in-table message so the filter bar stays in context.
+          <EmptyState
+            title="The vault is empty"
+            description="Import a Dragon Shield CSV export and your collection starts tracking like a portfolio — per-lot cost basis, daily valuation, the lot."
+            action={
+              <Link
+                href="/imports"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gold-700/50 bg-gold-700/10 px-4 py-2 font-terminal text-xs uppercase tracking-[0.12em] text-gold-300 transition-colors hover:bg-gold-700/20"
+              >
+                Import a CSV →
+              </Link>
             }
           />
         ) : (

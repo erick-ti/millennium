@@ -168,7 +168,11 @@ describe("CollectionPage", () => {
     stubItems(() => ({ count: 0, next: null, previous: null, results: [] }));
     renderPage();
 
-    expect(await screen.findByText(/No holdings yet/i)).toBeInTheDocument();
+    // Unfiltered-empty → the lit display-case EmptyState with an import CTA.
+    expect(await screen.findByText(/The vault is empty/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /import a csv/i }),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/Page 1 of/)).not.toBeInTheDocument();
   });
 

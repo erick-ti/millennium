@@ -60,9 +60,12 @@ export function ImportUpload({
   const batch = mutation.data;
 
   return (
-    <div className="rounded-lg border border-border p-4">
+    <div className="vitrine rounded-lg p-5">
+      <h2 className="font-terminal text-xs uppercase tracking-[0.16em] text-gold-700">
+        New import
+      </h2>
       <form
-        className="flex flex-wrap items-center gap-3"
+        className="mt-3 flex flex-wrap items-center gap-3"
         onSubmit={(event) => {
           event.preventDefault();
           if (file) mutation.mutate(file);
@@ -77,7 +80,7 @@ export function ImportUpload({
             aria-label="Dragon Shield CSV file"
             disabled={mutation.isPending}
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-            className="text-sm file:mr-3 file:rounded-md file:border file:border-border file:bg-background file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-muted disabled:opacity-50"
+            className="text-sm text-bone-muted file:mr-3 file:rounded-md file:border file:border-gold-700/40 file:bg-gold-700/10 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gold-300 hover:file:bg-gold-700/20 disabled:opacity-50"
           />
         </label>
         <Button type="submit" size="sm" disabled={!file || mutation.isPending}>
@@ -86,7 +89,7 @@ export function ImportUpload({
       </form>
 
       {mutation.isError ? (
-        <p role="alert" className="mt-3 text-sm text-destructive">
+        <p role="alert" className="mt-3 text-sm text-loss">
           {mutation.error?.message}
         </p>
       ) : null}
@@ -99,7 +102,10 @@ export function ImportUpload({
 function UploadResult({ batch }: { batch: ImportBatch }) {
   if (batch.status === "failed") {
     return (
-      <p role="status" className="mt-3 text-sm text-destructive">
+      <p
+        role="status"
+        className="mt-4 rounded-lg border border-loss/30 bg-loss/10 p-3 text-sm text-loss"
+      >
         {batch.original_filename} is not a Dragon Shield export
         {batch.error ? `: ${batch.error}` : "."}
       </p>
@@ -108,19 +114,17 @@ function UploadResult({ batch }: { batch: ImportBatch }) {
   return (
     <div
       role="status"
-      className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
+      className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-gain/30 bg-gain/10 p-3 text-sm text-gain"
     >
-      <span className="text-muted-foreground">
-        Imported {batch.original_filename}:
-      </span>
+      <span>Imported {batch.original_filename}:</span>
       <BatchStatusPill status={batch.status ?? "review"} />
-      <span className="text-muted-foreground tabular-nums">
+      <span className="nums-terminal">
         {batch.rows_total} rows · {batch.rows_materialized} materialized ·{" "}
         {batch.rows_needs_review} need review
       </span>
       <Link
         href={`/imports/${batch.id}`}
-        className="font-medium underline-offset-4 hover:underline"
+        className="ml-auto font-terminal text-xs uppercase tracking-[0.12em] text-gold-300 underline-offset-4 transition-colors hover:text-gold-500 hover:underline"
       >
         Review →
       </Link>

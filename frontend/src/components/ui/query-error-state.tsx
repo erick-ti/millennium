@@ -39,10 +39,15 @@ export function QueryErrorState({
   onBack,
 }: QueryErrorStateProps) {
   return (
-    <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-6">
-      <p className="text-sm font-medium text-destructive">{title}</p>
-      <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-      <div className="mt-3 flex items-center gap-2">
+    <div className="rounded-lg border border-loss/30 bg-loss/[0.06] p-6">
+      <p className="font-terminal text-[0.7rem] font-medium uppercase tracking-[0.2em] text-loss">
+        Error
+      </p>
+      <p className="mt-2 font-display text-lg font-semibold text-bone">{title}</p>
+      <p className="mt-1.5 max-w-md font-body text-sm leading-relaxed text-bone-muted">
+        {description}
+      </p>
+      <div className="mt-4 flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={onRetry}>
           Retry
         </Button>
