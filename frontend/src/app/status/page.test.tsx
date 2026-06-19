@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
@@ -556,5 +557,71 @@ describe("StatusPage", () => {
     expect(screen.queryByText("All green today")).not.toBeInTheDocument();
     // ...and the overview error panel is NOT surfaced.
     expect(screen.queryByText(/couldn.t load status/i)).not.toBeInTheDocument();
+  });
+
+  it("escalates the gate caption when the upstream pricing run fails", async () => {
+    stubOverview(() =>
+      makeOverview({
+        pipeline: [
+          makeStage({ key: "metadata", label: "Metadata sync", scheduled_utc: "02:00" }),
+          makeStage({
+            key: "pricing",
+            label: "Pricing sync",
+            scheduled_utc: "03:00",
+            status: "red",
+            green_today: false,
+          }),
+          makeStage({
+            key: "valuation",
+            label: "Valuation",
+            scheduled_utc: "04:00",
+            status: "amber",
+            green_today: false,
+            depends_on: "pricing",
+          }),
+          makeStage({
+            key: "alerts",
+            label: "Alerts",
+            scheduled_utc: "05:00",
+            status: "amber",
+            green_today: false,
+            depends_on: "pricing",
+          }),
+        ],
+      }),
+    );
+    renderPage();
+
+    // The broken upstream is SEEN at its dependents (the dependency edge), not just
+    // inferred — both branch captions escalate off the neutral "gated on pricing".
+    expect(await screen.findAllByText(/pricing failed/i)).toHaveLength(2);
+    expect(screen.queryAllByText(/gated on pricing/i)).toHaveLength(0);
+  });
+
+  it("expands a stage to reveal its run detail and gate explanation", async () => {
+    stubOverview(() => makeOverview());
+    const user = userEvent.setup();
+    renderPage();
+
+    const valuation = await screen.findByRole("button", { name: /valuation/i });
+    expect(valuation).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(valuation);
+    expect(valuation).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText(/freshness gate/i)).toBeInTheDocument();
+
+    // clicking again collapses it
+    await user.click(valuation);
+    expect(valuation).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText(/freshness gate/i)).not.toBeInTheDocument();
+  });
+
+  it("shows the deployed SHA on the continuous-deploy node", async () => {
+    stubOverview(() => makeOverview()); // app.version "abc1234"
+    renderPage();
+
+    // The CD node carries its deployed-SHA metric from /overview/ even with the
+    // Healthchecks tier unconfigured (the default stub) — the metric-blank gap closed.
+    expect(await screen.findByText(/deployed abc1234/)).toBeInTheDocument();
   });
 });
