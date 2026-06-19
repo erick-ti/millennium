@@ -6,6 +6,7 @@ import {
   IBM_Plex_Mono,
 } from "next/font/google";
 import "./globals.css";
+import { AppGrain } from "@/components/app-grain";
 import { AuthProvider } from "@/components/auth-provider";
 import { CsrfBootstrap } from "@/components/csrf-bootstrap";
 import { Nav } from "@/components/nav";
@@ -58,8 +59,10 @@ export default function RootLayout({
         <Providers>
           <CsrfBootstrap />
           <AuthProvider>
+            <AppGrain />
             <Nav />
-            <main className="flex-1">{children}</main>
+            {/* relative z-10 keeps authed content crisp above the fixed grain (z-1). */}
+            <main className="relative z-10 flex-1">{children}</main>
           </AuthProvider>
         </Providers>
       </body>
