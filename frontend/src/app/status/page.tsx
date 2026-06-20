@@ -163,6 +163,9 @@ export default function StatusPage() {
               stages={overview.pipeline}
               checks={checksQuery.data}
               checksError={checksQuery.isError && checksQuery.data === undefined}
+              deployedSha={overview.app.version}
+              serverTime={overview.app.server_time}
+              fetching={query.isFetching}
             />
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
