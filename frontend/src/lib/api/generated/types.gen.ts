@@ -775,10 +775,15 @@ export type StatusOverview = {
 /**
  * The current user, least-disclosure (Phase 5 auth slice).
  *
- * Only ``id``/``username``/``email`` — never ``is_staff``/``is_superuser``/
- * ``last_login``/permissions. The frontend nav shows the username and there are
- * no admin affordances this slice; the schema is treated as recon material
- * (Invariant 7 posture), so we expose the minimum the SPA needs.
+ * Only ``id``/``username``/``email`` plus the ``is_demo`` capability flag — never
+ * ``is_staff``/``is_superuser``/``last_login``/permissions. The schema is treated as
+ * recon material (Invariant 7 posture), so we expose the minimum the SPA needs.
+ *
+ * ``is_demo`` is that minimum for the read-only-demo feature: the SPA hides write
+ * affordances for the demo session, and it must learn that from the server rather than
+ * string-matching a hard-coded demo username (a hand-synced literal that silently
+ * drifts). It is a NON-sensitive session-capability flag, NOT a privilege flag — it
+ * says "this session is the read-only showcase", which the recruiter already knows.
  */
 export type User = {
     readonly id: number;
@@ -790,6 +795,7 @@ export type User = {
      * Email address
      */
     readonly email: string;
+    readonly is_demo: boolean;
 };
 
 export type ValuationSummary = {
@@ -1241,6 +1247,30 @@ export type AlertsRulesCreateResponses = {
 };
 
 export type AlertsRulesCreateResponse = AlertsRulesCreateResponses[keyof AlertsRulesCreateResponses];
+
+export type AuthDemoLoginCreateData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/auth/demo-login/';
+};
+
+export type AuthDemoLoginCreateErrors = {
+    /**
+     * No demo account is available
+     */
+    404: unknown;
+    /**
+     * Too many demo sign-ins — retry later
+     */
+    429: unknown;
+};
+
+export type AuthDemoLoginCreateResponses = {
+    200: User;
+};
+
+export type AuthDemoLoginCreateResponse = AuthDemoLoginCreateResponses[keyof AuthDemoLoginCreateResponses];
 
 export type AuthLoginCreateData = {
     body: LoginRequest;

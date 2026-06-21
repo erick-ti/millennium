@@ -37,7 +37,12 @@ def test_login_with_valid_credentials_establishes_session(user: User) -> None:
     resp = client.post(LOGIN_URL, CREDS, format="json")
 
     assert resp.status_code == status.HTTP_200_OK
-    assert resp.json() == {"id": user.id, "username": "reader", "email": "r@example.com"}
+    assert resp.json() == {
+        "id": user.id,
+        "username": "reader",
+        "email": "r@example.com",
+        "is_demo": False,
+    }
     assert "sessionid" in resp.cookies
     # The session cookie MUST be HttpOnly (JS-unreadable) — the exact INVERSE of the
     # csrftoken cookie (test_health.py asserts that one is NOT HttpOnly). A
@@ -216,7 +221,12 @@ def test_me_returns_current_user_when_authenticated(user: User) -> None:
     resp = client.get(ME_URL)
 
     assert resp.status_code == status.HTTP_200_OK
-    assert resp.json() == {"id": user.id, "username": "reader", "email": "r@example.com"}
+    assert resp.json() == {
+        "id": user.id,
+        "username": "reader",
+        "email": "r@example.com",
+        "is_demo": False,
+    }
 
 
 def test_me_requires_authentication() -> None:
@@ -231,6 +241,8 @@ def test_user_payload_never_leaks_sensitive_fields(user: User) -> None:
 
     body = client.get(ME_URL).json()
 
-    assert set(body) == {"id", "username", "email"}
+    # is_demo is a non-sensitive session-capability flag (the SPA needs it to hide write
+    # affordances) — distinct from the privilege flags below, which must stay hidden.
+    assert set(body) == {"id", "username", "email", "is_demo"}
     for leaked in ("password", "is_staff", "is_superuser", "last_login", "user_permissions"):
         assert leaked not in body

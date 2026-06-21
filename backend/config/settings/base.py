@@ -177,8 +177,15 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
     ],
+    # IsAuthenticated gates every endpoint; DemoReadOnly is ANDed on top as the single
+    # chokepoint that read-only-locks the demo showcase account across all endpoints
+    # (current + future). Order matters only cosmetically — both must pass; DemoReadOnly
+    # can only DENY (demo-account writes), never loosen, so the fail-closed posture holds
+    # (Invariant 2). LogoutView opts out so the demo can end its own session; AllowAny
+    # views don't inherit defaults. Not an env-sensitive value (a structural default).
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
+        "apps.core.permissions.DemoReadOnly",
     ],
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
@@ -197,7 +204,11 @@ REST_FRAMEWORK = {
     # non-atomic (get→check→set), so a concurrent burst can exceed the window.
     # Accepted for a single-user app — atomic rate-limiting / account lockout is a
     # deliberate non-goal (Codex 2026-05-30); revisit only if it goes multi-user.
-    "DEFAULT_THROTTLE_RATES": {"login": "5/min"},
+    # demo_login is a SEPARATE scope from login: the demo endpoint mints a read-only
+    # session with no password to brute-force, so it must never drain the credential
+    # bucket — its own (looser) cap just stops session-creation spam (one DB session
+    # row per call). Same REMOTE_ADDR keying via NUM_PROXIES below.
+    "DEFAULT_THROTTLE_RATES": {"login": "5/min", "demo_login": "30/min"},
     # NUM_PROXIES=0 makes DRF derive the throttle identity from REMOTE_ADDR and
     # IGNORE the client-supplied X-Forwarded-For. Without it, DRF's default
     # (NUM_PROXIES=None) keys on the *entire XFF header* (throttling.py get_ident),
@@ -226,7 +237,12 @@ SPECTACULAR_SETTINGS = {
     "COMPONENT_SPLIT_REQUEST": True,
     # Schema/docs are recon material — require auth even though DRF default is.
     # drf-spectacular uses its own SERVE_PERMISSIONS, not DEFAULT_PERMISSION_CLASSES.
-    "SERVE_PERMISSIONS": ["rest_framework.permissions.IsAuthenticated"],
+    # IsNotDemoUser, not bare IsAuthenticated: the read-only demo account is an
+    # authenticated session, so plain IsAuthenticated would expose the full API surface
+    # to it (and thus, effectively, to recruiters). IsNotDemoUser still requires auth
+    # (anonymous → 403, Invariant 7), and additionally keeps the demo out — a
+    # strengthening. The SPA fetches the schema offline at build, so no runtime cost.
+    "SERVE_PERMISSIONS": ["apps.core.permissions.IsNotDemoUser"],
 }
 
 # ---------------------------------------------------------------------------

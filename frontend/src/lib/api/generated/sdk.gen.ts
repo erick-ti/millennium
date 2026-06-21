@@ -2,7 +2,7 @@
 
 import { type Client, formDataBodySerializer, type Options as Options2, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AlertsEventsListData, AlertsEventsListResponses, AlertsRulesCreateData, AlertsRulesCreateErrors, AlertsRulesCreateResponses, AlertsRulesListData, AlertsRulesListResponses, AuthLoginCreateData, AuthLoginCreateErrors, AuthLoginCreateResponses, AuthLogoutCreateData, AuthLogoutCreateResponses, AuthMeRetrieveData, AuthMeRetrieveResponses, CardsCardsArchetypesRetrieveData, CardsCardsArchetypesRetrieveResponses, CardsCardsListData, CardsCardsListResponses, CardsCardsRetrieveData, CardsCardsRetrieveResponses, CardsPrintingsListData, CardsPrintingsListResponses, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponses, CollectionItemsListData, CollectionItemsListResponses, CollectionItemsRetrieveData, CollectionItemsRetrieveResponses, CollectionLotsListData, CollectionLotsListResponses, CollectionLotsRetrieveData, CollectionLotsRetrieveResponses, CsrfRetrieveData, CsrfRetrieveResponses, DecksDecksCreateData, DecksDecksCreateErrors, DecksDecksCreateResponses, DecksDecksDestroyData, DecksDecksDestroyResponses, DecksDecksListData, DecksDecksListResponses, DecksDecksPartialUpdateData, DecksDecksPartialUpdateResponses, DecksDecksRetrieveData, DecksDecksRetrieveResponses, DecksDecksUpdateData, DecksDecksUpdateResponses, DecksMembershipsCreateData, DecksMembershipsCreateErrors, DecksMembershipsCreateResponses, DecksMembershipsDestroyData, DecksMembershipsDestroyResponses, DecksMembershipsListData, DecksMembershipsListResponses, HealthRetrieveData, HealthRetrieveResponses, ImportsBatchesCreateData, ImportsBatchesCreateErrors, ImportsBatchesCreateResponses, ImportsBatchesListData, ImportsBatchesListResponses, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponses, ImportsRowsApproveCreateData, ImportsRowsApproveCreateErrors, ImportsRowsApproveCreateResponses, ImportsRowsListData, ImportsRowsListResponses, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateErrors, ImportsRowsOverrideCreateResponses, ImportsRowsRejectCreateData, ImportsRowsRejectCreateErrors, ImportsRowsRejectCreateResponses, ImportsRowsRetrieveData, ImportsRowsRetrieveResponses, PortfolioPortfoliosListData, PortfolioPortfoliosListResponses, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponses, PortfolioSnapshotsListData, PortfolioSnapshotsListResponses, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponses, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveErrors, PricingSnapshotsLatestRetrieveResponses, PricingSnapshotsListData, PricingSnapshotsListResponses, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponses, StatusChecksRetrieveData, StatusChecksRetrieveResponses, StatusInfraRetrieveData, StatusInfraRetrieveResponses, StatusOverviewRetrieveData, StatusOverviewRetrieveResponses, ValuationMoversListData, ValuationMoversListResponses } from './types.gen';
+import type { AlertsEventsListData, AlertsEventsListResponses, AlertsRulesCreateData, AlertsRulesCreateErrors, AlertsRulesCreateResponses, AlertsRulesListData, AlertsRulesListResponses, AuthDemoLoginCreateData, AuthDemoLoginCreateErrors, AuthDemoLoginCreateResponses, AuthLoginCreateData, AuthLoginCreateErrors, AuthLoginCreateResponses, AuthLogoutCreateData, AuthLogoutCreateResponses, AuthMeRetrieveData, AuthMeRetrieveResponses, CardsCardsArchetypesRetrieveData, CardsCardsArchetypesRetrieveResponses, CardsCardsListData, CardsCardsListResponses, CardsCardsRetrieveData, CardsCardsRetrieveResponses, CardsPrintingsListData, CardsPrintingsListResponses, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponses, CollectionItemsListData, CollectionItemsListResponses, CollectionItemsRetrieveData, CollectionItemsRetrieveResponses, CollectionLotsListData, CollectionLotsListResponses, CollectionLotsRetrieveData, CollectionLotsRetrieveResponses, CsrfRetrieveData, CsrfRetrieveResponses, DecksDecksCreateData, DecksDecksCreateErrors, DecksDecksCreateResponses, DecksDecksDestroyData, DecksDecksDestroyResponses, DecksDecksListData, DecksDecksListResponses, DecksDecksPartialUpdateData, DecksDecksPartialUpdateResponses, DecksDecksRetrieveData, DecksDecksRetrieveResponses, DecksDecksUpdateData, DecksDecksUpdateResponses, DecksMembershipsCreateData, DecksMembershipsCreateErrors, DecksMembershipsCreateResponses, DecksMembershipsDestroyData, DecksMembershipsDestroyResponses, DecksMembershipsListData, DecksMembershipsListResponses, HealthRetrieveData, HealthRetrieveResponses, ImportsBatchesCreateData, ImportsBatchesCreateErrors, ImportsBatchesCreateResponses, ImportsBatchesListData, ImportsBatchesListResponses, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponses, ImportsRowsApproveCreateData, ImportsRowsApproveCreateErrors, ImportsRowsApproveCreateResponses, ImportsRowsListData, ImportsRowsListResponses, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateErrors, ImportsRowsOverrideCreateResponses, ImportsRowsRejectCreateData, ImportsRowsRejectCreateErrors, ImportsRowsRejectCreateResponses, ImportsRowsRetrieveData, ImportsRowsRetrieveResponses, PortfolioPortfoliosListData, PortfolioPortfoliosListResponses, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponses, PortfolioSnapshotsListData, PortfolioSnapshotsListResponses, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponses, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveErrors, PricingSnapshotsLatestRetrieveResponses, PricingSnapshotsListData, PricingSnapshotsListResponses, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponses, StatusChecksRetrieveData, StatusChecksRetrieveResponses, StatusInfraRetrieveData, StatusInfraRetrieveResponses, StatusOverviewRetrieveData, StatusOverviewRetrieveResponses, ValuationMoversListData, ValuationMoversListResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -75,6 +75,26 @@ export const alertsRulesCreate = <ThrowOnError extends boolean = false>(options:
 });
 
 /**
+ * Log in to the read-only demo account
+ *
+ * Establish a session for the read-only demo account (recruiter showcase).
+ *
+ * A public, password-less counterpart to ``LoginView``: it ``login()``s the seeded
+ * ``demo`` account (``DEMO_USERNAME``) so a recruiter reaches the full authenticated
+ * app in one click, while ``DemoReadOnly`` (a global default permission) denies that
+ * session every unsafe method. ``AllowAny`` + no authenticators (the ``LoginView``
+ * precedent) so an anonymous browser can reach it; ``csrf_protect`` re-arms CSRF on the
+ * POST (a bare ``APIView`` is ``csrf_exempt`` and ``SessionAuthentication`` skips the
+ * check for anonymous requests, so it would otherwise be CSRF-naked), composing with the
+ * existing ``GET /api/csrf/`` + ``proxy.ts`` ``X-CSRFToken`` flow with zero new frontend
+ * plumbing. Its OWN throttle scope (``demo_login``), never the ``login`` bucket, so demo
+ * traffic can't drain the credential speed bump. **404** when no demo account is seeded
+ * (dev / test, or before ``ensure_demo_user`` has run on the box) so the SPA can degrade
+ * gracefully rather than 500.
+ */
+export const authDemoLoginCreate = <ThrowOnError extends boolean = false>(options?: Options<AuthDemoLoginCreateData, ThrowOnError>) => (options?.client ?? client).post<AuthDemoLoginCreateResponses, AuthDemoLoginCreateErrors, ThrowOnError>({ url: '/api/auth/demo-login/', ...options });
+
+/**
  * Log in (establish a session cookie)
  *
  * Establish a session for valid credentials (Phase 5 auth slice).
@@ -109,9 +129,14 @@ export const authLoginCreate = <ThrowOnError extends boolean = false>(options: O
  * POST (an unsafe method) deliberately, so it travels the *authenticated* CSRF
  * path: the caller is authenticated, so ``SessionAuthentication.enforce_csrf``
  * runs and ``proxy.ts`` already injects ``X-CSRFToken`` — no ``csrf_protect``
- * needed here (unlike login). Inherits the global ``IsAuthenticated``, so an
- * anonymous logout 403s like everything else. Returns 200 with a body (not 204)
- * so the generated TS client has a typed, non-void response to branch on.
+ * needed here (unlike login). Returns 200 with a body (not 204) so the generated
+ * TS client has a typed, non-void response to branch on.
+ *
+ * Sets ``permission_classes = [IsAuthenticated]`` to OPT OUT of the global
+ * ``DemoReadOnly`` write-block: logout is the one unsafe method the demo account
+ * must be allowed (the ``LogoutButton`` hard-navigates to ``/login`` on a 200; a 403
+ * would strand the recruiter in the demo session). Still requires auth, so an
+ * anonymous logout 403s like everything else.
  */
 export const authLogoutCreate = <ThrowOnError extends boolean = false>(options?: Options<AuthLogoutCreateData, ThrowOnError>) => (options?.client ?? client).post<AuthLogoutCreateResponses, unknown, ThrowOnError>({
     security: [{

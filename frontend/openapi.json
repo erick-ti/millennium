@@ -146,6 +146,37 @@
                 }
             }
         },
+        "/api/auth/demo-login/": {
+            "post": {
+                "operationId": "auth_demo_login_create",
+                "description": "Establish a session for the read-only demo account (recruiter showcase).\n\nA public, password-less counterpart to ``LoginView``: it ``login()``s the seeded\n``demo`` account (``DEMO_USERNAME``) so a recruiter reaches the full authenticated\napp in one click, while ``DemoReadOnly`` (a global default permission) denies that\nsession every unsafe method. ``AllowAny`` + no authenticators (the ``LoginView``\nprecedent) so an anonymous browser can reach it; ``csrf_protect`` re-arms CSRF on the\nPOST (a bare ``APIView`` is ``csrf_exempt`` and ``SessionAuthentication`` skips the\ncheck for anonymous requests, so it would otherwise be CSRF-naked), composing with the\nexisting ``GET /api/csrf/`` + ``proxy.ts`` ``X-CSRFToken`` flow with zero new frontend\nplumbing. Its OWN throttle scope (``demo_login``), never the ``login`` bucket, so demo\ntraffic can't drain the credential speed bump. **404** when no demo account is seeded\n(dev / test, or before ``ensure_demo_user`` has run on the box) so the SPA can degrade\ngracefully rather than 500.",
+                "summary": "Log in to the read-only demo account",
+                "tags": [
+                    "auth"
+                ],
+                "security": [
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/User"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "description": "No demo account is available"
+                    },
+                    "429": {
+                        "description": "Too many demo sign-ins — retry later"
+                    }
+                }
+            }
+        },
         "/api/auth/login/": {
             "post": {
                 "operationId": "auth_login_create",
@@ -200,7 +231,7 @@
         "/api/auth/logout/": {
             "post": {
                 "operationId": "auth_logout_create",
-                "description": "Clear the session (Phase 5 auth slice).\n\nPOST (an unsafe method) deliberately, so it travels the *authenticated* CSRF\npath: the caller is authenticated, so ``SessionAuthentication.enforce_csrf``\nruns and ``proxy.ts`` already injects ``X-CSRFToken`` — no ``csrf_protect``\nneeded here (unlike login). Inherits the global ``IsAuthenticated``, so an\nanonymous logout 403s like everything else. Returns 200 with a body (not 204)\nso the generated TS client has a typed, non-void response to branch on.",
+                "description": "Clear the session (Phase 5 auth slice).\n\nPOST (an unsafe method) deliberately, so it travels the *authenticated* CSRF\npath: the caller is authenticated, so ``SessionAuthentication.enforce_csrf``\nruns and ``proxy.ts`` already injects ``X-CSRFToken`` — no ``csrf_protect``\nneeded here (unlike login). Returns 200 with a body (not 204) so the generated\nTS client has a typed, non-void response to branch on.\n\nSets ``permission_classes = [IsAuthenticated]`` to OPT OUT of the global\n``DemoReadOnly`` write-block: logout is the one unsafe method the demo account\nmust be allowed (the ``LogoutButton`` hard-navigates to ``/login`` on a 200; a 403\nwould strand the recruiter in the demo session). Still requires auth, so an\nanonymous logout 403s like everything else.",
                 "summary": "Log out (clear the session)",
                 "tags": [
                     "auth"
@@ -4096,7 +4127,7 @@
             },
             "User": {
                 "type": "object",
-                "description": "The current user, least-disclosure (Phase 5 auth slice).\n\nOnly ``id``/``username``/``email`` — never ``is_staff``/``is_superuser``/\n``last_login``/permissions. The frontend nav shows the username and there are\nno admin affordances this slice; the schema is treated as recon material\n(Invariant 7 posture), so we expose the minimum the SPA needs.",
+                "description": "The current user, least-disclosure (Phase 5 auth slice).\n\nOnly ``id``/``username``/``email`` plus the ``is_demo`` capability flag — never\n``is_staff``/``is_superuser``/``last_login``/permissions. The schema is treated as\nrecon material (Invariant 7 posture), so we expose the minimum the SPA needs.\n\n``is_demo`` is that minimum for the read-only-demo feature: the SPA hides write\naffordances for the demo session, and it must learn that from the server rather than\nstring-matching a hard-coded demo username (a hand-synced literal that silently\ndrifts). It is a NON-sensitive session-capability flag, NOT a privilege flag — it\nsays \"this session is the read-only showcase\", which the recruiter already knows.",
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -4112,11 +4143,16 @@
                         "format": "email",
                         "readOnly": true,
                         "title": "Email address"
+                    },
+                    "is_demo": {
+                        "type": "boolean",
+                        "readOnly": true
                     }
                 },
                 "required": [
                     "email",
                     "id",
+                    "is_demo",
                     "username"
                 ]
             },
