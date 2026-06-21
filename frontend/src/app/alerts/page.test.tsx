@@ -311,7 +311,9 @@ describe("AlertsPage — create rule form", () => {
   it("re-seeds the CSRF cookie when create returns 403 (recoverable without reload)", async () => {
     createRuleFn.mockResolvedValue({
       data: undefined,
-      error: undefined,
+      // 403 with no usable detail body → the form falls back to "HTTP 403"; `{}` matches
+      // hey-api's error-branch type (the success branch needs non-undefined `data`).
+      error: {},
       response: { status: 403 } as Response,
       request: {} as Request,
     });

@@ -7,7 +7,7 @@ import type {
   CollectionItemList,
   Deck,
   DeckMembership,
-  PaginatedCollectionItemList,
+  PaginatedCollectionItemListList,
   PaginatedDeckMembershipList,
 } from "@/lib/api";
 import {
@@ -157,7 +157,7 @@ function stubMembers(impl: (page: number) => PaginatedDeckMembershipList) {
 function stubHoldingSearch(results: CollectionItemList[]) {
   holdingsOptions.mockImplementation((options) => {
     const search = options?.query?.search ?? "";
-    const matched: PaginatedCollectionItemList = {
+    const matched: PaginatedCollectionItemListList = {
       count: search ? results.length : 0,
       next: null,
       previous: null,
@@ -292,7 +292,9 @@ describe("DeckDetail", () => {
   it("re-seeds CSRF when an add returns 403", async () => {
     createMembershipMock.mockResolvedValue({
       data: undefined,
-      error: undefined,
+      // 403 with no usable detail body → `failure()` falls back to "HTTP 403"; `{}` matches
+      // hey-api's error-branch type (the success branch needs non-undefined `data`).
+      error: {},
       response: { status: 403 } as Response,
       request: {} as Request,
     });
