@@ -15,6 +15,20 @@ vi.mock("@/lib/api", () => ({
   csrfRetrieve: vi.fn(async () => ({})),
 }));
 
+// Auth state is controllable so the upload form (owner) vs the read-only notice (demo)
+// can both be exercised. Owner by default; the demo test flips `auth.canWrite`.
+const auth = vi.hoisted(() => ({ canWrite: true }));
+vi.mock("@/components/auth-provider", () => ({
+  useAuth: () => ({
+    user: { id: 1, username: auth.canWrite ? "reader" : "demo", email: "" },
+    isLoading: false,
+    isAuthenticated: true,
+    isDemo: !auth.canWrite,
+    canWrite: auth.canWrite,
+    refetch: vi.fn(),
+  }),
+}));
+
 const createMock = vi.mocked(importsBatchesCreate);
 const csrfMock = vi.mocked(csrfRetrieve);
 
@@ -64,9 +78,20 @@ function csvFile(name = "collection.csv") {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  auth.canWrite = true;
 });
 
 describe("ImportUpload", () => {
+  it("hides the file input and shows a sign-in notice for the read-only demo", () => {
+    auth.canWrite = false;
+    renderUpload();
+
+    expect(
+      screen.queryByRole("button", { name: /import csv/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /sign in/i })).toBeInTheDocument();
+  });
+
   it("keeps the submit button disabled until a file is chosen", async () => {
     renderUpload();
     const submit = screen.getByRole("button", { name: /import csv/i });

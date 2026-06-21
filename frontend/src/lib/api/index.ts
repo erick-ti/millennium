@@ -56,6 +56,7 @@ export {
   alertsEventsList,
   alertsRulesCreate,
   alertsRulesList,
+  authDemoLoginCreate,
   authLoginCreate,
   authLogoutCreate,
   cardsCardsArchetypesRetrieve,

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
 
 import { type ImportBatch, importsBatchesCreate } from "@/lib/api";
+import { useAuth } from "@/components/auth-provider";
+import { ReadOnlyNotice } from "@/components/auth/read-only-notice";
 import { Button } from "@/components/ui/button";
 import { BatchStatusPill } from "@/components/imports/status";
 import { seedCsrf } from "@/lib/csrf";
@@ -45,6 +47,7 @@ export function ImportUpload({
    *  refresh the batch list. Fires for a failed-parse batch too (it's a real record). */
   onUploaded?: (batch: ImportBatch) => void;
 }) {
+  const { canWrite, isLoading: authLoading } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
 
@@ -58,6 +61,25 @@ export function ImportUpload({
   });
 
   const batch = mutation.data;
+
+  // The demo can browse import history but not upload (the server's DemoReadOnly blocks
+  // the POST); show the notice in place of the form rather than let it 403 on submit.
+  if (!canWrite) {
+    return (
+      <div className="vitrine rounded-lg p-5">
+        <h2 className="font-terminal text-xs uppercase tracking-[0.16em] text-gold-700">
+          New import
+        </h2>
+        {/* Only show the demo notice once auth has settled — during the cold-load probe
+            window canWrite is transiently false even for the owner. */}
+        {authLoading ? null : (
+          <ReadOnlyNotice className="mt-3 border-0 bg-transparent px-0 py-0">
+            The demo can browse import history but not upload files.
+          </ReadOnlyNotice>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="vitrine rounded-lg p-5">

@@ -60,7 +60,7 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isDemo } = useAuth();
   const next = safeNext(searchParams.get("next"));
 
   const [username, setUsername] = useState("");
@@ -75,11 +75,15 @@ export function LoginForm() {
     },
   });
 
-  // Already signed in (e.g. navigated to /login manually, or just logged in) →
-  // bounce to the target. Navigation is a side effect, so it lives in an effect.
+  // Already signed in as a REAL owner (e.g. navigated to /login manually, or just logged in)
+  // → bounce to the target. A DEMO session is authenticated too, but it lands here to
+  // UPGRADE — let it reach the form; submitting owner credentials replaces the demo session
+  // (Django login() rotates it). Without the !isDemo exemption, the "Sign in" affordance in
+  // ReadOnlyNotice would bounce the demo straight back into the app (Codex review 2026-06-21).
+  // Navigation is a side effect, so it lives in an effect.
   useEffect(() => {
-    if (isAuthenticated) router.replace(next);
-  }, [isAuthenticated, next, router]);
+    if (isAuthenticated && !isDemo) router.replace(next);
+  }, [isAuthenticated, isDemo, next, router]);
 
   return (
     <div className="mx-auto flex max-w-sm flex-col gap-6 px-6 py-16">

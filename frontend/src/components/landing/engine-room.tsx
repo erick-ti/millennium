@@ -1,4 +1,5 @@
 import { WadjetEye } from "@/components/brand/wadjet-eye";
+import { DemoCta } from "@/components/landing/demo-cta";
 import { SPEC } from "@/components/landing/data";
 
 /**
@@ -44,13 +45,7 @@ export function EngineRoom() {
           <p className="font-body text-bone-muted">
             Designed, built, deployed, and operated by Erick Ti.
           </p>
-          <a
-            href="/collection"
-            className="group inline-flex items-center gap-2.5 rounded-sm border border-gold-700/55 bg-gold-700/10 px-5 py-3 font-terminal text-xs uppercase tracking-[0.18em] text-gold-300 transition-colors hover:border-gold-500 hover:bg-gold-700/20"
-          >
-            Enter the vault
-            <span className="transition-transform group-hover:translate-x-0.5">→</span>
-          </a>
+          <DemoCta className="border border-gold-700/55 bg-gold-700/10 text-gold-300 hover:border-gold-500 hover:bg-gold-700/20" />
           <p className="font-terminal text-[0.7rem] text-bone-muted">
             Source · github.com/erick-ti/millennium
           </p>

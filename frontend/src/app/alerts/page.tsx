@@ -20,6 +20,8 @@ import {
   alertsRulesListOptions,
   alertsRulesListQueryKey,
 } from "@/lib/api";
+import { useAuth } from "@/components/auth-provider";
+import { ReadOnlyNotice } from "@/components/auth/read-only-notice";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -265,6 +267,7 @@ function DollarMoveCell({ value }: { value: string }) {
 
 export default function AlertsPage() {
   const queryClient = useQueryClient();
+  const { canWrite, isLoading: authLoading } = useAuth();
   const [page, setPage] = useState(1);
   const [ruleFilter, setRuleFilter] = useState<number | "all">("all");
 
@@ -378,7 +381,12 @@ export default function AlertsPage() {
       />
 
       <div>
-        <CreateRuleForm onCreated={handleRuleCreated} />
+        {canWrite ? (
+          <CreateRuleForm onCreated={handleRuleCreated} />
+        ) : authLoading ? null : (
+          // Only show the demo notice once auth has settled (cold-load probe window).
+          <ReadOnlyNotice>The demo can browse alerts but not create rules.</ReadOnlyNotice>
+        )}
       </div>
 
       <div className="mt-8 flex items-center justify-between gap-3">

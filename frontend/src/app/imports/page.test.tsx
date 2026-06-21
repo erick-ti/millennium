@@ -17,6 +17,19 @@ vi.mock("@/lib/api", () => ({
   importsBatchesCreate: vi.fn(),
 }));
 
+// The ImportUpload child reads useAuth; mock an owner session so its form renders
+// (the demo read-only path is covered in import-upload.test.tsx).
+vi.mock("@/components/auth-provider", () => ({
+  useAuth: () => ({
+    user: { id: 1, username: "reader", email: "" },
+    isLoading: false,
+    isAuthenticated: true,
+    isDemo: false,
+    canWrite: true,
+    refetch: vi.fn(),
+  }),
+}));
+
 const listOptions = vi.mocked(importsBatchesListOptions);
 
 type BatchesPage = PaginatedImportBatchList;

@@ -9,6 +9,7 @@ import { Nav } from "./nav";
 
 const h = vi.hoisted(() => ({
   isAuthenticated: true,
+  isDemo: false,
   username: "reader",
   pathname: "/collection",
 }));
@@ -26,6 +27,8 @@ vi.mock("@/components/auth-provider", () => ({
     user: { id: 1, username: h.username, email: "" },
     isLoading: false,
     isAuthenticated: h.isAuthenticated,
+    isDemo: h.isDemo,
+    canWrite: h.isAuthenticated && !h.isDemo,
     refetch: vi.fn(),
   }),
 }));
@@ -66,6 +69,7 @@ function renderNav() {
 beforeEach(() => {
   vi.clearAllMocks();
   h.isAuthenticated = true;
+  h.isDemo = false;
   h.username = "reader";
   h.pathname = "/collection";
   assign.mockClear();
@@ -85,6 +89,16 @@ describe("Nav", () => {
     expect(screen.getByText("reader")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /collection/i })).toBeInTheDocument();
+  });
+
+  it("shows a read-only DEMO pill (not the username) for the demo session", () => {
+    h.isDemo = true;
+    h.username = "demo";
+    renderNav();
+    expect(screen.getByText(/demo · read-only/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^demo$/)).not.toBeInTheDocument();
+    // The demo can still exit its session.
+    expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
   });
 
   it("hides the user controls when unauthenticated (brand still shown)", () => {

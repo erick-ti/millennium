@@ -21,6 +21,7 @@ import {
   importsRowsOverrideCreate,
   importsRowsRejectCreate,
 } from "@/lib/api";
+import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { PageHeader } from "@/components/ui/page-header";
@@ -132,6 +133,7 @@ const FEEDBACK_CLASSES: Record<Feedback["tone"], string> = {
 
 export function ImportBatchDetail({ batchId }: { batchId: number }) {
   const queryClient = useQueryClient();
+  const { canWrite } = useAuth();
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<RowFilter>("all");
   const [overridingRowId, setOverridingRowId] = useState<number | null>(null);
@@ -313,7 +315,12 @@ export function ImportBatchDetail({ batchId }: { batchId: number }) {
         </div>
       ),
     },
-    {
+  ];
+
+  // The review actions (approve/override/reject) are owner-only — the demo can read the
+  // review queue but DemoReadOnly blocks the writes, so hide the column entirely.
+  if (canWrite) {
+    columns.push({
       id: "actions",
       header: () => <div className="text-right">Actions</div>,
       cell: ({ row }) => {
@@ -354,8 +361,8 @@ export function ImportBatchDetail({ batchId }: { batchId: number }) {
           </div>
         );
       },
-    },
-  ];
+    });
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">

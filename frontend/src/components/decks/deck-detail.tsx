@@ -23,6 +23,7 @@ import {
   decksMembershipsListOptions,
   decksMembershipsListQueryKey,
 } from "@/lib/api";
+import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -126,6 +127,7 @@ const FEEDBACK_CLASSES: Record<Feedback["tone"], string> = {
 export function DeckDetail({ deckId }: { deckId: number }) {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const { canWrite } = useAuth();
   const [page, setPage] = useState(1);
   const [showPicker, setShowPicker] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -305,7 +307,11 @@ export function DeckDetail({ deckId }: { deckId: number }) {
         </div>
       ),
     },
-    {
+  ];
+
+  // The Remove column is owner-only — the demo can't mutate memberships (DemoReadOnly).
+  if (canWrite) {
+    columns.push({
       id: "actions",
       header: () => <div className="text-right">Actions</div>,
       cell: ({ row }) => (
@@ -320,8 +326,8 @@ export function DeckDetail({ deckId }: { deckId: number }) {
           </Button>
         </div>
       ),
-    },
-  ];
+    });
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
@@ -338,6 +344,7 @@ export function DeckDetail({ deckId }: { deckId: number }) {
           </>
         }
         actions={
+          !canWrite ? undefined : (
           <div className="flex items-center gap-2">
             {confirmingDelete ? (
               <>
@@ -369,6 +376,7 @@ export function DeckDetail({ deckId }: { deckId: number }) {
               </Button>
             )}
           </div>
+          )
         }
       />
 
@@ -400,13 +408,15 @@ export function DeckDetail({ deckId }: { deckId: number }) {
         <h2 className="font-terminal text-xs uppercase tracking-[0.16em] text-gold-700">
           Holdings in this deck
         </h2>
-        <Button
-          ref={addButtonRef}
-          size="sm"
-          onClick={() => setShowPicker((open) => !open)}
-        >
-          {showPicker ? "Close" : "Add holdings"}
-        </Button>
+        {canWrite ? (
+          <Button
+            ref={addButtonRef}
+            size="sm"
+            onClick={() => setShowPicker((open) => !open)}
+          >
+            {showPicker ? "Close" : "Add holdings"}
+          </Button>
+        ) : null}
       </div>
 
       {showPicker ? (

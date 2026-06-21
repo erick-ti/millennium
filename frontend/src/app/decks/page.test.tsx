@@ -32,6 +32,20 @@ vi.mock("@/lib/api", () => ({
   csrfRetrieve: vi.fn(async () => ({})),
 }));
 
+// Auth state is controllable so the create form (owner) vs the read-only notice (demo)
+// can both be exercised. Owner by default; a demo test flips `auth.canWrite`.
+const auth = vi.hoisted(() => ({ canWrite: true }));
+vi.mock("@/components/auth-provider", () => ({
+  useAuth: () => ({
+    user: { id: 1, username: auth.canWrite ? "reader" : "demo", email: "" },
+    isLoading: false,
+    isAuthenticated: true,
+    isDemo: !auth.canWrite,
+    canWrite: auth.canWrite,
+    refetch: vi.fn(),
+  }),
+}));
+
 const listOptions = vi.mocked(decksDecksListOptions);
 const createDeckFn = vi.mocked(decksDecksCreate);
 const csrfMock = vi.mocked(csrfRetrieve);
@@ -71,6 +85,7 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  auth.canWrite = true;
   stubDecks(() => ({ count: 0, next: null, previous: null, results: [] }));
   createDeckFn.mockResolvedValue({
     data: makeDeck(),
@@ -208,5 +223,15 @@ describe("DecksPage — create form", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/HTTP 403/);
     expect(csrfMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the create form and shows a sign-in notice for the read-only demo", () => {
+    auth.canWrite = false;
+    renderPage();
+
+    expect(
+      screen.queryByRole("button", { name: /create deck/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /sign in/i })).toBeInTheDocument();
   });
 });
