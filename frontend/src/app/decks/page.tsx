@@ -17,6 +17,8 @@ import {
   decksDecksListOptions,
   decksDecksListQueryKey,
 } from "@/lib/api";
+import { useAuth } from "@/components/auth-provider";
+import { ReadOnlyNotice } from "@/components/auth/read-only-notice";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -165,6 +167,7 @@ const columns: Array<ColumnDef<Deck>> = [
 
 export default function DecksPage() {
   const queryClient = useQueryClient();
+  const { canWrite, isLoading: authLoading } = useAuth();
   const [page, setPage] = useState(1);
 
   const decksQuery = useQuery({
@@ -192,7 +195,13 @@ export default function DecksPage() {
       />
 
       <div>
-        <CreateDeckForm onCreated={handleDeckCreated} />
+        {canWrite ? (
+          <CreateDeckForm onCreated={handleDeckCreated} />
+        ) : authLoading ? null : (
+          // Only show the demo notice once auth has settled — during the cold-load probe
+          // window canWrite is transiently false even for the owner.
+          <ReadOnlyNotice>The demo can browse decks but not create them.</ReadOnlyNotice>
+        )}
       </div>
 
       <div className="mt-8">

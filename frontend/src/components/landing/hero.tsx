@@ -1,5 +1,6 @@
 import { CountUp } from "@/components/landing/count-up";
 import { CATALOG } from "@/components/landing/data";
+import { DemoCta } from "@/components/landing/demo-cta";
 import { EyeStatus } from "@/components/landing/eye-status";
 import { FoilCard } from "@/components/landing/foil-card";
 import { Ticker } from "@/components/landing/ticker";
@@ -43,13 +44,10 @@ export function Hero() {
             <span className="text-bone-muted"> · as of Jun 2026</span>
           </p>
 
-          <a
-            href="/collection"
-            className="group mt-8 inline-flex items-center gap-2.5 rounded-sm border border-gold-700/55 px-5 py-3 font-terminal text-xs uppercase tracking-[0.18em] text-gold-300 transition-colors hover:border-gold-500 hover:bg-gold-700/10"
-          >
-            Enter the vault
-            <span className="transition-transform group-hover:translate-x-0.5">→</span>
-          </a>
+          <DemoCta
+            className="mt-8 border border-gold-700/55 text-gold-300 hover:border-gold-500 hover:bg-gold-700/10"
+            caption="Live, read-only demo — no sign-in needed."
+          />
         </div>
 
         {/* RIGHT — the signature foil/appraisal card, above the fold */}

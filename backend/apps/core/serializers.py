@@ -4,19 +4,31 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
+from apps.core.permissions import is_demo_user
+
 
 class UserSerializer(serializers.ModelSerializer[User]):
     """The current user, least-disclosure (Phase 5 auth slice).
 
-    Only ``id``/``username``/``email`` — never ``is_staff``/``is_superuser``/
-    ``last_login``/permissions. The frontend nav shows the username and there are
-    no admin affordances this slice; the schema is treated as recon material
-    (Invariant 7 posture), so we expose the minimum the SPA needs."""
+    Only ``id``/``username``/``email`` plus the ``is_demo`` capability flag — never
+    ``is_staff``/``is_superuser``/``last_login``/permissions. The schema is treated as
+    recon material (Invariant 7 posture), so we expose the minimum the SPA needs.
+
+    ``is_demo`` is that minimum for the read-only-demo feature: the SPA hides write
+    affordances for the demo session, and it must learn that from the server rather than
+    string-matching a hard-coded demo username (a hand-synced literal that silently
+    drifts). It is a NON-sensitive session-capability flag, NOT a privilege flag — it
+    says "this session is the read-only showcase", which the recruiter already knows."""
+
+    is_demo = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["id", "username", "email"]
-        read_only_fields = fields
+        fields = ["id", "username", "email", "is_demo"]
+        read_only_fields = ["id", "username", "email"]
+
+    def get_is_demo(self, obj: User) -> bool:
+        return is_demo_user(obj)
 
 
 class LoginSerializer(serializers.Serializer[dict[str, object]]):

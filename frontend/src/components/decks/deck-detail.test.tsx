@@ -53,6 +53,20 @@ vi.mock("@/lib/api", () => ({
   csrfRetrieve: vi.fn(async () => ({})),
 }));
 
+// Auth state is controllable so the owner write affordances (Add holdings / Remove /
+// Delete deck) vs the read-only demo can both be exercised. Owner by default.
+const auth = vi.hoisted(() => ({ canWrite: true }));
+vi.mock("@/components/auth-provider", () => ({
+  useAuth: () => ({
+    user: { id: 1, username: auth.canWrite ? "reader" : "demo", email: "" },
+    isLoading: false,
+    isAuthenticated: true,
+    isDemo: !auth.canWrite,
+    canWrite: auth.canWrite,
+    refetch: vi.fn(),
+  }),
+}));
+
 const retrieveOptions = vi.mocked(decksDecksRetrieveOptions);
 const membersOptions = vi.mocked(decksMembershipsListOptions);
 const holdingsOptions = vi.mocked(collectionItemsListOptions);
@@ -182,6 +196,7 @@ function renderDetail(client?: QueryClient) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  auth.canWrite = true;
   stubDeck(makeDeck());
   stubMembers(() => ({ count: 0, next: null, previous: null, results: [] }));
   stubHoldingSearch([makeHolding()]);
@@ -212,6 +227,33 @@ describe("DeckDetail", () => {
     expect(
       screen.getByRole("status", { name: /loading deck/i }),
     ).toBeInTheDocument();
+  });
+
+  it("hides every write affordance for the read-only demo (member row still reads)", async () => {
+    auth.canWrite = false;
+    stubDeck(makeDeck({ member_count: 1 }));
+    stubMembers(() => ({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [makeMembership()],
+    }));
+    renderDetail();
+
+    // The member row renders (read path intact)…
+    expect(
+      await screen.findByText("Ash Blossom & Joyous Spring"),
+    ).toBeInTheDocument();
+    // …but no write controls (add / remove / delete) are present.
+    expect(
+      screen.queryByRole("button", { name: /add holdings/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /delete deck/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^remove$/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders the deck header (holdings count) and members (per-row copy count)", async () => {

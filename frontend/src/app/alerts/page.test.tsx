@@ -43,6 +43,20 @@ vi.mock("@/lib/api", () => ({
   csrfRetrieve: vi.fn(async () => ({})),
 }));
 
+// Auth state is controllable so the create form (owner) vs the read-only notice (demo)
+// can both be exercised. Owner by default; a demo test flips `auth.canWrite`.
+const auth = vi.hoisted(() => ({ canWrite: true }));
+vi.mock("@/components/auth-provider", () => ({
+  useAuth: () => ({
+    user: { id: 1, username: auth.canWrite ? "reader" : "demo", email: "" },
+    isLoading: false,
+    isAuthenticated: true,
+    isDemo: !auth.canWrite,
+    canWrite: auth.canWrite,
+    refetch: vi.fn(),
+  }),
+}));
+
 const eventsOptions = vi.mocked(alertsEventsListOptions);
 const rulesOptions = vi.mocked(alertsRulesListOptions);
 const createRuleFn = vi.mocked(alertsRulesCreate);
@@ -125,6 +139,7 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  auth.canWrite = true;
   stubEvents(() => ({ count: 0, next: null, previous: null, results: [] }));
   stubRules([]);
   // Default: create succeeds (overridden per-test for the error path).
@@ -326,5 +341,15 @@ describe("AlertsPage — create rule form", () => {
     // The error surfaces AND the CSRF cookie is re-seeded so the next attempt carries a token.
     expect(await screen.findByRole("alert")).toHaveTextContent(/HTTP 403/);
     expect(csrfMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the create form and shows a sign-in notice for the read-only demo", () => {
+    auth.canWrite = false;
+    renderPage();
+
+    expect(
+      screen.queryByRole("button", { name: /create rule/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /sign in/i })).toBeInTheDocument();
   });
 });

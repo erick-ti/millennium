@@ -23,15 +23,18 @@ function stubMe(queryFn: () => Promise<User>) {
 }
 
 function Probe() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, isDemo, canWrite } = useAuth();
   return (
-    <span data-testid="state">
-      {isLoading
-        ? "loading"
-        : isAuthenticated
-          ? `authed:${user?.username}`
-          : "anon"}
-    </span>
+    <>
+      <span data-testid="state">
+        {isLoading
+          ? "loading"
+          : isAuthenticated
+            ? `authed:${user?.username}`
+            : "anon"}
+      </span>
+      <span data-testid="caps">{`demo:${isDemo} write:${canWrite}`}</span>
+    </>
   );
 }
 
@@ -54,9 +57,28 @@ beforeEach(() => {
 
 describe("AuthProvider", () => {
   it("exposes the authenticated user when /me returns 200", async () => {
-    stubMe(async () => ({ id: 1, username: "reader", email: "r@example.com" }));
+    stubMe(async () => ({
+      id: 1,
+      username: "reader",
+      email: "r@example.com",
+      is_demo: false,
+    }));
     renderProvider();
     expect(await screen.findByText("authed:reader")).toBeInTheDocument();
+  });
+
+  it("derives the read-only demo state from the server is_demo flag", async () => {
+    stubMe(async () => ({ id: 9, username: "demo", email: "", is_demo: true }));
+    renderProvider();
+    expect(await screen.findByText("authed:demo")).toBeInTheDocument();
+    expect(screen.getByTestId("caps")).toHaveTextContent("demo:true write:false");
+  });
+
+  it("treats a real (non-demo) user as a writer", async () => {
+    stubMe(async () => ({ id: 1, username: "reader", email: "", is_demo: false }));
+    renderProvider();
+    expect(await screen.findByText("authed:reader")).toBeInTheDocument();
+    expect(screen.getByTestId("caps")).toHaveTextContent("demo:false write:true");
   });
 
   it("is unauthenticated (not a crash) when /me errors — the anonymous 403", async () => {

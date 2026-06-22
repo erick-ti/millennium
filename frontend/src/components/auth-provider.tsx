@@ -10,6 +10,10 @@ interface AuthState {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  /** True when the session is the read-only demo account (write affordances hidden). */
+  isDemo: boolean;
+  /** Owner session — authenticated AND not the demo; may perform writes. */
+  canWrite: boolean;
   /** Re-probe `/api/auth/me` (after login/logout changes the session). */
   refetch: () => void;
 }
@@ -33,10 +37,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   const user = query.data ?? null;
+  const isAuthenticated = !query.isError && user !== null;
+  // Read the server's capability flag rather than string-matching a hard-coded demo
+  // username — the backend (UserSerializer.is_demo) is the single source of truth.
+  const isDemo = isAuthenticated && (user?.is_demo ?? false);
   const value: AuthState = {
     user,
     isLoading: query.isLoading,
-    isAuthenticated: !query.isError && user !== null,
+    isAuthenticated,
+    isDemo,
+    canWrite: isAuthenticated && !isDemo,
     refetch: () => {
       void queryClient.invalidateQueries({ queryKey: authMeRetrieveQueryKey() });
     },

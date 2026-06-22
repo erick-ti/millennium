@@ -12,6 +12,7 @@ const h = vi.hoisted(() => ({
   replace: vi.fn(),
   search: "",
   isAuthenticated: false,
+  isDemo: false,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -24,6 +25,8 @@ vi.mock("@/components/auth-provider", () => ({
     user: null,
     isLoading: false,
     isAuthenticated: h.isAuthenticated,
+    isDemo: h.isDemo,
+    canWrite: h.isAuthenticated && !h.isDemo,
     refetch: vi.fn(),
   }),
 }));
@@ -62,6 +65,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.search = "";
   h.isAuthenticated = false;
+  h.isDemo = false;
 });
 
 describe("LoginForm", () => {
@@ -175,5 +179,16 @@ describe("LoginForm", () => {
     renderForm();
 
     await waitFor(() => expect(h.replace).toHaveBeenCalledWith("/cards"));
+  });
+
+  it("does NOT bounce a demo session — it may reach the form to upgrade to owner", async () => {
+    h.isAuthenticated = true;
+    h.isDemo = true;
+    h.search = "next=/cards";
+    renderForm();
+
+    // The form renders (so a demo user can sign in as the owner); no redirect fires.
+    expect(screen.getByRole("button", { name: /sign in/i })).toBeInTheDocument();
+    expect(h.replace).not.toHaveBeenCalled();
   });
 });

@@ -19,7 +19,7 @@ const routes: Array<{ href: string; label: string }> = [
 ];
 
 export function Nav() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isDemo } = useAuth();
   const pathname = usePathname();
 
   // The public landing ("/") is a full-bleed cinematic surface with its own
@@ -57,9 +57,18 @@ export function Nav() {
         </ul>
         {isAuthenticated ? (
           <div className="ml-auto flex items-center gap-3">
-            <span className="font-terminal text-xs tracking-wide text-bone-muted">
-              {user?.username}
-            </span>
+            {isDemo ? (
+              <span
+                title="You’re viewing the read-only demo — sign in for full access"
+                className="rounded-sm border border-gold-700/50 px-2 py-0.5 font-terminal text-[0.62rem] uppercase tracking-[0.14em] text-gold-500"
+              >
+                Demo · read-only
+              </span>
+            ) : (
+              <span className="font-terminal text-xs tracking-wide text-bone-muted">
+                {user?.username}
+              </span>
+            )}
             <LogoutButton />
           </div>
         ) : null}

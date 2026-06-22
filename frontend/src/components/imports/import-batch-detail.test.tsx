@@ -35,6 +35,20 @@ vi.mock("@/lib/api", () => ({
   csrfRetrieve: vi.fn(async () => ({})),
 }));
 
+// Auth state is controllable so the owner review actions (approve/override/reject) vs the
+// read-only demo can both be exercised. Owner by default.
+const auth = vi.hoisted(() => ({ canWrite: true }));
+vi.mock("@/components/auth-provider", () => ({
+  useAuth: () => ({
+    user: { id: 1, username: auth.canWrite ? "reader" : "demo", email: "" },
+    isLoading: false,
+    isAuthenticated: true,
+    isDemo: !auth.canWrite,
+    canWrite: auth.canWrite,
+    refetch: vi.fn(),
+  }),
+}));
+
 const batchOptions = vi.mocked(importsBatchesRetrieveOptions);
 const rowsOptions = vi.mocked(importsRowsListOptions);
 const approveMock = vi.mocked(importsRowsApproveCreate);
@@ -144,6 +158,7 @@ function renderDetail() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  auth.canWrite = true;
   batchOptions.mockReturnValue({
     queryKey: [{ _id: "importsBatchesRetrieve" }],
     queryFn: async () => makeBatch(),
@@ -169,6 +184,21 @@ describe("ImportBatchDetail", () => {
     expect(screen.getByText("Medium")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /approve/i })).toBeEnabled();
     expect(screen.getByRole("button", { name: /reject/i })).toBeInTheDocument();
+  });
+
+  it("hides the review actions for the read-only demo (the row still reads)", async () => {
+    auth.canWrite = false;
+    stubRows(() => onePage([makeRow()]));
+    renderDetail();
+
+    // The staged row renders (read path intact)…
+    expect(
+      await screen.findByText("Ash Blossom & Joyous Spring"),
+    ).toBeInTheDocument();
+    // …but the approve/override/reject actions are gone.
+    expect(screen.queryByRole("button", { name: /approve/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /override/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /reject/i })).not.toBeInTheDocument();
   });
 
   it("approves a row and shows a success message", async () => {

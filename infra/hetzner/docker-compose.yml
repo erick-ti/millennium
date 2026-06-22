@@ -43,16 +43,23 @@ services:
     restart: unless-stopped
 
   migrate:
-    # One-shot: apply migrations AND create the DatabaseCache table, then exit 0.
-    # Run it explicitly before `up` (never as an app entrypoint, Invariant-3
-    # style). createcachetable is idempotent — safe to re-run every deploy.
+    # One-shot DB setup: apply migrations, create the DatabaseCache table, seed/repair the
+    # read-only demo account, and prune expired sessions — then exit 0. Run explicitly
+    # before `up` (never as an app entrypoint, Invariant-3 style). Every step is idempotent
+    # and safe to re-run each deploy: createcachetable + ensure_demo_user no-op when already
+    # done; ensure_demo_user also REPAIRS demo-account drift so the public CTA always works
+    # on a clean deploy (Codex review 2026-06-21). clearsessions is opportunistic
+    # maintenance — `|| true` so a hiccup pruning sessions never fails a deploy (a dedicated
+    # daily timer is the fuller cleanup if deploy cadence ever drops).
     image: millennium-backend:latest
     # Reuse the image `backend` builds (same tag). Never attempt a registry pull
     # if it's missing locally — fail loudly so `docker compose build` is run first.
     pull_policy: never
     command: >
       sh -c "python manage.py migrate --noinput &&
-             python manage.py createcachetable"
+             python manage.py createcachetable &&
+             python manage.py ensure_demo_user &&
+             (python manage.py clearsessions || true)"
     env_file: .env
     depends_on:
       postgres:
