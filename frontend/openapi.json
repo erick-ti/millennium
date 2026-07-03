@@ -146,6 +146,214 @@
                 }
             }
         },
+        "/api/audit/client-errors/": {
+            "post": {
+                "operationId": "audit_client_errors_create",
+                "description": "Record a frontend error reported by the SPA (global handler / error boundary).\n\n``AllowAny`` + no authenticators (the ``CsrfView`` precedent) — an anonymous visitor\nhits errors too, and the beacon must work before sign-in. ``csrf_protect`` re-arms\nCSRF on this POST (a bare ``APIView`` is ``csrf_exempt``, and ``SessionAuthentication``\nskips the check for anonymous requests, so it would otherwise be CSRF-naked); since\nonly same-origin JS can read the ``csrftoken`` cookie, this also enforces same-origin.\nIts OWN throttle scope so beacon traffic can't drain the ``login`` bucket; the body is\ncapped + every field truncated, and there is no free-form payload field, so the public\nsurface can't be used to exfiltrate data or bloat the store.\n\nThe actor/session are read from the SESSION (``get_user``) because\n``authentication_classes=[]`` blanks DRF's ``request.user`` (the ``DemoLoginView``\npattern). A PUBLIC beacon — anonymous OR the read-only demo, both publicly obtainable —\nis subject to a per-UTC-day quota (``MAX_PUBLIC_FRONTEND_ERRORS_PER_DAY``): the throttle\nbounds the rate but not the total, and CSRF is not a bot defense, so without the quota a\nscripted client (anonymous or holding a demo cookie) could fill the store before the\nprune window. Over quota → accept-but-DROP (still 204, no cap oracle). Only a real\n(non-demo) account is exempt. Returns 204 — the reporter is fire-and-forget.",
+                "summary": "Report a frontend error",
+                "tags": [
+                    "audit"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ClientErrorRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ClientErrorRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ClientErrorRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {}
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Error recorded"
+                    },
+                    "400": {
+                        "description": "Missing or blank message"
+                    },
+                    "413": {
+                        "description": "Payload too large"
+                    },
+                    "429": {
+                        "description": "Too many reports — retry later"
+                    }
+                }
+            }
+        },
+        "/api/audit/error-groups/": {
+            "get": {
+                "operationId": "audit_error_groups_list",
+                "description": "Fingerprint-grouped error triage for the /ops console — superuser only.\n\nEach row is a distinct ``(fingerprint, source, exception_class)`` with its dedup count,\nfirst/last-seen, and the latest occurrence's representative message/path. Computed in\n``get_queryset`` (a Python list, the ``MoversViewSet`` precedent) and paginated by the\nlist mixin; bounded by the 90-day retention prune + low traffic, so all groups fit in\nmemory. ``?source=`` filters backend vs frontend.",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "source",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "backend",
+                                "frontend"
+                            ]
+                        }
+                    }
+                ],
+                "tags": [
+                    "audit"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedErrorGroupList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/audit/events/": {
+            "get": {
+                "operationId": "audit_events_list",
+                "description": "Read-only audit feed for the /ops console — superuser only.\n\n``[IsAuthenticated, IsSuperUser]`` is set EXPLICITLY so it replaces the global\n``DemoReadOnly`` default: anonymous/demo/non-super all 403, owner 200. List filters\n(``?actor_type=&method=&status_code=&search=``) apply on the list action only — the\nlist-only guard from the read-API convention, so a stray param can't 404 a retrieve.",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "actor_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "anonymous",
+                                "demo",
+                                "user"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "method",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "DELETE",
+                                "PATCH",
+                                "POST",
+                                "PUT"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "search",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status_code",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "audit"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedAuditEventList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/audit/events/{id}/": {
+            "get": {
+                "operationId": "audit_events_retrieve",
+                "description": "Read-only audit feed for the /ops console — superuser only.\n\n``[IsAuthenticated, IsSuperUser]`` is set EXPLICITLY so it replaces the global\n``DemoReadOnly`` default: anonymous/demo/non-super all 403, owner 200. List filters\n(``?actor_type=&method=&status_code=&search=``) apply on the list action only — the\nlist-only guard from the read-API convention, so a stray param can't 404 a retrieve.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "A unique integer value identifying this audit event.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "audit"
+                ],
+                "security": [
+                    {
+                        "cookieAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AuditEvent"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/auth/demo-login/": {
             "post": {
                 "operationId": "auth_demo_login_create",
@@ -2117,6 +2325,15 @@
     },
     "components": {
         "schemas": {
+            "ActorTypeEnum": {
+                "enum": [
+                    "anonymous",
+                    "demo",
+                    "user"
+                ],
+                "type": "string",
+                "description": "* `anonymous` - Anonymous\n* `demo` - Demo\n* `user` - User"
+            },
             "AlertEvent": {
                 "type": "object",
                 "description": "One alert-feed row: the fired rule's fire-time snapshot + the moved printing's\nidentity + the move. The ``rule_*`` columns are the immutable snapshot (so the feed\nrenders faithfully even if the live rule was later edited); the printing identity is\npulled via ``source=\"printing.*\"`` (those declared fields are skipped by the schema\nnullability gate, which only maps 1:1 model fields, so ``variant_label`` sets\n``allow_null=True`` explicitly). Money fields serialize as strings (DecimalField — the\nPriceSnapshot convention) so the frontend's ``parseDecimal`` keeps values exact.",
@@ -2335,6 +2552,71 @@
                     "version"
                 ]
             },
+            "AuditEvent": {
+                "type": "object",
+                "description": "Read serializer for the /ops audit feed. The raw ``session_key_hash`` is\nintentionally NOT exposed — it is an internal grouping key, not display data.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "actor_type": {
+                        "$ref": "#/components/schemas/ActorTypeEnum"
+                    },
+                    "actor_username": {
+                        "type": "string",
+                        "maxLength": 150
+                    },
+                    "method": {
+                        "type": "string",
+                        "maxLength": 8
+                    },
+                    "path": {
+                        "type": "string",
+                        "maxLength": 512
+                    },
+                    "view_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "status_code": {
+                        "type": "integer",
+                        "maximum": 32767,
+                        "minimum": 0
+                    },
+                    "object_type": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "object_id": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "request_id": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "duration_ms": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 0,
+                        "nullable": true
+                    },
+                    "detail": {}
+                },
+                "required": [
+                    "created_at",
+                    "id",
+                    "method",
+                    "path",
+                    "status_code"
+                ]
+            },
             "CardDetail": {
                 "type": "object",
                 "description": "Card detail nests its printings (most cards have at most a handful, so the\nnested payload stays small). The flat ``/api/cards/printings/?card={id}``\nendpoint remains available for filterable browsing.",
@@ -2550,6 +2832,35 @@
                     "cd",
                     "configured",
                     "error"
+                ]
+            },
+            "ClientErrorRequest": {
+                "type": "object",
+                "description": "Validate a frontend error beacon (``POST /api/audit/client-errors/``).\n\nA STRICT allowlist: only these fields are accepted, and there is deliberately NO\nfree-form ``extra`` blob — so cookies, localStorage/sessionStorage, or arbitrary\npayloads can never be exfiltrated into the error store (review feedback 2026-06-21).\nFields are accepted leniently (no ``max_length`` → no 400 on a long stack) and\nTRUNCATED server-side; ``message`` is the one required field. ``request_id`` carries\nthe ``X-Request-ID`` of the failed API call when the SPA has it, so a frontend error\ncorrelates back to the backend request that triggered it.",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "default": ""
+                    },
+                    "stack": {
+                        "type": "string",
+                        "default": ""
+                    },
+                    "url": {
+                        "type": "string",
+                        "default": ""
+                    },
+                    "request_id": {
+                        "type": "string",
+                        "default": ""
+                    }
+                },
+                "required": [
+                    "message"
                 ]
             },
             "CollectionItemDetail": {
@@ -2933,6 +3244,53 @@
                 ],
                 "type": "string",
                 "description": "* `first` - 1st Edition\n* `unlimited` - Unlimited\n* `limited` - Limited"
+            },
+            "ErrorGroup": {
+                "type": "object",
+                "description": "One fingerprint-grouped error row for the /ops triage view: the dedup count +\nfirst/last seen, plus the latest occurrence's representative message/path.",
+                "properties": {
+                    "fingerprint": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "type": "string"
+                    },
+                    "exception_class": {
+                        "type": "string"
+                    },
+                    "count": {
+                        "type": "integer"
+                    },
+                    "first_seen": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "last_seen": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "path": {
+                        "type": "string"
+                    },
+                    "status_code": {
+                        "type": "integer",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "count",
+                    "exception_class",
+                    "fingerprint",
+                    "first_seen",
+                    "last_seen",
+                    "message",
+                    "path",
+                    "source",
+                    "status_code"
+                ]
             },
             "ImportBatch": {
                 "type": "object",
@@ -3405,6 +3763,37 @@
                     }
                 }
             },
+            "PaginatedAuditEventList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AuditEvent"
+                        }
+                    }
+                }
+            },
             "PaginatedCardListList": {
                 "type": "object",
                 "required": [
@@ -3587,6 +3976,37 @@
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/DeckMembership"
+                        }
+                    }
+                }
+            },
+            "PaginatedErrorGroupList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ErrorGroup"
                         }
                     }
                 }
@@ -4127,7 +4547,7 @@
             },
             "User": {
                 "type": "object",
-                "description": "The current user, least-disclosure (Phase 5 auth slice).\n\nOnly ``id``/``username``/``email`` plus the ``is_demo`` capability flag — never\n``is_staff``/``is_superuser``/``last_login``/permissions. The schema is treated as\nrecon material (Invariant 7 posture), so we expose the minimum the SPA needs.\n\n``is_demo`` is that minimum for the read-only-demo feature: the SPA hides write\naffordances for the demo session, and it must learn that from the server rather than\nstring-matching a hard-coded demo username (a hand-synced literal that silently\ndrifts). It is a NON-sensitive session-capability flag, NOT a privilege flag — it\nsays \"this session is the read-only showcase\", which the recruiter already knows.",
+                "description": "The current user, least-disclosure (Phase 5 auth slice).\n\n``id``/``username``/``email`` plus two capability flags the SPA needs to decide which\naffordances to render: ``is_demo`` (hide writes for the read-only showcase) and\n``is_superuser`` (show the owner-only ``/ops`` console link). These are exposed only on\nthe caller's OWN session (``/api/auth/me`` is ``IsAuthenticated``), so this is the owner\nlearning their own privilege, not a leak — and the flags are DISPLAY logic only; every\nendpoint enforces authorization server-side (``/ops`` is gated by ``IsSuperUser``, never\nby trusting this flag). ``is_staff`` rides along for admin-link parity. Still no\n``last_login``/permissions/password state.",
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -4147,12 +4567,26 @@
                     "is_demo": {
                         "type": "boolean",
                         "readOnly": true
+                    },
+                    "is_staff": {
+                        "type": "boolean",
+                        "readOnly": true,
+                        "title": "Staff status",
+                        "description": "Designates whether the user can log into this admin site."
+                    },
+                    "is_superuser": {
+                        "type": "boolean",
+                        "readOnly": true,
+                        "title": "Superuser status",
+                        "description": "Designates that this user has all permissions without explicitly assigning them."
                     }
                 },
                 "required": [
                     "email",
                     "id",
                     "is_demo",
+                    "is_staff",
+                    "is_superuser",
                     "username"
                 ]
             },

@@ -42,6 +42,8 @@ def test_login_with_valid_credentials_establishes_session(user: User) -> None:
         "username": "reader",
         "email": "r@example.com",
         "is_demo": False,
+        "is_staff": False,
+        "is_superuser": False,
     }
     assert "sessionid" in resp.cookies
     # The session cookie MUST be HttpOnly (JS-unreadable) — the exact INVERSE of the
@@ -226,6 +228,8 @@ def test_me_returns_current_user_when_authenticated(user: User) -> None:
         "username": "reader",
         "email": "r@example.com",
         "is_demo": False,
+        "is_staff": False,
+        "is_superuser": False,
     }
 
 
@@ -235,14 +239,14 @@ def test_me_requires_authentication() -> None:
 
 @pytest.mark.django_db
 def test_user_payload_never_leaks_sensitive_fields(user: User) -> None:
-    """Least-disclosure: no password hash, no staff/superuser flags, no permissions."""
+    """Least-disclosure: only id/username/email + the capability flags the SPA renders
+    against (is_demo, is_staff, is_superuser, exposed on the caller's OWN session) — never
+    the password hash, last_login, or permission set."""
     client = APIClient()
     client.post(LOGIN_URL, CREDS, format="json")
 
     body = client.get(ME_URL).json()
 
-    # is_demo is a non-sensitive session-capability flag (the SPA needs it to hide write
-    # affordances) — distinct from the privilege flags below, which must stay hidden.
-    assert set(body) == {"id", "username", "email", "is_demo"}
-    for leaked in ("password", "is_staff", "is_superuser", "last_login", "user_permissions"):
+    assert set(body) == {"id", "username", "email", "is_demo", "is_staff", "is_superuser"}
+    for leaked in ("password", "last_login", "user_permissions", "groups"):
         assert leaked not in body

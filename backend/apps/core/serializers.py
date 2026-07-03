@@ -10,22 +10,21 @@ from apps.core.permissions import is_demo_user
 class UserSerializer(serializers.ModelSerializer[User]):
     """The current user, least-disclosure (Phase 5 auth slice).
 
-    Only ``id``/``username``/``email`` plus the ``is_demo`` capability flag — never
-    ``is_staff``/``is_superuser``/``last_login``/permissions. The schema is treated as
-    recon material (Invariant 7 posture), so we expose the minimum the SPA needs.
-
-    ``is_demo`` is that minimum for the read-only-demo feature: the SPA hides write
-    affordances for the demo session, and it must learn that from the server rather than
-    string-matching a hard-coded demo username (a hand-synced literal that silently
-    drifts). It is a NON-sensitive session-capability flag, NOT a privilege flag — it
-    says "this session is the read-only showcase", which the recruiter already knows."""
+    ``id``/``username``/``email`` plus two capability flags the SPA needs to decide which
+    affordances to render: ``is_demo`` (hide writes for the read-only showcase) and
+    ``is_superuser`` (show the owner-only ``/ops`` console link). These are exposed only on
+    the caller's OWN session (``/api/auth/me`` is ``IsAuthenticated``), so this is the owner
+    learning their own privilege, not a leak — and the flags are DISPLAY logic only; every
+    endpoint enforces authorization server-side (``/ops`` is gated by ``IsSuperUser``, never
+    by trusting this flag). ``is_staff`` rides along for admin-link parity. Still no
+    ``last_login``/permissions/password state."""
 
     is_demo = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "is_demo"]
-        read_only_fields = ["id", "username", "email"]
+        fields = ["id", "username", "email", "is_demo", "is_staff", "is_superuser"]
+        read_only_fields = ["id", "username", "email", "is_staff", "is_superuser"]
 
     def get_is_demo(self, obj: User) -> bool:
         return is_demo_user(obj)

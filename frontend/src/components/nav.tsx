@@ -19,12 +19,19 @@ const routes: Array<{ href: string; label: string }> = [
 ];
 
 export function Nav() {
-  const { user, isAuthenticated, isDemo } = useAuth();
+  const { user, isAuthenticated, isDemo, isSuperuser } = useAuth();
   const pathname = usePathname();
 
   // The public landing ("/") is a full-bleed cinematic surface with its own
   // masthead; the app chrome would clash with it.
   if (pathname === "/") return null;
+
+  // The owner-only /ops console link — shown only to a superuser. This is display
+  // gating; the API enforces the real boundary (IsSuperUser), so a hidden link is
+  // not a security control.
+  const visibleRoutes = isSuperuser
+    ? [...routes, { href: "/ops", label: "Ops" }]
+    : routes;
 
   return (
     <nav className="border-b border-gold-900/25 bg-vault-950/90 backdrop-blur">
@@ -36,7 +43,7 @@ export function Nav() {
           Millennium
         </Link>
         <ul className="flex flex-wrap gap-x-5 gap-y-1.5">
-          {routes.map((route) => {
+          {visibleRoutes.map((route) => {
             const active =
               pathname === route.href || pathname.startsWith(`${route.href}/`);
             return (

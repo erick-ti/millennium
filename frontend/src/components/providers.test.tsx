@@ -3,8 +3,12 @@ import { render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/auth-interceptor";
+import { reportClientError } from "@/lib/report-error";
 
 import { makeQueryClient } from "./providers";
+
+vi.mock("@/lib/report-error", () => ({ reportClientError: vi.fn() }));
+const reportMock = vi.mocked(reportClientError);
 
 // Integration test of the REAL QueryClient wiring (the retry predicate + the
 // QueryCache onError redirect), which the mocked page tests never exercise —
@@ -20,8 +24,16 @@ function stubLocation(pathname: string, search = "") {
   });
 }
 
-function Probe({ queryFn }: { queryFn: () => Promise<unknown> }) {
-  useQuery({ queryKey: ["integration-403"], queryFn });
+function Probe({
+  queryFn,
+  queryKey = "probe",
+  retry,
+}: {
+  queryFn: () => Promise<unknown>;
+  queryKey?: string;
+  retry?: boolean;
+}) {
+  useQuery({ queryKey: [queryKey], queryFn, ...(retry !== undefined ? { retry } : {}) });
   return null;
 }
 
@@ -54,5 +66,39 @@ describe("makeQueryClient (real provider wiring)", () => {
     );
     // The retry predicate fast-fails a 403, so the doomed query runs once, not 4×.
     expect(queryFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("beacons a proxy 5xx (never reaches Django) as a frontend error", async () => {
+    reportMock.mockClear();
+    const queryFn = vi.fn(async () => {
+      throw new ApiError(502, "https://app.test/api/cards/cards/", null);
+    });
+    const queryClient = makeQueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Probe queryFn={queryFn} queryKey="proxy-502" retry={false} />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => expect(reportMock).toHaveBeenCalledTimes(1));
+  });
+
+  it("does not beacon an expected 4xx", async () => {
+    reportMock.mockClear();
+    const queryFn = vi.fn(async () => {
+      throw new ApiError(404, "https://app.test/api/cards/cards/999/", null);
+    });
+    const queryClient = makeQueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Probe queryFn={queryFn} queryKey="expected-404" retry={false} />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => expect(queryFn).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(reportMock).not.toHaveBeenCalled();
   });
 });

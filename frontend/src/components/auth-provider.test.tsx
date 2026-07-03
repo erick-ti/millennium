@@ -62,20 +62,36 @@ describe("AuthProvider", () => {
       username: "reader",
       email: "r@example.com",
       is_demo: false,
+      is_staff: false,
+      is_superuser: false,
     }));
     renderProvider();
     expect(await screen.findByText("authed:reader")).toBeInTheDocument();
   });
 
   it("derives the read-only demo state from the server is_demo flag", async () => {
-    stubMe(async () => ({ id: 9, username: "demo", email: "", is_demo: true }));
+    stubMe(async () => ({
+      id: 9,
+      username: "demo",
+      email: "",
+      is_demo: true,
+      is_staff: false,
+      is_superuser: false,
+    }));
     renderProvider();
     expect(await screen.findByText("authed:demo")).toBeInTheDocument();
     expect(screen.getByTestId("caps")).toHaveTextContent("demo:true write:false");
   });
 
   it("treats a real (non-demo) user as a writer", async () => {
-    stubMe(async () => ({ id: 1, username: "reader", email: "", is_demo: false }));
+    stubMe(async () => ({
+      id: 1,
+      username: "reader",
+      email: "",
+      is_demo: false,
+      is_staff: false,
+      is_superuser: false,
+    }));
     renderProvider();
     expect(await screen.findByText("authed:reader")).toBeInTheDocument();
     expect(screen.getByTestId("caps")).toHaveTextContent("demo:false write:true");

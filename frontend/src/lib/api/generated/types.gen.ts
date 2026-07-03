@@ -5,6 +5,13 @@ export type ClientOptions = {
 };
 
 /**
+ * * `anonymous` - Anonymous
+ * * `demo` - Demo
+ * * `user` - User
+ */
+export type ActorTypeEnum = 'anonymous' | 'demo' | 'user';
+
+/**
  * One alert-feed row: the fired rule's fire-time snapshot + the moved printing's
  * identity + the move. The ``rule_*`` columns are the immutable snapshot (so the feed
  * renders faithfully even if the live rule was later edited); the printing identity is
@@ -84,6 +91,26 @@ export type AppMeta = {
 };
 
 /**
+ * Read serializer for the /ops audit feed. The raw ``session_key_hash`` is
+ * intentionally NOT exposed — it is an internal grouping key, not display data.
+ */
+export type AuditEvent = {
+    readonly id: number;
+    readonly created_at: string;
+    actor_type?: ActorTypeEnum;
+    actor_username?: string;
+    method: string;
+    path: string;
+    view_name?: string;
+    status_code: number;
+    object_type?: string;
+    object_id?: string;
+    request_id?: string;
+    duration_ms?: number | null;
+    detail?: unknown;
+};
+
+/**
  * Card detail nests its printings (most cards have at most a handful, so the
  * nested payload stays small). The flat ``/api/cards/printings/?card={id}``
  * endpoint remains available for filterable browsing.
@@ -158,6 +185,25 @@ export type ChecksStatus = {
     error: string | null;
     backup: CheckRow | null;
     cd: CheckRow | null;
+};
+
+/**
+ * Validate a frontend error beacon (``POST /api/audit/client-errors/``).
+ *
+ * A STRICT allowlist: only these fields are accepted, and there is deliberately NO
+ * free-form ``extra`` blob — so cookies, localStorage/sessionStorage, or arbitrary
+ * payloads can never be exfiltrated into the error store (review feedback 2026-06-21).
+ * Fields are accepted leniently (no ``max_length`` → no 400 on a long stack) and
+ * TRUNCATED server-side; ``message`` is the one required field. ``request_id`` carries
+ * the ``X-Request-ID`` of the failed API call when the SPA has it, so a frontend error
+ * correlates back to the backend request that triggered it.
+ */
+export type ClientErrorRequest = {
+    message: string;
+    name?: string;
+    stack?: string;
+    url?: string;
+    request_id?: string;
 };
 
 /**
@@ -343,6 +389,22 @@ export type DirectionEnum = 'up' | 'down' | 'any';
  * * `limited` - Limited
  */
 export type EditionEnum = 'first' | 'unlimited' | 'limited';
+
+/**
+ * One fingerprint-grouped error row for the /ops triage view: the dedup count +
+ * first/last seen, plus the latest occurrence's representative message/path.
+ */
+export type ErrorGroup = {
+    fingerprint: string;
+    source: string;
+    exception_class: string;
+    count: number;
+    first_seen: string;
+    last_seen: string;
+    message: string;
+    path: string;
+    status_code: number | null;
+};
 
 /**
  * One import's history record + per-status row counts. The counts are *derived* — the
@@ -555,6 +617,13 @@ export type PaginatedAlertRuleList = {
     results: Array<AlertRule>;
 };
 
+export type PaginatedAuditEventList = {
+    count: number;
+    next?: string | null;
+    previous?: string | null;
+    results: Array<AuditEvent>;
+};
+
 export type PaginatedCardListList = {
     count: number;
     next?: string | null;
@@ -595,6 +664,13 @@ export type PaginatedDeckMembershipList = {
     next?: string | null;
     previous?: string | null;
     results: Array<DeckMembership>;
+};
+
+export type PaginatedErrorGroupList = {
+    count: number;
+    next?: string | null;
+    previous?: string | null;
+    results: Array<ErrorGroup>;
 };
 
 export type PaginatedImportBatchList = {
@@ -775,15 +851,14 @@ export type StatusOverview = {
 /**
  * The current user, least-disclosure (Phase 5 auth slice).
  *
- * Only ``id``/``username``/``email`` plus the ``is_demo`` capability flag — never
- * ``is_staff``/``is_superuser``/``last_login``/permissions. The schema is treated as
- * recon material (Invariant 7 posture), so we expose the minimum the SPA needs.
- *
- * ``is_demo`` is that minimum for the read-only-demo feature: the SPA hides write
- * affordances for the demo session, and it must learn that from the server rather than
- * string-matching a hard-coded demo username (a hand-synced literal that silently
- * drifts). It is a NON-sensitive session-capability flag, NOT a privilege flag — it
- * says "this session is the read-only showcase", which the recruiter already knows.
+ * ``id``/``username``/``email`` plus two capability flags the SPA needs to decide which
+ * affordances to render: ``is_demo`` (hide writes for the read-only showcase) and
+ * ``is_superuser`` (show the owner-only ``/ops`` console link). These are exposed only on
+ * the caller's OWN session (``/api/auth/me`` is ``IsAuthenticated``), so this is the owner
+ * learning their own privilege, not a leak — and the flags are DISPLAY logic only; every
+ * endpoint enforces authorization server-side (``/ops`` is gated by ``IsSuperUser``, never
+ * by trusting this flag). ``is_staff`` rides along for admin-link parity. Still no
+ * ``last_login``/permissions/password state.
  */
 export type User = {
     readonly id: number;
@@ -796,6 +871,18 @@ export type User = {
      */
     readonly email: string;
     readonly is_demo: boolean;
+    /**
+     * Staff status
+     *
+     * Designates whether the user can log into this admin site.
+     */
+    readonly is_staff: boolean;
+    /**
+     * Superuser status
+     *
+     * Designates that this user has all permissions without explicitly assigning them.
+     */
+    readonly is_superuser: boolean;
 };
 
 export type ValuationSummary = {
@@ -853,6 +940,24 @@ export type AlertRuleWritable = {
     window_days?: WindowDaysEnum;
     direction?: DirectionEnum;
     is_active?: boolean;
+};
+
+/**
+ * Read serializer for the /ops audit feed. The raw ``session_key_hash`` is
+ * intentionally NOT exposed — it is an internal grouping key, not display data.
+ */
+export type AuditEventWritable = {
+    actor_type?: ActorTypeEnum;
+    actor_username?: string;
+    method: string;
+    path: string;
+    view_name?: string;
+    status_code: number;
+    object_type?: string;
+    object_id?: string;
+    request_id?: string;
+    duration_ms?: number | null;
+    detail?: unknown;
 };
 
 /**
@@ -1047,6 +1152,13 @@ export type PaginatedAlertRuleListWritable = {
     next?: string | null;
     previous?: string | null;
     results: Array<AlertRuleWritable>;
+};
+
+export type PaginatedAuditEventListWritable = {
+    count: number;
+    next?: string | null;
+    previous?: string | null;
+    results: Array<AuditEventWritable>;
 };
 
 export type PaginatedCardListListWritable = {
@@ -1247,6 +1359,96 @@ export type AlertsRulesCreateResponses = {
 };
 
 export type AlertsRulesCreateResponse = AlertsRulesCreateResponses[keyof AlertsRulesCreateResponses];
+
+export type AuditClientErrorsCreateData = {
+    body: ClientErrorRequest;
+    path?: never;
+    query?: never;
+    url: '/api/audit/client-errors/';
+};
+
+export type AuditClientErrorsCreateErrors = {
+    /**
+     * Missing or blank message
+     */
+    400: unknown;
+    /**
+     * Payload too large
+     */
+    413: unknown;
+    /**
+     * Too many reports — retry later
+     */
+    429: unknown;
+};
+
+export type AuditClientErrorsCreateResponses = {
+    /**
+     * Error recorded
+     */
+    204: void;
+};
+
+export type AuditClientErrorsCreateResponse = AuditClientErrorsCreateResponses[keyof AuditClientErrorsCreateResponses];
+
+export type AuditErrorGroupsListData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * A page number within the paginated result set.
+         */
+        page?: number;
+        source?: 'backend' | 'frontend';
+    };
+    url: '/api/audit/error-groups/';
+};
+
+export type AuditErrorGroupsListResponses = {
+    200: PaginatedErrorGroupList;
+};
+
+export type AuditErrorGroupsListResponse = AuditErrorGroupsListResponses[keyof AuditErrorGroupsListResponses];
+
+export type AuditEventsListData = {
+    body?: never;
+    path?: never;
+    query?: {
+        actor_type?: 'anonymous' | 'demo' | 'user';
+        method?: 'DELETE' | 'PATCH' | 'POST' | 'PUT';
+        /**
+         * A page number within the paginated result set.
+         */
+        page?: number;
+        search?: string;
+        status_code?: number;
+    };
+    url: '/api/audit/events/';
+};
+
+export type AuditEventsListResponses = {
+    200: PaginatedAuditEventList;
+};
+
+export type AuditEventsListResponse = AuditEventsListResponses[keyof AuditEventsListResponses];
+
+export type AuditEventsRetrieveData = {
+    body?: never;
+    path: {
+        /**
+         * A unique integer value identifying this audit event.
+         */
+        id: number;
+    };
+    query?: never;
+    url: '/api/audit/events/{id}/';
+};
+
+export type AuditEventsRetrieveResponses = {
+    200: AuditEvent;
+};
+
+export type AuditEventsRetrieveResponse = AuditEventsRetrieveResponses[keyof AuditEventsRetrieveResponses];
 
 export type AuthDemoLoginCreateData = {
     body?: never;

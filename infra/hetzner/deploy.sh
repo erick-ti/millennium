@@ -111,6 +111,9 @@ _timers=(
     millennium-backup.timer
     # Continuous host-metrics sampler (every 2 min) feeding the /status infra tile.
     millennium-host-metrics.timer
+    # Daily retention prune for the audit/error logs (apps.audit). Reuses the
+    # millennium-sync@.service template via millennium-sync@prune_audit.service.
+    millennium-prune-audit.timer
     # Pull-based CD poller. Restarting its .timer here is safe even when THIS
     # deploy was triggered by it: restarting the timer unit does not signal the
     # running oneshot service (deploy_poll.sh keeps its flock and finishes). The
