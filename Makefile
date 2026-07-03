@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint format typecheck migrate migrate-up shell superuser up down logs ps build clean frontend-install frontend-lint frontend-build frontend-test frontend-snapshot-schema frontend-gen-api seed-smoke e2e
+.PHONY: help install dev test lint format typecheck migrate migrate-up shell superuser up down logs ps build clean frontend-install frontend-lint frontend-typecheck frontend-build frontend-test frontend-snapshot-schema frontend-gen-api seed-smoke e2e
 
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
@@ -27,6 +27,7 @@ help:
 	@echo "  clean              Remove caches and .venv"
 	@echo "  frontend-install        npm ci in frontend/"
 	@echo "  frontend-lint           Run frontend eslint"
+	@echo "  frontend-typecheck      Run tsc --noEmit (covers *.test.tsx; next build does not)"
 	@echo "  frontend-build          Run next build (type-check + bundle)"
 	@echo "  frontend-test           Run frontend unit tests (Vitest)"
 	@echo "  frontend-snapshot-schema  Snapshot OpenAPI schema to frontend/openapi.json"
@@ -93,6 +94,9 @@ frontend-install:
 
 frontend-lint:
 	$(FRONTEND) npm run lint
+
+frontend-typecheck:
+	$(FRONTEND) npm run typecheck
 
 frontend-build:
 	$(FRONTEND) npm run build
