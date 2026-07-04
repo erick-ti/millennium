@@ -357,7 +357,7 @@
         "/api/auth/demo-login/": {
             "post": {
                 "operationId": "auth_demo_login_create",
-                "description": "Establish a session for the read-only demo account (recruiter showcase).\n\nA public, password-less counterpart to ``LoginView``: it ``login()``s the seeded\n``demo`` account (``DEMO_USERNAME``) so a recruiter reaches the full authenticated\napp in one click, while ``DemoReadOnly`` (a global default permission) denies that\nsession every unsafe method. ``AllowAny`` + no authenticators (the ``LoginView``\nprecedent) so an anonymous browser can reach it; ``csrf_protect`` re-arms CSRF on the\nPOST (a bare ``APIView`` is ``csrf_exempt`` and ``SessionAuthentication`` skips the\ncheck for anonymous requests, so it would otherwise be CSRF-naked), composing with the\nexisting ``GET /api/csrf/`` + ``proxy.ts`` ``X-CSRFToken`` flow with zero new frontend\nplumbing. Its OWN throttle scope (``demo_login``), never the ``login`` bucket, so demo\ntraffic can't drain the credential speed bump. **404** when no demo account is seeded\n(dev / test, or before ``ensure_demo_user`` has run on the box) so the SPA can degrade\ngracefully rather than 500.",
+                "description": "Establish a session for the read-only demo account (a public demo).\n\nA public, password-less counterpart to ``LoginView``: it ``login()``s the seeded\n``demo`` account (``DEMO_USERNAME``) so a visitor reaches the full authenticated\napp in one click, while ``DemoReadOnly`` (a global default permission) denies that\nsession every unsafe method. ``AllowAny`` + no authenticators (the ``LoginView``\nprecedent) so an anonymous browser can reach it; ``csrf_protect`` re-arms CSRF on the\nPOST (a bare ``APIView`` is ``csrf_exempt`` and ``SessionAuthentication`` skips the\ncheck for anonymous requests, so it would otherwise be CSRF-naked), composing with the\nexisting ``GET /api/csrf/`` + ``proxy.ts`` ``X-CSRFToken`` flow with zero new frontend\nplumbing. Its OWN throttle scope (``demo_login``), never the ``login`` bucket, so demo\ntraffic can't drain the credential speed bump. **404** when no demo account is seeded\n(dev / test, or before ``ensure_demo_user`` has run on the box) so the SPA can degrade\ngracefully rather than 500.",
                 "summary": "Log in to the read-only demo account",
                 "tags": [
                     "auth"
@@ -388,7 +388,7 @@
         "/api/auth/login/": {
             "post": {
                 "operationId": "auth_login_create",
-                "description": "Establish a session for valid credentials (Phase 5 auth slice).\n\n``AllowAny`` + no authenticators so an anonymous browser can reach it (the\n``HealthView``/``CsrfView`` precedent — every other endpoint stays\n``IsAuthenticated``). The credential check + status choice live in\n``LoginSerializer`` (a failure is a generic 400, see its docstring).\n\n``csrf_protect`` re-arms CSRF on this POST: DRF marks every ``APIView``\n``csrf_exempt`` because CSRF normally runs inside\n``SessionAuthentication.enforce_csrf`` — which an *anonymous* request never\nreaches (it returns before the check). So without this decorator the login\nPOST would be silently CSRF-naked. The ``csrftoken`` is already seeded by\n``GET /api/csrf/`` on app load and echoed via ``proxy.ts``'s ``X-CSRFToken``\n(slice 6), so this composes with zero new frontend plumbing.",
+                "description": "Establish a session for valid credentials (Phase 5 auth slice).\n\n``AllowAny`` + no authenticators so an anonymous browser can reach it (the\n``HealthView``/``CsrfView`` precedent, every other endpoint stays\n``IsAuthenticated``). The credential check + status choice live in\n``LoginSerializer`` (a failure is a generic 400, see its docstring).\n\n``csrf_protect`` re-arms CSRF on this POST: DRF marks every ``APIView``\n``csrf_exempt`` because CSRF normally runs inside\n``SessionAuthentication.enforce_csrf``, which an *anonymous* request never\nreaches (it returns before the check). So without this decorator the login\nPOST would be silently CSRF-naked. The ``csrftoken`` is already seeded by\n``GET /api/csrf/`` on app load and echoed via ``proxy.ts``'s ``X-CSRFToken``\n(slice 6), so this composes with zero new frontend plumbing.",
                 "summary": "Log in (establish a session cookie)",
                 "tags": [
                     "auth"
@@ -439,7 +439,7 @@
         "/api/auth/logout/": {
             "post": {
                 "operationId": "auth_logout_create",
-                "description": "Clear the session (Phase 5 auth slice).\n\nPOST (an unsafe method) deliberately, so it travels the *authenticated* CSRF\npath: the caller is authenticated, so ``SessionAuthentication.enforce_csrf``\nruns and ``proxy.ts`` already injects ``X-CSRFToken`` — no ``csrf_protect``\nneeded here (unlike login). Returns 200 with a body (not 204) so the generated\nTS client has a typed, non-void response to branch on.\n\nSets ``permission_classes = [IsAuthenticated]`` to OPT OUT of the global\n``DemoReadOnly`` write-block: logout is the one unsafe method the demo account\nmust be allowed (the ``LogoutButton`` hard-navigates to ``/login`` on a 200; a 403\nwould strand the recruiter in the demo session). Still requires auth, so an\nanonymous logout 403s like everything else.",
+                "description": "Clear the session (Phase 5 auth slice).\n\nPOST (an unsafe method) deliberately, so it travels the *authenticated* CSRF\npath: the caller is authenticated, so ``SessionAuthentication.enforce_csrf``\nruns and ``proxy.ts`` already injects ``X-CSRFToken``, no ``csrf_protect``\nneeded here (unlike login). Returns 200 with a body (not 204) so the generated\nTS client has a typed, non-void response to branch on.\n\nSets ``permission_classes = [IsAuthenticated]`` to OPT OUT of the global\n``DemoReadOnly`` write-block: logout is the one unsafe method the demo account\nmust be allowed (the ``LogoutButton`` hard-navigates to ``/login`` on a 200; a 403\nwould strand the visitor in the demo session). Still requires auth, so an\nanonymous logout 403s like everything else.",
                 "summary": "Log out (clear the session)",
                 "tags": [
                     "auth"
@@ -459,7 +459,7 @@
         "/api/auth/me/": {
             "get": {
                 "operationId": "auth_me_retrieve",
-                "description": "The current authenticated user (Phase 5 auth slice).\n\nInherits the global ``IsAuthenticated``, so an anonymous request → **403**\n(DRF's session-auth posture: ``authenticate_header`` is ``None``, so a 401\ndowngrades to 403). The SPA's ``AuthProvider`` reads that 403 as \"not signed\nin\" — it is the expected anonymous signal, not an error to surface.",
+                "description": "The current authenticated user (Phase 5 auth slice).\n\nInherits the global ``IsAuthenticated``, so an anonymous request → **403**\n(DRF's session-auth posture: ``authenticate_header`` is ``None``, so a 401\ndowngrades to 403). The SPA's ``AuthProvider`` reads that 403 as \"not signed\nin\", it is the expected anonymous signal, not an error to surface.",
                 "summary": "Current authenticated user",
                 "tags": [
                     "auth"
@@ -486,7 +486,7 @@
         "/api/cards/cards/": {
             "get": {
                 "operationId": "cards_cards_list",
-                "description": "Read-only catalog of card identities. List returns ``{id, passcode, name}``\nand is ``?search=``-filterable by name (the slice-6 import-review override picker\nfinds a card by name → lists its printings); retrieve nests printings (a card has\nat most a handful — DECISIONS 2026-05-18) so slice 4's card-detail view loads in\none round-trip.",
+                "description": "Read-only catalog of card identities. List returns ``{id, passcode, name}``\nand is ``?search=``-filterable by name (the import-review override picker\nfinds a card by name, then lists its printings); retrieve nests printings (a card\nhas at most a handful) so the card-detail view loads in one round-trip.",
                 "summary": "List / search cards",
                 "parameters": [
                     {
@@ -540,7 +540,7 @@
         "/api/cards/cards/{id}/": {
             "get": {
                 "operationId": "cards_cards_retrieve",
-                "description": "Read-only catalog of card identities. List returns ``{id, passcode, name}``\nand is ``?search=``-filterable by name (the slice-6 import-review override picker\nfinds a card by name → lists its printings); retrieve nests printings (a card has\nat most a handful — DECISIONS 2026-05-18) so slice 4's card-detail view loads in\none round-trip.",
+                "description": "Read-only catalog of card identities. List returns ``{id, passcode, name}``\nand is ``?search=``-filterable by name (the import-review override picker\nfinds a card by name, then lists its printings); retrieve nests printings (a card\nhas at most a handful) so the card-detail view loads in one round-trip.",
                 "summary": "Retrieve one card (with printings inline)",
                 "parameters": [
                     {
@@ -578,7 +578,7 @@
         "/api/cards/cards/archetypes/": {
             "get": {
                 "operationId": "cards_cards_archetypes_retrieve",
-                "description": "Every distinct non-null archetype, sorted — the source for the /cards archetype filter dropdown. Not paginated (a few hundred at most).",
+                "description": "Every distinct non-null archetype, sorted: the source for the /cards archetype filter dropdown. Not paginated (a few hundred at most).",
                 "summary": "List distinct archetypes",
                 "tags": [
                     "cards"
@@ -700,7 +700,7 @@
         "/api/collection/items/": {
             "get": {
                 "operationId": "collection_items_list",
-                "description": "Read-only collection holdings. List returns one row per holding with\n``quantity`` = SUM over lots (an item with no lots reads as 0); retrieve\nnests the lots — the per-acquisition cost-basis history. ``portfolio`` /\n``printing`` FKs and the storage location are pre-joined for the list shape.",
+                "description": "Read-only collection holdings. List returns one row per holding with\n``quantity`` = SUM over lots (an item with no lots reads as 0); retrieve\nnests the lots, the per-acquisition cost-basis history. ``portfolio`` /\n``printing`` FKs and the storage location are pre-joined for the list shape.",
                 "summary": "List / filter collection items (with aggregate quantity)",
                 "parameters": [
                     {
@@ -810,7 +810,7 @@
         "/api/collection/items/{id}/": {
             "get": {
                 "operationId": "collection_items_retrieve",
-                "description": "Read-only collection holdings. List returns one row per holding with\n``quantity`` = SUM over lots (an item with no lots reads as 0); retrieve\nnests the lots — the per-acquisition cost-basis history. ``portfolio`` /\n``printing`` FKs and the storage location are pre-joined for the list shape.",
+                "description": "Read-only collection holdings. List returns one row per holding with\n``quantity`` = SUM over lots (an item with no lots reads as 0); retrieve\nnests the lots, the per-acquisition cost-basis history. ``portfolio`` /\n``printing`` FKs and the storage location are pre-joined for the list shape.",
                 "summary": "Retrieve one holding (with lots inline)",
                 "parameters": [
                     {
@@ -848,7 +848,7 @@
         "/api/collection/lots/": {
             "get": {
                 "operationId": "collection_lots_list",
-                "description": "Read-only per-acquisition lots. List filterable by ``?item=`` /\n``?portfolio=`` (via the item join). Default order matches the model's\nnatural (item, acquired_at-asc-nulls-last, id) — chronological within a\nholding, with unknown-date lots last.",
+                "description": "Read-only per-acquisition lots. List filterable by ``?item=`` /\n``?portfolio=`` (via the item join). Default order matches the model's\nnatural (item, acquired_at-asc-nulls-last, id): chronological within a\nholding, with unknown-date lots last.",
                 "summary": "List / filter collection lots",
                 "parameters": [
                     {
@@ -902,7 +902,7 @@
         "/api/collection/lots/{id}/": {
             "get": {
                 "operationId": "collection_lots_retrieve",
-                "description": "Read-only per-acquisition lots. List filterable by ``?item=`` /\n``?portfolio=`` (via the item join). Default order matches the model's\nnatural (item, acquired_at-asc-nulls-last, id) — chronological within a\nholding, with unknown-date lots last.",
+                "description": "Read-only per-acquisition lots. List filterable by ``?item=`` /\n``?portfolio=`` (via the item join). Default order matches the model's\nnatural (item, acquired_at-asc-nulls-last, id): chronological within a\nholding, with unknown-date lots last.",
                 "summary": "Retrieve one lot",
                 "parameters": [
                     {
@@ -940,7 +940,7 @@
         "/api/csrf/": {
             "get": {
                 "operationId": "csrf_retrieve",
-                "description": "Seed the ``csrftoken`` cookie (slice 6, DECISIONS 2026-05-29).\n\nDjango sets the cookie only when a request *uses* the token (``get_token``);\nwith ``CSRF_USE_SESSIONS=False`` and an all-JSON API that never renders a\nform, nothing here was setting it — so the SPA had no token to send on its\nfirst POST. The frontend GETs this on load; ``CsrfViewMiddleware`` then writes\nthe (non-HttpOnly) cookie, and ``proxy.ts`` copies it into ``X-CSRFToken`` on\nunsafe requests. ``AllowAny`` + no auth: a not-yet-signed-in browser must be\nable to seed the cookie, and a CSRF cookie leaks nothing (it's a per-session\nsecret the client already holds). Safe method → no CSRF *enforcement* here.",
+                "description": "Seed the ``csrftoken`` cookie (slice 6).\n\nDjango sets the cookie only when a request *uses* the token (``get_token``);\nwith ``CSRF_USE_SESSIONS=False`` and an all-JSON API that never renders a\nform, nothing here was setting it, so the SPA had no token to send on its\nfirst POST. The frontend GETs this on load; ``CsrfViewMiddleware`` then writes\nthe (non-HttpOnly) cookie, and ``proxy.ts`` copies it into ``X-CSRFToken`` on\nunsafe requests. ``AllowAny`` + no auth: a not-yet-signed-in browser must be\nable to seed the cookie, and a CSRF cookie leaks nothing (it's a per-session\nsecret the client already holds). Safe method → no CSRF *enforcement* here.",
                 "summary": "Seed the CSRF cookie",
                 "tags": [
                     "csrf"
@@ -958,7 +958,7 @@
         "/api/decks/decks/": {
             "get": {
                 "operationId": "decks_decks_list",
-                "description": "Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the\nexplicit-full-surface case where ``ModelViewSet`` is the honest choice). List +\nretrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the\ninherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed\nthrough the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT\nnested here — members are mutable + paginated, so they live on their own flat endpoint\n(the import-batch-detail header/rows split, not the cards/collection nested-detail\nshape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
+                "description": "Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the\nexplicit-full-surface case where ``ModelViewSet`` is the honest choice). List +\nretrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the\ninherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed\nthrough the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT\nnested here: members are mutable + paginated, so they live on their own flat endpoint\n(the import-batch-detail header/rows split, not the cards/collection nested-detail\nshape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
                 "summary": "List decks (each with its member count)",
                 "parameters": [
                     {
@@ -994,7 +994,7 @@
             },
             "post": {
                 "operationId": "decks_decks_create",
-                "description": "Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the\nexplicit-full-surface case where ``ModelViewSet`` is the honest choice). List +\nretrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the\ninherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed\nthrough the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT\nnested here — members are mutable + paginated, so they live on their own flat endpoint\n(the import-batch-detail header/rows split, not the cards/collection nested-detail\nshape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
+                "description": "Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the\nexplicit-full-surface case where ``ModelViewSet`` is the honest choice). List +\nretrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the\ninherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed\nthrough the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT\nnested here: members are mutable + paginated, so they live on their own flat endpoint\n(the import-batch-detail header/rows split, not the cards/collection nested-detail\nshape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
                 "summary": "Create a deck",
                 "tags": [
                     "decks"
@@ -1052,7 +1052,7 @@
         "/api/decks/decks/{id}/": {
             "get": {
                 "operationId": "decks_decks_retrieve",
-                "description": "Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the\nexplicit-full-surface case where ``ModelViewSet`` is the honest choice). List +\nretrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the\ninherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed\nthrough the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT\nnested here — members are mutable + paginated, so they live on their own flat endpoint\n(the import-batch-detail header/rows split, not the cards/collection nested-detail\nshape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
+                "description": "Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the\nexplicit-full-surface case where ``ModelViewSet`` is the honest choice). List +\nretrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the\ninherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed\nthrough the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT\nnested here: members are mutable + paginated, so they live on their own flat endpoint\n(the import-batch-detail header/rows split, not the cards/collection nested-detail\nshape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
                 "summary": "Retrieve a deck",
                 "parameters": [
                     {
@@ -1088,7 +1088,7 @@
             },
             "put": {
                 "operationId": "decks_decks_update",
-                "description": "Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the\nexplicit-full-surface case where ``ModelViewSet`` is the honest choice). List +\nretrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the\ninherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed\nthrough the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT\nnested here — members are mutable + paginated, so they live on their own flat endpoint\n(the import-batch-detail header/rows split, not the cards/collection nested-detail\nshape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
+                "description": "Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the\nexplicit-full-surface case where ``ModelViewSet`` is the honest choice). List +\nretrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the\ninherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed\nthrough the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT\nnested here: members are mutable + paginated, so they live on their own flat endpoint\n(the import-batch-detail header/rows split, not the cards/collection nested-detail\nshape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
                 "summary": "Replace a deck",
                 "parameters": [
                     {
@@ -1144,7 +1144,7 @@
             },
             "patch": {
                 "operationId": "decks_decks_partial_update",
-                "description": "Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the\nexplicit-full-surface case where ``ModelViewSet`` is the honest choice). List +\nretrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the\ninherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed\nthrough the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT\nnested here — members are mutable + paginated, so they live on their own flat endpoint\n(the import-batch-detail header/rows split, not the cards/collection nested-detail\nshape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
+                "description": "Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the\nexplicit-full-surface case where ``ModelViewSet`` is the honest choice). List +\nretrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the\ninherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed\nthrough the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT\nnested here: members are mutable + paginated, so they live on their own flat endpoint\n(the import-batch-detail header/rows split, not the cards/collection nested-detail\nshape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
                 "summary": "Rename / edit a deck",
                 "parameters": [
                     {
@@ -1199,7 +1199,7 @@
             },
             "delete": {
                 "operationId": "decks_decks_destroy",
-                "description": "Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the\nexplicit-full-surface case where ``ModelViewSet`` is the honest choice). List +\nretrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the\ninherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed\nthrough the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT\nnested here — members are mutable + paginated, so they live on their own flat endpoint\n(the import-batch-detail header/rows split, not the cards/collection nested-detail\nshape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
+                "description": "Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the\nexplicit-full-surface case where ``ModelViewSet`` is the honest choice). List +\nretrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the\ninherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed\nthrough the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT\nnested here: members are mutable + paginated, so they live on their own flat endpoint\n(the import-batch-detail header/rows split, not the cards/collection nested-detail\nshape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.",
                 "summary": "Delete a deck (its memberships cascade away)",
                 "parameters": [
                     {
@@ -1230,7 +1230,7 @@
         "/api/decks/memberships/": {
             "get": {
                 "operationId": "decks_memberships_list",
-                "description": "A deck's membership feed + add/remove. A membership is a stateless join row, so this\nis a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,\nwhich exists only for that app's batch/row state machine — decks have no such state).\nOWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card\nhas no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``\nreturns 409 (the holding is already in the deck), never a second row. Inherits\n``IsAuthenticated`` + ``PageNumberPagination``.",
+                "description": "A deck's membership feed + add/remove. A membership is a stateless join row, so this\nis a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,\nwhich exists only for that app's batch/row state machine, decks have no such state).\nOWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card\nhas no id to add. Add is idempotent-aware: a duplicate ``(deck, collection_item)``\nreturns 409 (the holding is already in the deck), never a second row. Inherits\n``IsAuthenticated`` + ``PageNumberPagination``.",
                 "summary": "List deck memberships (filter to one deck with ?deck=)",
                 "parameters": [
                     {
@@ -1274,7 +1274,7 @@
             },
             "post": {
                 "operationId": "decks_memberships_create",
-                "description": "A deck's membership feed + add/remove. A membership is a stateless join row, so this\nis a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,\nwhich exists only for that app's batch/row state machine — decks have no such state).\nOWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card\nhas no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``\nreturns 409 (the holding is already in the deck), never a second row. Inherits\n``IsAuthenticated`` + ``PageNumberPagination``.",
+                "description": "A deck's membership feed + add/remove. A membership is a stateless join row, so this\nis a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,\nwhich exists only for that app's batch/row state machine, decks have no such state).\nOWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card\nhas no id to add. Add is idempotent-aware: a duplicate ``(deck, collection_item)``\nreturns 409 (the holding is already in the deck), never a second row. Inherits\n``IsAuthenticated`` + ``PageNumberPagination``.",
                 "summary": "Add an owned holding to a deck",
                 "tags": [
                     "decks"
@@ -1343,7 +1343,7 @@
         "/api/decks/memberships/{id}/": {
             "delete": {
                 "operationId": "decks_memberships_destroy",
-                "description": "A deck's membership feed + add/remove. A membership is a stateless join row, so this\nis a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,\nwhich exists only for that app's batch/row state machine — decks have no such state).\nOWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card\nhas no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``\nreturns 409 (the holding is already in the deck), never a second row. Inherits\n``IsAuthenticated`` + ``PageNumberPagination``.",
+                "description": "A deck's membership feed + add/remove. A membership is a stateless join row, so this\nis a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,\nwhich exists only for that app's batch/row state machine, decks have no such state).\nOWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card\nhas no id to add. Add is idempotent-aware: a duplicate ``(deck, collection_item)``\nreturns 409 (the holding is already in the deck), never a second row. Inherits\n``IsAuthenticated`` + ``PageNumberPagination``.",
                 "summary": "Remove a holding from a deck",
                 "parameters": [
                     {
@@ -1374,7 +1374,7 @@
         "/api/health/": {
             "get": {
                 "operationId": "health_retrieve",
-                "description": "Liveness probe — returns 200 when the process is up.",
+                "description": "Liveness probe: returns 200 when the process is up.",
                 "summary": "Service health",
                 "tags": [
                     "health"
@@ -1392,7 +1392,7 @@
         "/api/imports/batches/": {
             "get": {
                 "operationId": "imports_batches_list",
-                "description": "Import history + upload. List/retrieve batches with derived per-status row counts, and\nPOST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import (slice 6). The review\nsurface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly. Defining\n``create`` makes the router bind POST on the collection route (no separate mixin needed).",
+                "description": "Import history + upload. List/retrieve batches with derived per-status row counts, and\nPOST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import. The review\nsurface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly. Defining\n``create`` makes the router bind POST on the collection route (no separate mixin needed).",
                 "summary": "List import batches with per-status row counts",
                 "parameters": [
                     {
@@ -1428,7 +1428,7 @@
             },
             "post": {
                 "operationId": "imports_batches_create",
-                "description": "Upload a Dragon Shield CSV and run the import synchronously (DECISIONS 2026-05-29).\n\nDecode the file as utf-8-sig (mirroring the ``import_dragon_shield`` command — Excel\n\"CSV UTF-8\" saves prepend a BOM), hand the text to ``run_import``, and return the created\nbatch with its derived row counts. A file that isn't a recognized DS export is **not** a\nrequest error: ``run_import`` records a FAILED ``ImportBatch`` (a durable history row), so\nthis returns **201 with status=failed** and the frontend branches on ``batch.status``.\nOnly a missing / oversized / non-text file is a **400**. Synchronous (not Celery) is fine\nat single-user few-thousand-row scale; ``MAX_UPLOAD_BYTES`` bounds the request time, and\n``run_import`` returns a JSON-native result so a future Celery promotion is a drop-in.",
+                "description": "Upload a Dragon Shield CSV and run the import synchronously.\n\nDecode the file as utf-8-sig (mirroring the ``import_dragon_shield`` command, since Excel\n\"CSV UTF-8\" saves prepend a BOM), hand the text to ``run_import``, and return the created\nbatch with its derived row counts. A file that isn't a recognized DS export is **not** a\nrequest error: ``run_import`` records a FAILED ``ImportBatch`` (a durable history row), so\nthis returns **201 with status=failed** and the frontend branches on ``batch.status``.\nOnly a missing / oversized / non-text file is a **400**. Synchronous (not Celery) is fine\nat single-user few-thousand-row scale; ``MAX_UPLOAD_BYTES`` bounds the request time, and\n``run_import`` returns a JSON-native result so a future Celery promotion is a drop-in.",
                 "summary": "Upload a Dragon Shield CSV → run the import",
                 "tags": [
                     "imports"
@@ -1476,7 +1476,7 @@
         "/api/imports/batches/{id}/": {
             "get": {
                 "operationId": "imports_batches_retrieve",
-                "description": "Import history + upload. List/retrieve batches with derived per-status row counts, and\nPOST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import (slice 6). The review\nsurface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly. Defining\n``create`` makes the router bind POST on the collection route (no separate mixin needed).",
+                "description": "Import history + upload. List/retrieve batches with derived per-status row counts, and\nPOST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import. The review\nsurface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly. Defining\n``create`` makes the router bind POST on the collection route (no separate mixin needed).",
                 "summary": "Retrieve one import batch",
                 "parameters": [
                     {
@@ -1514,7 +1514,7 @@
         "/api/imports/rows/": {
             "get": {
                 "operationId": "imports_rows_list",
-                "description": "The review queue. List/filter staged rows (by ``batch`` / ``status`` /\n``match_confidence`` / ``needs_review`` — served by the ``(batch, status)`` index) and\nresolve a PENDING one via three actions, all routed through ``apps.imports.sync`` so the\ncollection writes go through the single ``_materialize`` chokepoint (DECISIONS 2026-05-26\nslice 4): ``approve`` materializes the row's matched printing, ``override`` re-points it at\na human-chosen printing, ``reject`` skips it.",
+                "description": "The review queue. List/filter staged rows (by ``batch`` / ``status`` /\n``match_confidence`` / ``needs_review``, served by the ``(batch, status)`` index) and\nresolve a PENDING one via three actions, all routed through ``apps.imports.sync`` so the\ncollection writes go through the single ``_materialize`` chokepoint:\n``approve`` materializes the row's matched printing, ``override`` re-points it at\na human-chosen printing, ``reject`` skips it.",
                 "summary": "List / filter import rows",
                 "parameters": [
                     {
@@ -1597,7 +1597,7 @@
         "/api/imports/rows/{id}/": {
             "get": {
                 "operationId": "imports_rows_retrieve",
-                "description": "The review queue. List/filter staged rows (by ``batch`` / ``status`` /\n``match_confidence`` / ``needs_review`` — served by the ``(batch, status)`` index) and\nresolve a PENDING one via three actions, all routed through ``apps.imports.sync`` so the\ncollection writes go through the single ``_materialize`` chokepoint (DECISIONS 2026-05-26\nslice 4): ``approve`` materializes the row's matched printing, ``override`` re-points it at\na human-chosen printing, ``reject`` skips it.",
+                "description": "The review queue. List/filter staged rows (by ``batch`` / ``status`` /\n``match_confidence`` / ``needs_review``, served by the ``(batch, status)`` index) and\nresolve a PENDING one via three actions, all routed through ``apps.imports.sync`` so the\ncollection writes go through the single ``_materialize`` chokepoint:\n``approve`` materializes the row's matched printing, ``override`` re-points it at\na human-chosen printing, ``reject`` skips it.",
                 "summary": "Retrieve one import row",
                 "parameters": [
                     {
@@ -1635,7 +1635,7 @@
         "/api/imports/rows/{id}/approve/": {
             "post": {
                 "operationId": "imports_rows_approve_create",
-                "description": "Materialize the row through ``_materialize``, overriding the auto-materialization\nfreshness gate (the reviewer is the human attention that gate proxies for — DECISIONS\n2026-05-27). 200 with the updated row on MATERIALIZED/SKIPPED; 409 when the holding was\nalready imported with a different quantity/cost/date (the row stays PENDING — the API\nsurfaces the conflict rather than overwriting cost basis); 400 if the row isn't an\napprovable PENDING row with a matched printing.",
+                "description": "Materialize the row through ``_materialize``, overriding the auto-materialization\nfreshness gate (the reviewer is the human attention that gate proxies for).\n200 with the updated row on MATERIALIZED/SKIPPED; 409 when the holding was\nalready imported with a different quantity/cost/date (the row stays PENDING, the API\nsurfaces the conflict rather than overwriting cost basis); 400 if the row isn't an\napprovable PENDING row with a matched printing.",
                 "summary": "Approve a row → materialize its matched printing",
                 "parameters": [
                     {
@@ -1812,7 +1812,7 @@
         "/api/portfolio/portfolios/": {
             "get": {
                 "operationId": "portfolio_portfolios_list",
-                "description": "Read-only portfolios. Each row carries the latest ``PortfolioValueSnapshot``\ninline (NULL when a portfolio has never been valued, e.g. a freshly-created\none from a Dragon Shield import that runs before the next 04:00 UTC\nvaluation beat — DECISIONS 2026-05-25 slice 4c).",
+                "description": "Read-only portfolios. Each row carries the latest ``PortfolioValueSnapshot``\ninline (NULL when a portfolio has never been valued, e.g. a freshly-created\none from a Dragon Shield import that runs before the next 04:00 UTC\nvaluation beat).",
                 "summary": "List portfolios (with latest value snapshot inline)",
                 "parameters": [
                     {
@@ -1850,7 +1850,7 @@
         "/api/portfolio/portfolios/{id}/": {
             "get": {
                 "operationId": "portfolio_portfolios_retrieve",
-                "description": "Read-only portfolios. Each row carries the latest ``PortfolioValueSnapshot``\ninline (NULL when a portfolio has never been valued, e.g. a freshly-created\none from a Dragon Shield import that runs before the next 04:00 UTC\nvaluation beat — DECISIONS 2026-05-25 slice 4c).",
+                "description": "Read-only portfolios. Each row carries the latest ``PortfolioValueSnapshot``\ninline (NULL when a portfolio has never been valued, e.g. a freshly-created\none from a Dragon Shield import that runs before the next 04:00 UTC\nvaluation beat).",
                 "summary": "Retrieve one portfolio (with latest snapshot inline)",
                 "parameters": [
                     {
@@ -1888,7 +1888,7 @@
         "/api/portfolio/snapshots/": {
             "get": {
                 "operationId": "portfolio_snapshots_list",
-                "description": "Read-only append-only daily valuation timeline. The slice-5 portfolio\nchart consumes ``?portfolio=&from=&to=`` to pull a range, then renders the\nvalue series. ``unrealized_gain`` may be NULL on a row (partial coverage —\nDECISIONS 2026-05-25 slice 4a); consumers handle NULL distinctly from 0.",
+                "description": "Read-only append-only daily valuation timeline. The slice-5 portfolio\nchart consumes ``?portfolio=&from=&to=`` to pull a range, then renders the\nvalue series. ``unrealized_gain`` may be NULL on a row (partial coverage);\nconsumers handle NULL distinctly from 0.",
                 "summary": "List / filter portfolio value snapshots (append-only daily history)",
                 "parameters": [
                     {
@@ -1952,7 +1952,7 @@
         "/api/portfolio/snapshots/{id}/": {
             "get": {
                 "operationId": "portfolio_snapshots_retrieve",
-                "description": "Read-only append-only daily valuation timeline. The slice-5 portfolio\nchart consumes ``?portfolio=&from=&to=`` to pull a range, then renders the\nvalue series. ``unrealized_gain`` may be NULL on a row (partial coverage —\nDECISIONS 2026-05-25 slice 4a); consumers handle NULL distinctly from 0.",
+                "description": "Read-only append-only daily valuation timeline. The slice-5 portfolio\nchart consumes ``?portfolio=&from=&to=`` to pull a range, then renders the\nvalue series. ``unrealized_gain`` may be NULL on a row (partial coverage);\nconsumers handle NULL distinctly from 0.",
                 "summary": "Retrieve one portfolio value snapshot",
                 "parameters": [
                     {
@@ -1990,7 +1990,7 @@
         "/api/pricing/snapshots/": {
             "get": {
                 "operationId": "pricing_snapshots_list",
-                "description": "Read-only append-only price history. List filterable by\n``?printing=&edition=&from=&to=`` — the slice-4 price-chart shape. The\n``latest`` action returns the most-recent snapshot for one\n``(printing, edition)``, the \"today's price\" lookup; this is structured as\nan action (not the latest-first ordered list's first row) so a consumer\ncan't accidentally page into history when it only wants today.",
+                "description": "Read-only append-only price history. List filterable by\n``?printing=&edition=&from=&to=``, the price-chart shape. The\n``latest`` action returns the most-recent snapshot for one\n``(printing, edition)``, the \"today's price\" lookup; this is structured as\nan action (not the latest-first ordered list's first row) so a consumer\ncan't accidentally page into history when it only wants today.",
                 "summary": "List / filter price snapshots (append-only daily history)",
                 "parameters": [
                     {
@@ -2004,7 +2004,7 @@
                                 "unlimited"
                             ]
                         },
-                        "description": "Filter by edition (a pricing dimension — DECISIONS 2026-05-18)."
+                        "description": "Filter by edition (a pricing dimension)."
                     },
                     {
                         "in": "query",
@@ -2067,7 +2067,7 @@
         "/api/pricing/snapshots/{id}/": {
             "get": {
                 "operationId": "pricing_snapshots_retrieve",
-                "description": "Read-only append-only price history. List filterable by\n``?printing=&edition=&from=&to=`` — the slice-4 price-chart shape. The\n``latest`` action returns the most-recent snapshot for one\n``(printing, edition)``, the \"today's price\" lookup; this is structured as\nan action (not the latest-first ordered list's first row) so a consumer\ncan't accidentally page into history when it only wants today.",
+                "description": "Read-only append-only price history. List filterable by\n``?printing=&edition=&from=&to=``, the price-chart shape. The\n``latest`` action returns the most-recent snapshot for one\n``(printing, edition)``, the \"today's price\" lookup; this is structured as\nan action (not the latest-first ordered list's first row) so a consumer\ncan't accidentally page into history when it only wants today.",
                 "summary": "Retrieve one price snapshot",
                 "parameters": [
                     {
@@ -2106,7 +2106,7 @@
             "get": {
                 "operationId": "pricing_snapshots_latest_retrieve",
                 "description": "The most recent snapshot for one ``(printing, edition)``. 404 when no\nsnapshot exists for the pair (a printing TCGCSV doesn't price, or one\nthe daily reconcile hasn't run for yet).",
-                "summary": "Latest snapshot for one (printing, edition) — the 'today's price' lookup",
+                "summary": "Latest snapshot for one (printing, edition): the 'today's price' lookup",
                 "parameters": [
                     {
                         "in": "query",
@@ -2260,7 +2260,7 @@
         "/api/valuation/movers/": {
             "get": {
                 "operationId": "valuation_movers_list",
-                "description": "Read-only \"biggest movers\" analytics (DECISIONS 2026-05-31): each owned\n``(printing, edition)``'s price change over a selectable window. Rows are\ncomputed from the valuation engine's usable-price helpers across two date\nanchors (today and today - window), scoped to currently-held holdings, then\nserver-ordered (the ``?ordering=`` allowlist) and paginated — like every other\nlist endpoint. Inherits the global ``IsAuthenticated`` + ``PageNumberPagination``.",
+                "description": "Read-only \"biggest movers\" analytics: each owned\n``(printing, edition)``'s price change over a selectable window. Rows are\ncomputed from the valuation engine's usable-price helpers across two date\nanchors (today and today - window), scoped to currently-held holdings, then\nserver-ordered (the ``?ordering=`` allowlist) and paginated, like every other\nlist endpoint. Inherits the global ``IsAuthenticated`` + ``PageNumberPagination``.",
                 "summary": "Biggest price movers among owned (printing, edition) pairs",
                 "parameters": [
                     {
@@ -2662,7 +2662,7 @@
             },
             "CardList": {
                 "type": "object",
-                "description": "Card identity in list shape — ``normalized_name`` is deliberately omitted\n(it's an internal lookup index, not API surface — DECISIONS 2026-05-18).",
+                "description": "Card identity in list shape. ``normalized_name`` is deliberately omitted:\nit's an internal lookup index, not API surface.",
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -2697,7 +2697,7 @@
             },
             "CardPrinting": {
                 "type": "object",
-                "description": "A printing — this artwork at this rarity in this set (DECISIONS 2026-05-18).\n\n``is_multi_variant`` flags an ambiguous-placeholder row whose generic\n``(set_code, set_rarity)`` covers multiple sellable variants (DECISIONS\n2026-05-24); slice 6's import-review UI surfaces it to let a reviewer weigh\nthe MEDIUM downgrade the matcher applies to a match on it (DECISIONS\n2026-05-26). ``card`` is the FK id; ``card_name`` is denormalized read-only\nso a list response doesn't force a per-row `/api/cards/cards/{id}/` lookup.",
+                "description": "A printing: this artwork at this rarity in this set.\n\n``is_multi_variant`` flags an ambiguous-placeholder row whose generic\n``(set_code, set_rarity)`` covers multiple sellable variants; the\nimport-review UI surfaces it to let a reviewer weigh the MEDIUM downgrade\nthe matcher applies to a match on it. ``card`` is the FK id; ``card_name``\nis denormalized read-only so a list response doesn't force a per-row\n`/api/cards/cards/{id}/` lookup.",
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -2865,7 +2865,7 @@
             },
             "CollectionItemDetail": {
                 "type": "object",
-                "description": "Item detail nests its lots — the per-acquisition cost-basis history slice\n4 (card detail) and slice 5 (portfolio drill-down) want together with the\naggregate. Lots arrive in the model's natural order (acquired_at ascending,\nnulls last; id tiebreaker — DECISIONS 2026-05-22).",
+                "description": "Item detail nests its lots: the per-acquisition cost-basis history that\nthe card detail view and the portfolio drill-down view want together with\nthe aggregate. Lots arrive in the model's natural order (acquired_at ascending,\nnulls last, id tiebreaker).",
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -2947,7 +2947,7 @@
             },
             "CollectionItemList": {
                 "type": "object",
-                "description": "One holding — N copies of one printing in one condition/edition/language/\nportfolio (DECISIONS 2026-05-18). ``quantity`` is derived (SUM over child lots,\nnot stored on the item — DECISIONS 2026-05-18), supplied by the viewset's\nqueryset annotation; an item with no lots reads as 0. The printing's identity\nfields are denormalized read-only so the slice-3 collection table doesn't\nneed a per-row printing lookup.",
+                "description": "One holding: N copies of one printing in one condition/edition/language/\nportfolio. ``quantity`` is derived (SUM over child lots, not stored on the\nitem), supplied by the viewset's queryset annotation; an item with no lots\nreads as 0. The printing's identity fields are denormalized read-only so the\ncollection table doesn't need a per-row printing lookup.",
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -3021,7 +3021,7 @@
             },
             "CollectionLot": {
                 "type": "object",
-                "description": "An acquisition batch under a ``CollectionItem`` — quantity + cost + date.\n\n``unit_cost`` / ``acquired_at`` are nullable (\"unknown\" — DECISIONS 2026-05-18):\na consumer treats NULL distinctly from ``0.00`` / today, the fake-gains-prevention\nposture that runs all the way up through the slice-4a coverage representation\n(a lot with NULL ``unit_cost`` drops out of the portfolio's ``costed_card_count``).\n``import_source_ref`` is the per-holding-per-source dedup key the importer writes\n(DECISIONS 2026-05-26 slice 4); manual lots have NULL.",
+                "description": "An acquisition batch under a ``CollectionItem``: quantity, cost, and date.\n\n``unit_cost`` / ``acquired_at`` are nullable (\"unknown\"): a consumer treats\nNULL distinctly from ``0.00`` / today, the fake-gains-prevention posture\nthat runs all the way up through the coverage representation\n(a lot with NULL ``unit_cost`` drops out of the portfolio's ``costed_card_count``).\n``import_source_ref`` is the per-holding-per-source dedup key the importer writes;\nmanual lots have NULL.",
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -3085,7 +3085,7 @@
             },
             "Deck": {
                 "type": "object",
-                "description": "A deck — read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``\none class serves read+write, so a POST/PATCH body carries only ``name``/``description``\nand the response echoes the saved deck.\n\n``member_count`` is derived (the count of ``DeckMembership`` rows). The viewset\nannotates it on the list/retrieve queryset, but a freshly created/updated instance\nwon't carry the annotation, so it is a ``SerializerMethodField`` that falls back to a\nlive count — the response after a POST/PATCH must still serialize without an\nAttributeError (the cards ``printings_count`` annotation trap, made annotation-safe).",
+                "description": "A deck, read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``\none class serves read+write, so a POST/PATCH body carries only ``name``/``description``\nand the response echoes the saved deck.\n\n``member_count`` is derived (the count of ``DeckMembership`` rows). The viewset\nannotates it on the list/retrieve queryset, but a freshly created/updated instance\nwon't carry the annotation, so it is a ``SerializerMethodField`` that falls back to a\nlive count: the response after a POST/PATCH must still serialize without an\nAttributeError (the cards ``printings_count`` annotation trap, made annotation-safe).",
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -3123,7 +3123,7 @@
             },
             "DeckMembership": {
                 "type": "object",
-                "description": "A deck membership — read AND create. The write side carries only ``deck`` +\n``collection_item`` (both ``PrimaryKeyRelatedField`` → 400 on an unknown id);\neverything else is the owned holding's identity, denormalized read-only via\n``source=\"collection_item.*\"`` so the deck-detail member table renders without a\nper-row lookup (the ``CollectionItemListSerializer`` pattern). ``variant_label`` is\nnullable, and a ``source=``-pointed declared field is skipped by the schema\nnullability gate (it maps only 1:1 model fields), so it sets ``allow_null=True``\nexplicitly (the ``AlertEventSerializer`` precedent).\n\n``Meta.validators = []`` drops the auto ``UniqueTogetherValidator`` DRF would derive\nfrom the model's ``(deck, collection_item)`` UNIQUE: the viewset's ``create`` instead\n``get_or_create``s and returns a clean 409 for an already-present holding (informative,\nand the same status the import-review frontend already reads), rather than a generic\n400 — while the DB UNIQUE still backstops a concurrent double-add.",
+                "description": "A deck membership, read AND create. The write side carries only ``deck`` +\n``collection_item`` (both ``PrimaryKeyRelatedField`` → 400 on an unknown id);\neverything else is the owned holding's identity, denormalized read-only via\n``source=\"collection_item.*\"`` so the deck-detail member table renders without a\nper-row lookup (the ``CollectionItemListSerializer`` pattern). ``variant_label`` is\nnullable, and a ``source=``-pointed declared field is skipped by the schema\nnullability gate (it maps only 1:1 model fields), so it sets ``allow_null=True``\nexplicitly (the ``AlertEventSerializer`` precedent).\n\n``Meta.validators = []`` drops the auto ``UniqueTogetherValidator`` DRF would derive\nfrom the model's ``(deck, collection_item)`` UNIQUE: the viewset's ``create`` instead\n``get_or_create``s and returns a clean 409 for an already-present holding (informative,\nand the same status the import-review frontend already reads), rather than a generic\n400, while the DB UNIQUE still backstops a concurrent double-add.",
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -3196,7 +3196,7 @@
             },
             "DeckMembershipRequest": {
                 "type": "object",
-                "description": "A deck membership — read AND create. The write side carries only ``deck`` +\n``collection_item`` (both ``PrimaryKeyRelatedField`` → 400 on an unknown id);\neverything else is the owned holding's identity, denormalized read-only via\n``source=\"collection_item.*\"`` so the deck-detail member table renders without a\nper-row lookup (the ``CollectionItemListSerializer`` pattern). ``variant_label`` is\nnullable, and a ``source=``-pointed declared field is skipped by the schema\nnullability gate (it maps only 1:1 model fields), so it sets ``allow_null=True``\nexplicitly (the ``AlertEventSerializer`` precedent).\n\n``Meta.validators = []`` drops the auto ``UniqueTogetherValidator`` DRF would derive\nfrom the model's ``(deck, collection_item)`` UNIQUE: the viewset's ``create`` instead\n``get_or_create``s and returns a clean 409 for an already-present holding (informative,\nand the same status the import-review frontend already reads), rather than a generic\n400 — while the DB UNIQUE still backstops a concurrent double-add.",
+                "description": "A deck membership, read AND create. The write side carries only ``deck`` +\n``collection_item`` (both ``PrimaryKeyRelatedField`` → 400 on an unknown id);\neverything else is the owned holding's identity, denormalized read-only via\n``source=\"collection_item.*\"`` so the deck-detail member table renders without a\nper-row lookup (the ``CollectionItemListSerializer`` pattern). ``variant_label`` is\nnullable, and a ``source=``-pointed declared field is skipped by the schema\nnullability gate (it maps only 1:1 model fields), so it sets ``allow_null=True``\nexplicitly (the ``AlertEventSerializer`` precedent).\n\n``Meta.validators = []`` drops the auto ``UniqueTogetherValidator`` DRF would derive\nfrom the model's ``(deck, collection_item)`` UNIQUE: the viewset's ``create`` instead\n``get_or_create``s and returns a clean 409 for an already-present holding (informative,\nand the same status the import-review frontend already reads), rather than a generic\n400, while the DB UNIQUE still backstops a concurrent double-add.",
                 "properties": {
                     "deck": {
                         "type": "integer"
@@ -3212,7 +3212,7 @@
             },
             "DeckRequest": {
                 "type": "object",
-                "description": "A deck — read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``\none class serves read+write, so a POST/PATCH body carries only ``name``/``description``\nand the response echoes the saved deck.\n\n``member_count`` is derived (the count of ``DeckMembership`` rows). The viewset\nannotates it on the list/retrieve queryset, but a freshly created/updated instance\nwon't carry the annotation, so it is a ``SerializerMethodField`` that falls back to a\nlive count — the response after a POST/PATCH must still serialize without an\nAttributeError (the cards ``printings_count`` annotation trap, made annotation-safe).",
+                "description": "A deck, read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``\none class serves read+write, so a POST/PATCH body carries only ``name``/``description``\nand the response echoes the saved deck.\n\n``member_count`` is derived (the count of ``DeckMembership`` rows). The viewset\nannotates it on the list/retrieve queryset, but a freshly created/updated instance\nwon't carry the annotation, so it is a ``SerializerMethodField`` that falls back to a\nlive count: the response after a POST/PATCH must still serialize without an\nAttributeError (the cards ``printings_count`` annotation trap, made annotation-safe).",
                 "properties": {
                     "name": {
                         "type": "string",
@@ -3294,7 +3294,7 @@
             },
             "ImportBatch": {
                 "type": "object",
-                "description": "One import's history record + per-status row counts. The counts are *derived* — the\nmodel deliberately does not denormalize them (DECISIONS 2026-05-25 slice 1) — and are\nsupplied by the viewset's queryset annotation, so a summary can't drift from its rows.\n``rows_needs_review`` counts every still-PENDING row (== ``ImportRow.needs_review``): a\npending row is, by construction, one the auto-path left for a human or a re-sync —\nmatch-uncertain, freshness-gated, or a changed-duplicate cost conflict alike.",
+                "description": "One import's history record + per-status row counts. The counts are *derived*: the\nmodel deliberately does not denormalize them, and are\nsupplied by the viewset's queryset annotation, so a summary can't drift from its rows.\n``rows_needs_review`` counts every still-PENDING row (== ``ImportRow.needs_review``): a\npending row is, by construction, one the auto-path left for a human or a re-sync,\nmatch-uncertain, freshness-gated, or a changed-duplicate cost conflict alike.",
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -3375,7 +3375,7 @@
             },
             "ImportRow": {
                 "type": "object",
-                "description": "One staged row for the review queue. ``matched_printing`` is nested read-only (a human\nre-points it via the ``override`` action, not by writing this field); ``needs_review`` reads\nthe ``ImportRow.needs_review`` property (still PENDING → needs a human/re-sync), the one\ndefinition the count and ``?needs_review`` filter also use, so they can't drift.\n\n``allow_null=True`` on ``matched_printing`` is required (Codex slice 2 round 5): the model\nFK is nullable and UNMATCHED rows ship ``matched_printing=None`` as a normal state — without\nit the OpenAPI schema declares the property non-null and the generated TS client crashes a\nreview UI dereferencing ``row.matched_printing.card_name`` on an unmatched row (which is\nprecisely the row the reviewer most needs to act on). Same bug class as\n``Portfolio.latest_snapshot`` (round 1), different shape: that one used\n``@extend_schema_field(Class)``; this one is a direct nested serializer assignment. Both\nshapes need explicit nullability.",
+                "description": "One staged row for the review queue. ``matched_printing`` is nested read-only (a human\nre-points it via the ``override`` action, not by writing this field); ``needs_review`` reads\nthe ``ImportRow.needs_review`` property (still PENDING → needs a human/re-sync), the one\ndefinition the count and ``?needs_review`` filter also use, so they can't drift.\n\n``allow_null=True`` on ``matched_printing`` is required: the model\nFK is nullable and UNMATCHED rows ship ``matched_printing=None`` as a normal state, without\nit the OpenAPI schema declares the property non-null and the generated TS client crashes a\nreview UI dereferencing ``row.matched_printing.card_name`` on an unmatched row (which is\nprecisely the row the reviewer most needs to act on). Same bug class as\n``Portfolio.latest_snapshot``, different shape: that one used\n``@extend_schema_field(Class)``; this one is a direct nested serializer assignment. Both\nshapes need explicit nullability.",
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -3596,7 +3596,7 @@
             },
             "MatchedPrinting": {
                 "type": "object",
-                "description": "Read-only nested view of a row's ``matched_printing`` for the review UI. Surfaces\n``is_multi_variant`` so a reviewer sees that the matcher downgraded a known multi-variant\nplaceholder to MEDIUM (and can weigh it before approving — the auto-path's gate is the\nhuman here; DECISIONS 2026-05-27).",
+                "description": "Read-only nested view of a row's ``matched_printing`` for the review UI. Surfaces\n``is_multi_variant`` so a reviewer sees that the matcher downgraded a known multi-variant\nplaceholder to MEDIUM (and can weigh it before approving; the auto-path's gate is the\nhuman here).",
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -4199,7 +4199,7 @@
             },
             "PatchedDeckRequest": {
                 "type": "object",
-                "description": "A deck — read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``\none class serves read+write, so a POST/PATCH body carries only ``name``/``description``\nand the response echoes the saved deck.\n\n``member_count`` is derived (the count of ``DeckMembership`` rows). The viewset\nannotates it on the list/retrieve queryset, but a freshly created/updated instance\nwon't carry the annotation, so it is a ``SerializerMethodField`` that falls back to a\nlive count — the response after a POST/PATCH must still serialize without an\nAttributeError (the cards ``printings_count`` annotation trap, made annotation-safe).",
+                "description": "A deck, read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``\none class serves read+write, so a POST/PATCH body carries only ``name``/``description``\nand the response echoes the saved deck.\n\n``member_count`` is derived (the count of ``DeckMembership`` rows). The viewset\nannotates it on the list/retrieve queryset, but a freshly created/updated instance\nwon't carry the annotation, so it is a ``SerializerMethodField`` that falls back to a\nlive count: the response after a POST/PATCH must still serialize without an\nAttributeError (the cards ``printings_count`` annotation trap, made annotation-safe).",
                 "properties": {
                     "name": {
                         "type": "string",
@@ -4260,7 +4260,7 @@
             },
             "Portfolio": {
                 "type": "object",
-                "description": "A portfolio + its latest ``PortfolioValueSnapshot`` inline (NULL when a\nportfolio has never been valued). Slice 5's portfolio summary shows\ntoday's value at a glance without a second round-trip; the value-history\nchart consumes ``/api/portfolio/snapshots/?portfolio=&from=&to=``.\n\nN+1 risk on list is bounded by portfolio count (single digits in practice\n— Yubel Deck, Long-term hold, etc.). If portfolios ever scale, switch this\nto a correlated subquery / prefetched-singleton.",
+                "description": "A portfolio + its latest ``PortfolioValueSnapshot`` inline (NULL when a\nportfolio has never been valued). The portfolio summary shows\ntoday's value at a glance without a second round-trip; the value-history\nchart consumes ``/api/portfolio/snapshots/?portfolio=&from=&to=``.\n\nN+1 risk on list is bounded by portfolio count (single digits in practice,\ne.g. Yubel Deck, Long-term hold). If portfolios ever scale, switch this\nto a correlated subquery / prefetched-singleton.",
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -4288,7 +4288,7 @@
             },
             "PortfolioValueSnapshot": {
                 "type": "object",
-                "description": "Append-only daily valuation row (DECISIONS 2026-05-22).\n\n``unrealized_gain`` is nullable — NULL means partial coverage and the difference\nof two different subsets isn't a gain (DECISIONS 2026-05-25 slice 4a). The three\ncoverage counts say how much of the portfolio each total covers; the derived\n``*_complete`` / ``is_complete`` flags read off the model properties (so they\ncan't drift from the counts). Consumers must handle NULL ``unrealized_gain``.",
+                "description": "Append-only daily valuation row.\n\n``unrealized_gain`` is nullable: NULL means partial coverage, and the difference\nof two different subsets isn't a gain. The three\ncoverage counts say how much of the portfolio each total covers; the derived\n``*_complete`` / ``is_complete`` flags read off the model properties (so they\ncan't drift from the counts). Consumers must handle NULL ``unrealized_gain``.",
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -4384,7 +4384,7 @@
             },
             "PriceSnapshot": {
                 "type": "object",
-                "description": "One provider's price for a printing+edition on a given day (append-only —\nDECISIONS 2026-05-18). Every price point is nullable: a provider may report\nonly some, so a consumer treats NULL distinctly from 0 (the same fake-zero\navoidance pattern as ``CollectionLot.unit_cost`` and the slice-4a coverage\nfields). ``confidence`` is the multi-source scoring placeholder (1.0 today —\none trusted source). ``source_subtype_name`` keeps the provider's raw subtype\ntext (e.g. TCGCSV ``\"1st Edition\"``) for audit if the edition normalisation\nrule ever changes.",
+                "description": "One provider's price for a printing+edition on a given day (append-only).\nEvery price point is nullable: a provider may report\nonly some, so a consumer treats NULL distinctly from 0 (the same fake-zero\navoidance pattern as ``CollectionLot.unit_cost`` and the slice-4a coverage\nfields). ``confidence`` is the multi-source scoring placeholder (1.0 today,\none trusted source). ``source_subtype_name`` keeps the provider's raw subtype\ntext (e.g. TCGCSV ``\"1st Edition\"``) for audit if the edition normalisation\nrule ever changes.",
                 "properties": {
                     "id": {
                         "type": "integer",

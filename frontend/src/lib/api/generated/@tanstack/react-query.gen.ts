@@ -372,10 +372,10 @@ export const auditEventsRetrieveOptions = (options: Options<AuditEventsRetrieveD
 /**
  * Log in to the read-only demo account
  *
- * Establish a session for the read-only demo account (recruiter showcase).
+ * Establish a session for the read-only demo account (a public demo).
  *
  * A public, password-less counterpart to ``LoginView``: it ``login()``s the seeded
- * ``demo`` account (``DEMO_USERNAME``) so a recruiter reaches the full authenticated
+ * ``demo`` account (``DEMO_USERNAME``) so a visitor reaches the full authenticated
  * app in one click, while ``DemoReadOnly`` (a global default permission) denies that
  * session every unsafe method. ``AllowAny`` + no authenticators (the ``LoginView``
  * precedent) so an anonymous browser can reach it; ``csrf_protect`` re-arms CSRF on the
@@ -407,13 +407,13 @@ export const authDemoLoginCreateMutation = (options?: Partial<Options<AuthDemoLo
  * Establish a session for valid credentials (Phase 5 auth slice).
  *
  * ``AllowAny`` + no authenticators so an anonymous browser can reach it (the
- * ``HealthView``/``CsrfView`` precedent — every other endpoint stays
+ * ``HealthView``/``CsrfView`` precedent, every other endpoint stays
  * ``IsAuthenticated``). The credential check + status choice live in
  * ``LoginSerializer`` (a failure is a generic 400, see its docstring).
  *
  * ``csrf_protect`` re-arms CSRF on this POST: DRF marks every ``APIView``
  * ``csrf_exempt`` because CSRF normally runs inside
- * ``SessionAuthentication.enforce_csrf`` — which an *anonymous* request never
+ * ``SessionAuthentication.enforce_csrf``, which an *anonymous* request never
  * reaches (it returns before the check). So without this decorator the login
  * POST would be silently CSRF-naked. The ``csrftoken`` is already seeded by
  * ``GET /api/csrf/`` on app load and echoed via ``proxy.ts``'s ``X-CSRFToken``
@@ -440,14 +440,14 @@ export const authLoginCreateMutation = (options?: Partial<Options<AuthLoginCreat
  *
  * POST (an unsafe method) deliberately, so it travels the *authenticated* CSRF
  * path: the caller is authenticated, so ``SessionAuthentication.enforce_csrf``
- * runs and ``proxy.ts`` already injects ``X-CSRFToken`` — no ``csrf_protect``
+ * runs and ``proxy.ts`` already injects ``X-CSRFToken``, no ``csrf_protect``
  * needed here (unlike login). Returns 200 with a body (not 204) so the generated
  * TS client has a typed, non-void response to branch on.
  *
  * Sets ``permission_classes = [IsAuthenticated]`` to OPT OUT of the global
  * ``DemoReadOnly`` write-block: logout is the one unsafe method the demo account
  * must be allowed (the ``LogoutButton`` hard-navigates to ``/login`` on a 200; a 403
- * would strand the recruiter in the demo session). Still requires auth, so an
+ * would strand the visitor in the demo session). Still requires auth, so an
  * anonymous logout 403s like everything else.
  */
 export const authLogoutCreateMutation = (options?: Partial<Options<AuthLogoutCreateData>>): UseMutationOptions<unknown, DefaultError, Options<AuthLogoutCreateData>> => {
@@ -474,7 +474,7 @@ export const authMeRetrieveQueryKey = (options?: Options<AuthMeRetrieveData>) =>
  * Inherits the global ``IsAuthenticated``, so an anonymous request → **403**
  * (DRF's session-auth posture: ``authenticate_header`` is ``None``, so a 401
  * downgrades to 403). The SPA's ``AuthProvider`` reads that 403 as "not signed
- * in" — it is the expected anonymous signal, not an error to surface.
+ * in", it is the expected anonymous signal, not an error to surface.
  */
 export const authMeRetrieveOptions = (options?: Options<AuthMeRetrieveData>) => queryOptions<AuthMeRetrieveResponse, DefaultError, AuthMeRetrieveResponse, ReturnType<typeof authMeRetrieveQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -495,10 +495,9 @@ export const cardsCardsListQueryKey = (options?: Options<CardsCardsListData>) =>
  * List / search cards
  *
  * Read-only catalog of card identities. List returns ``{id, passcode, name}``
- * and is ``?search=``-filterable by name (the slice-6 import-review override picker
- * finds a card by name → lists its printings); retrieve nests printings (a card has
- * at most a handful — DECISIONS 2026-05-18) so slice 4's card-detail view loads in
- * one round-trip.
+ * and is ``?search=``-filterable by name (the import-review override picker
+ * finds a card by name, then lists its printings); retrieve nests printings (a card
+ * has at most a handful) so the card-detail view loads in one round-trip.
  */
 export const cardsCardsListOptions = (options?: Options<CardsCardsListData>) => queryOptions<CardsCardsListResponse, DefaultError, CardsCardsListResponse, ReturnType<typeof cardsCardsListQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -519,10 +518,9 @@ export const cardsCardsListInfiniteQueryKey = (options?: Options<CardsCardsListD
  * List / search cards
  *
  * Read-only catalog of card identities. List returns ``{id, passcode, name}``
- * and is ``?search=``-filterable by name (the slice-6 import-review override picker
- * finds a card by name → lists its printings); retrieve nests printings (a card has
- * at most a handful — DECISIONS 2026-05-18) so slice 4's card-detail view loads in
- * one round-trip.
+ * and is ``?search=``-filterable by name (the import-review override picker
+ * finds a card by name, then lists its printings); retrieve nests printings (a card
+ * has at most a handful) so the card-detail view loads in one round-trip.
  */
 export const cardsCardsListInfiniteOptions = (options?: Options<CardsCardsListData>) => infiniteQueryOptions<CardsCardsListResponse, DefaultError, InfiniteData<CardsCardsListResponse>, QueryKey<Options<CardsCardsListData>>, number | Pick<QueryKey<Options<CardsCardsListData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
 // @ts-ignore
@@ -552,10 +550,9 @@ export const cardsCardsRetrieveQueryKey = (options: Options<CardsCardsRetrieveDa
  * Retrieve one card (with printings inline)
  *
  * Read-only catalog of card identities. List returns ``{id, passcode, name}``
- * and is ``?search=``-filterable by name (the slice-6 import-review override picker
- * finds a card by name → lists its printings); retrieve nests printings (a card has
- * at most a handful — DECISIONS 2026-05-18) so slice 4's card-detail view loads in
- * one round-trip.
+ * and is ``?search=``-filterable by name (the import-review override picker
+ * finds a card by name, then lists its printings); retrieve nests printings (a card
+ * has at most a handful) so the card-detail view loads in one round-trip.
  */
 export const cardsCardsRetrieveOptions = (options: Options<CardsCardsRetrieveData>) => queryOptions<CardsCardsRetrieveResponse, DefaultError, CardsCardsRetrieveResponse, ReturnType<typeof cardsCardsRetrieveQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -575,7 +572,7 @@ export const cardsCardsArchetypesRetrieveQueryKey = (options?: Options<CardsCard
 /**
  * List distinct archetypes
  *
- * Every distinct non-null archetype, sorted — the source for the /cards archetype filter dropdown. Not paginated (a few hundred at most).
+ * Every distinct non-null archetype, sorted: the source for the /cards archetype filter dropdown. Not paginated (a few hundred at most).
  */
 export const cardsCardsArchetypesRetrieveOptions = (options?: Options<CardsCardsArchetypesRetrieveData>) => queryOptions<CardsCardsArchetypesRetrieveResponse, DefaultError, CardsCardsArchetypesRetrieveResponse, ReturnType<typeof cardsCardsArchetypesRetrieveQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -669,7 +666,7 @@ export const collectionItemsListQueryKey = (options?: Options<CollectionItemsLis
  *
  * Read-only collection holdings. List returns one row per holding with
  * ``quantity`` = SUM over lots (an item with no lots reads as 0); retrieve
- * nests the lots — the per-acquisition cost-basis history. ``portfolio`` /
+ * nests the lots, the per-acquisition cost-basis history. ``portfolio`` /
  * ``printing`` FKs and the storage location are pre-joined for the list shape.
  */
 export const collectionItemsListOptions = (options?: Options<CollectionItemsListData>) => queryOptions<CollectionItemsListResponse, DefaultError, CollectionItemsListResponse, ReturnType<typeof collectionItemsListQueryKey>>({
@@ -692,7 +689,7 @@ export const collectionItemsListInfiniteQueryKey = (options?: Options<Collection
  *
  * Read-only collection holdings. List returns one row per holding with
  * ``quantity`` = SUM over lots (an item with no lots reads as 0); retrieve
- * nests the lots — the per-acquisition cost-basis history. ``portfolio`` /
+ * nests the lots, the per-acquisition cost-basis history. ``portfolio`` /
  * ``printing`` FKs and the storage location are pre-joined for the list shape.
  */
 export const collectionItemsListInfiniteOptions = (options?: Options<CollectionItemsListData>) => infiniteQueryOptions<CollectionItemsListResponse, DefaultError, InfiniteData<CollectionItemsListResponse>, QueryKey<Options<CollectionItemsListData>>, number | Pick<QueryKey<Options<CollectionItemsListData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
@@ -724,7 +721,7 @@ export const collectionItemsRetrieveQueryKey = (options: Options<CollectionItems
  *
  * Read-only collection holdings. List returns one row per holding with
  * ``quantity`` = SUM over lots (an item with no lots reads as 0); retrieve
- * nests the lots — the per-acquisition cost-basis history. ``portfolio`` /
+ * nests the lots, the per-acquisition cost-basis history. ``portfolio`` /
  * ``printing`` FKs and the storage location are pre-joined for the list shape.
  */
 export const collectionItemsRetrieveOptions = (options: Options<CollectionItemsRetrieveData>) => queryOptions<CollectionItemsRetrieveResponse, DefaultError, CollectionItemsRetrieveResponse, ReturnType<typeof collectionItemsRetrieveQueryKey>>({
@@ -747,7 +744,7 @@ export const collectionLotsListQueryKey = (options?: Options<CollectionLotsListD
  *
  * Read-only per-acquisition lots. List filterable by ``?item=`` /
  * ``?portfolio=`` (via the item join). Default order matches the model's
- * natural (item, acquired_at-asc-nulls-last, id) — chronological within a
+ * natural (item, acquired_at-asc-nulls-last, id): chronological within a
  * holding, with unknown-date lots last.
  */
 export const collectionLotsListOptions = (options?: Options<CollectionLotsListData>) => queryOptions<CollectionLotsListResponse, DefaultError, CollectionLotsListResponse, ReturnType<typeof collectionLotsListQueryKey>>({
@@ -770,7 +767,7 @@ export const collectionLotsListInfiniteQueryKey = (options?: Options<CollectionL
  *
  * Read-only per-acquisition lots. List filterable by ``?item=`` /
  * ``?portfolio=`` (via the item join). Default order matches the model's
- * natural (item, acquired_at-asc-nulls-last, id) — chronological within a
+ * natural (item, acquired_at-asc-nulls-last, id): chronological within a
  * holding, with unknown-date lots last.
  */
 export const collectionLotsListInfiniteOptions = (options?: Options<CollectionLotsListData>) => infiniteQueryOptions<CollectionLotsListResponse, DefaultError, InfiniteData<CollectionLotsListResponse>, QueryKey<Options<CollectionLotsListData>>, number | Pick<QueryKey<Options<CollectionLotsListData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
@@ -802,7 +799,7 @@ export const collectionLotsRetrieveQueryKey = (options: Options<CollectionLotsRe
  *
  * Read-only per-acquisition lots. List filterable by ``?item=`` /
  * ``?portfolio=`` (via the item join). Default order matches the model's
- * natural (item, acquired_at-asc-nulls-last, id) — chronological within a
+ * natural (item, acquired_at-asc-nulls-last, id): chronological within a
  * holding, with unknown-date lots last.
  */
 export const collectionLotsRetrieveOptions = (options: Options<CollectionLotsRetrieveData>) => queryOptions<CollectionLotsRetrieveResponse, DefaultError, CollectionLotsRetrieveResponse, ReturnType<typeof collectionLotsRetrieveQueryKey>>({
@@ -823,11 +820,11 @@ export const csrfRetrieveQueryKey = (options?: Options<CsrfRetrieveData>) => cre
 /**
  * Seed the CSRF cookie
  *
- * Seed the ``csrftoken`` cookie (slice 6, DECISIONS 2026-05-29).
+ * Seed the ``csrftoken`` cookie (slice 6).
  *
  * Django sets the cookie only when a request *uses* the token (``get_token``);
  * with ``CSRF_USE_SESSIONS=False`` and an all-JSON API that never renders a
- * form, nothing here was setting it — so the SPA had no token to send on its
+ * form, nothing here was setting it, so the SPA had no token to send on its
  * first POST. The frontend GETs this on load; ``CsrfViewMiddleware`` then writes
  * the (non-HttpOnly) cookie, and ``proxy.ts`` copies it into ``X-CSRFToken`` on
  * unsafe requests. ``AllowAny`` + no auth: a not-yet-signed-in browser must be
@@ -852,12 +849,12 @@ export const decksDecksListQueryKey = (options?: Options<DecksDecksListData>) =>
 /**
  * List decks (each with its member count)
  *
- * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the
  * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
  * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
  * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
  * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
- * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * nested here: members are mutable + paginated, so they live on their own flat endpoint
  * (the import-batch-detail header/rows split, not the cards/collection nested-detail
  * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -879,12 +876,12 @@ export const decksDecksListInfiniteQueryKey = (options?: Options<DecksDecksListD
 /**
  * List decks (each with its member count)
  *
- * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the
  * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
  * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
  * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
  * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
- * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * nested here: members are mutable + paginated, so they live on their own flat endpoint
  * (the import-batch-detail header/rows split, not the cards/collection nested-detail
  * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -913,12 +910,12 @@ export const decksDecksListInfiniteOptions = (options?: Options<DecksDecksListDa
 /**
  * Create a deck
  *
- * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the
  * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
  * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
  * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
  * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
- * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * nested here: members are mutable + paginated, so they live on their own flat endpoint
  * (the import-batch-detail header/rows split, not the cards/collection nested-detail
  * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -939,12 +936,12 @@ export const decksDecksCreateMutation = (options?: Partial<Options<DecksDecksCre
 /**
  * Delete a deck (its memberships cascade away)
  *
- * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the
  * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
  * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
  * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
  * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
- * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * nested here: members are mutable + paginated, so they live on their own flat endpoint
  * (the import-batch-detail header/rows split, not the cards/collection nested-detail
  * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -967,12 +964,12 @@ export const decksDecksRetrieveQueryKey = (options: Options<DecksDecksRetrieveDa
 /**
  * Retrieve a deck
  *
- * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the
  * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
  * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
  * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
  * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
- * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * nested here: members are mutable + paginated, so they live on their own flat endpoint
  * (the import-batch-detail header/rows split, not the cards/collection nested-detail
  * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -992,12 +989,12 @@ export const decksDecksRetrieveOptions = (options: Options<DecksDecksRetrieveDat
 /**
  * Rename / edit a deck
  *
- * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the
  * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
  * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
  * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
  * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
- * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * nested here: members are mutable + paginated, so they live on their own flat endpoint
  * (the import-batch-detail header/rows split, not the cards/collection nested-detail
  * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -1018,12 +1015,12 @@ export const decksDecksPartialUpdateMutation = (options?: Partial<Options<DecksD
 /**
  * Replace a deck
  *
- * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the
  * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
  * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
  * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
  * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
- * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * nested here: members are mutable + paginated, so they live on their own flat endpoint
  * (the import-batch-detail header/rows split, not the cards/collection nested-detail
  * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -1048,9 +1045,9 @@ export const decksMembershipsListQueryKey = (options?: Options<DecksMembershipsL
  *
  * A deck's membership feed + add/remove. A membership is a stateless join row, so this
  * is a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,
- * which exists only for that app's batch/row state machine — decks have no such state).
+ * which exists only for that app's batch/row state machine, decks have no such state).
  * OWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card
- * has no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``
+ * has no id to add. Add is idempotent-aware: a duplicate ``(deck, collection_item)``
  * returns 409 (the holding is already in the deck), never a second row. Inherits
  * ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -1074,9 +1071,9 @@ export const decksMembershipsListInfiniteQueryKey = (options?: Options<DecksMemb
  *
  * A deck's membership feed + add/remove. A membership is a stateless join row, so this
  * is a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,
- * which exists only for that app's batch/row state machine — decks have no such state).
+ * which exists only for that app's batch/row state machine, decks have no such state).
  * OWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card
- * has no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``
+ * has no id to add. Add is idempotent-aware: a duplicate ``(deck, collection_item)``
  * returns 409 (the holding is already in the deck), never a second row. Inherits
  * ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -1107,9 +1104,9 @@ export const decksMembershipsListInfiniteOptions = (options?: Options<DecksMembe
  *
  * A deck's membership feed + add/remove. A membership is a stateless join row, so this
  * is a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,
- * which exists only for that app's batch/row state machine — decks have no such state).
+ * which exists only for that app's batch/row state machine, decks have no such state).
  * OWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card
- * has no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``
+ * has no id to add. Add is idempotent-aware: a duplicate ``(deck, collection_item)``
  * returns 409 (the holding is already in the deck), never a second row. Inherits
  * ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -1132,9 +1129,9 @@ export const decksMembershipsCreateMutation = (options?: Partial<Options<DecksMe
  *
  * A deck's membership feed + add/remove. A membership is a stateless join row, so this
  * is a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,
- * which exists only for that app's batch/row state machine — decks have no such state).
+ * which exists only for that app's batch/row state machine, decks have no such state).
  * OWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card
- * has no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``
+ * has no id to add. Add is idempotent-aware: a duplicate ``(deck, collection_item)``
  * returns 409 (the holding is already in the deck), never a second row. Inherits
  * ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -1157,7 +1154,7 @@ export const healthRetrieveQueryKey = (options?: Options<HealthRetrieveData>) =>
 /**
  * Service health
  *
- * Liveness probe — returns 200 when the process is up.
+ * Liveness probe: returns 200 when the process is up.
  */
 export const healthRetrieveOptions = (options?: Options<HealthRetrieveData>) => queryOptions<unknown, DefaultError, unknown, ReturnType<typeof healthRetrieveQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -1178,7 +1175,7 @@ export const importsBatchesListQueryKey = (options?: Options<ImportsBatchesListD
  * List import batches with per-status row counts
  *
  * Import history + upload. List/retrieve batches with derived per-status row counts, and
- * POST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import (slice 6). The review
+ * POST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import. The review
  * surface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly. Defining
  * ``create`` makes the router bind POST on the collection route (no separate mixin needed).
  */
@@ -1201,7 +1198,7 @@ export const importsBatchesListInfiniteQueryKey = (options?: Options<ImportsBatc
  * List import batches with per-status row counts
  *
  * Import history + upload. List/retrieve batches with derived per-status row counts, and
- * POST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import (slice 6). The review
+ * POST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import. The review
  * surface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly. Defining
  * ``create`` makes the router bind POST on the collection route (no separate mixin needed).
  */
@@ -1230,9 +1227,9 @@ export const importsBatchesListInfiniteOptions = (options?: Options<ImportsBatch
 /**
  * Upload a Dragon Shield CSV → run the import
  *
- * Upload a Dragon Shield CSV and run the import synchronously (DECISIONS 2026-05-29).
+ * Upload a Dragon Shield CSV and run the import synchronously.
  *
- * Decode the file as utf-8-sig (mirroring the ``import_dragon_shield`` command — Excel
+ * Decode the file as utf-8-sig (mirroring the ``import_dragon_shield`` command, since Excel
  * "CSV UTF-8" saves prepend a BOM), hand the text to ``run_import``, and return the created
  * batch with its derived row counts. A file that isn't a recognized DS export is **not** a
  * request error: ``run_import`` records a FAILED ``ImportBatch`` (a durable history row), so
@@ -1261,7 +1258,7 @@ export const importsBatchesRetrieveQueryKey = (options: Options<ImportsBatchesRe
  * Retrieve one import batch
  *
  * Import history + upload. List/retrieve batches with derived per-status row counts, and
- * POST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import (slice 6). The review
+ * POST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import. The review
  * surface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly. Defining
  * ``create`` makes the router bind POST on the collection route (no separate mixin needed).
  */
@@ -1284,10 +1281,10 @@ export const importsRowsListQueryKey = (options?: Options<ImportsRowsListData>) 
  * List / filter import rows
  *
  * The review queue. List/filter staged rows (by ``batch`` / ``status`` /
- * ``match_confidence`` / ``needs_review`` — served by the ``(batch, status)`` index) and
+ * ``match_confidence`` / ``needs_review``, served by the ``(batch, status)`` index) and
  * resolve a PENDING one via three actions, all routed through ``apps.imports.sync`` so the
- * collection writes go through the single ``_materialize`` chokepoint (DECISIONS 2026-05-26
- * slice 4): ``approve`` materializes the row's matched printing, ``override`` re-points it at
+ * collection writes go through the single ``_materialize`` chokepoint:
+ * ``approve`` materializes the row's matched printing, ``override`` re-points it at
  * a human-chosen printing, ``reject`` skips it.
  */
 export const importsRowsListOptions = (options?: Options<ImportsRowsListData>) => queryOptions<ImportsRowsListResponse, DefaultError, ImportsRowsListResponse, ReturnType<typeof importsRowsListQueryKey>>({
@@ -1309,10 +1306,10 @@ export const importsRowsListInfiniteQueryKey = (options?: Options<ImportsRowsLis
  * List / filter import rows
  *
  * The review queue. List/filter staged rows (by ``batch`` / ``status`` /
- * ``match_confidence`` / ``needs_review`` — served by the ``(batch, status)`` index) and
+ * ``match_confidence`` / ``needs_review``, served by the ``(batch, status)`` index) and
  * resolve a PENDING one via three actions, all routed through ``apps.imports.sync`` so the
- * collection writes go through the single ``_materialize`` chokepoint (DECISIONS 2026-05-26
- * slice 4): ``approve`` materializes the row's matched printing, ``override`` re-points it at
+ * collection writes go through the single ``_materialize`` chokepoint:
+ * ``approve`` materializes the row's matched printing, ``override`` re-points it at
  * a human-chosen printing, ``reject`` skips it.
  */
 export const importsRowsListInfiniteOptions = (options?: Options<ImportsRowsListData>) => infiniteQueryOptions<ImportsRowsListResponse, DefaultError, InfiniteData<ImportsRowsListResponse>, QueryKey<Options<ImportsRowsListData>>, number | Pick<QueryKey<Options<ImportsRowsListData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
@@ -1343,10 +1340,10 @@ export const importsRowsRetrieveQueryKey = (options: Options<ImportsRowsRetrieve
  * Retrieve one import row
  *
  * The review queue. List/filter staged rows (by ``batch`` / ``status`` /
- * ``match_confidence`` / ``needs_review`` — served by the ``(batch, status)`` index) and
+ * ``match_confidence`` / ``needs_review``, served by the ``(batch, status)`` index) and
  * resolve a PENDING one via three actions, all routed through ``apps.imports.sync`` so the
- * collection writes go through the single ``_materialize`` chokepoint (DECISIONS 2026-05-26
- * slice 4): ``approve`` materializes the row's matched printing, ``override`` re-points it at
+ * collection writes go through the single ``_materialize`` chokepoint:
+ * ``approve`` materializes the row's matched printing, ``override`` re-points it at
  * a human-chosen printing, ``reject`` skips it.
  */
 export const importsRowsRetrieveOptions = (options: Options<ImportsRowsRetrieveData>) => queryOptions<ImportsRowsRetrieveResponse, DefaultError, ImportsRowsRetrieveResponse, ReturnType<typeof importsRowsRetrieveQueryKey>>({
@@ -1366,9 +1363,9 @@ export const importsRowsRetrieveOptions = (options: Options<ImportsRowsRetrieveD
  * Approve a row → materialize its matched printing
  *
  * Materialize the row through ``_materialize``, overriding the auto-materialization
- * freshness gate (the reviewer is the human attention that gate proxies for — DECISIONS
- * 2026-05-27). 200 with the updated row on MATERIALIZED/SKIPPED; 409 when the holding was
- * already imported with a different quantity/cost/date (the row stays PENDING — the API
+ * freshness gate (the reviewer is the human attention that gate proxies for).
+ * 200 with the updated row on MATERIALIZED/SKIPPED; 409 when the holding was
+ * already imported with a different quantity/cost/date (the row stays PENDING, the API
  * surfaces the conflict rather than overwriting cost basis); 400 if the row isn't an
  * approvable PENDING row with a matched printing.
  */
@@ -1435,7 +1432,7 @@ export const portfolioPortfoliosListQueryKey = (options?: Options<PortfolioPortf
  * Read-only portfolios. Each row carries the latest ``PortfolioValueSnapshot``
  * inline (NULL when a portfolio has never been valued, e.g. a freshly-created
  * one from a Dragon Shield import that runs before the next 04:00 UTC
- * valuation beat — DECISIONS 2026-05-25 slice 4c).
+ * valuation beat).
  */
 export const portfolioPortfoliosListOptions = (options?: Options<PortfolioPortfoliosListData>) => queryOptions<PortfolioPortfoliosListResponse, DefaultError, PortfolioPortfoliosListResponse, ReturnType<typeof portfolioPortfoliosListQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -1458,7 +1455,7 @@ export const portfolioPortfoliosListInfiniteQueryKey = (options?: Options<Portfo
  * Read-only portfolios. Each row carries the latest ``PortfolioValueSnapshot``
  * inline (NULL when a portfolio has never been valued, e.g. a freshly-created
  * one from a Dragon Shield import that runs before the next 04:00 UTC
- * valuation beat — DECISIONS 2026-05-25 slice 4c).
+ * valuation beat).
  */
 export const portfolioPortfoliosListInfiniteOptions = (options?: Options<PortfolioPortfoliosListData>) => infiniteQueryOptions<PortfolioPortfoliosListResponse, DefaultError, InfiniteData<PortfolioPortfoliosListResponse>, QueryKey<Options<PortfolioPortfoliosListData>>, number | Pick<QueryKey<Options<PortfolioPortfoliosListData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
 // @ts-ignore
@@ -1490,7 +1487,7 @@ export const portfolioPortfoliosRetrieveQueryKey = (options: Options<PortfolioPo
  * Read-only portfolios. Each row carries the latest ``PortfolioValueSnapshot``
  * inline (NULL when a portfolio has never been valued, e.g. a freshly-created
  * one from a Dragon Shield import that runs before the next 04:00 UTC
- * valuation beat — DECISIONS 2026-05-25 slice 4c).
+ * valuation beat).
  */
 export const portfolioPortfoliosRetrieveOptions = (options: Options<PortfolioPortfoliosRetrieveData>) => queryOptions<PortfolioPortfoliosRetrieveResponse, DefaultError, PortfolioPortfoliosRetrieveResponse, ReturnType<typeof portfolioPortfoliosRetrieveQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -1512,8 +1509,8 @@ export const portfolioSnapshotsListQueryKey = (options?: Options<PortfolioSnapsh
  *
  * Read-only append-only daily valuation timeline. The slice-5 portfolio
  * chart consumes ``?portfolio=&from=&to=`` to pull a range, then renders the
- * value series. ``unrealized_gain`` may be NULL on a row (partial coverage —
- * DECISIONS 2026-05-25 slice 4a); consumers handle NULL distinctly from 0.
+ * value series. ``unrealized_gain`` may be NULL on a row (partial coverage);
+ * consumers handle NULL distinctly from 0.
  */
 export const portfolioSnapshotsListOptions = (options?: Options<PortfolioSnapshotsListData>) => queryOptions<PortfolioSnapshotsListResponse, DefaultError, PortfolioSnapshotsListResponse, ReturnType<typeof portfolioSnapshotsListQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -1535,8 +1532,8 @@ export const portfolioSnapshotsListInfiniteQueryKey = (options?: Options<Portfol
  *
  * Read-only append-only daily valuation timeline. The slice-5 portfolio
  * chart consumes ``?portfolio=&from=&to=`` to pull a range, then renders the
- * value series. ``unrealized_gain`` may be NULL on a row (partial coverage —
- * DECISIONS 2026-05-25 slice 4a); consumers handle NULL distinctly from 0.
+ * value series. ``unrealized_gain`` may be NULL on a row (partial coverage);
+ * consumers handle NULL distinctly from 0.
  */
 export const portfolioSnapshotsListInfiniteOptions = (options?: Options<PortfolioSnapshotsListData>) => infiniteQueryOptions<PortfolioSnapshotsListResponse, DefaultError, InfiniteData<PortfolioSnapshotsListResponse>, QueryKey<Options<PortfolioSnapshotsListData>>, number | Pick<QueryKey<Options<PortfolioSnapshotsListData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
 // @ts-ignore
@@ -1567,8 +1564,8 @@ export const portfolioSnapshotsRetrieveQueryKey = (options: Options<PortfolioSna
  *
  * Read-only append-only daily valuation timeline. The slice-5 portfolio
  * chart consumes ``?portfolio=&from=&to=`` to pull a range, then renders the
- * value series. ``unrealized_gain`` may be NULL on a row (partial coverage —
- * DECISIONS 2026-05-25 slice 4a); consumers handle NULL distinctly from 0.
+ * value series. ``unrealized_gain`` may be NULL on a row (partial coverage);
+ * consumers handle NULL distinctly from 0.
  */
 export const portfolioSnapshotsRetrieveOptions = (options: Options<PortfolioSnapshotsRetrieveData>) => queryOptions<PortfolioSnapshotsRetrieveResponse, DefaultError, PortfolioSnapshotsRetrieveResponse, ReturnType<typeof portfolioSnapshotsRetrieveQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -1589,7 +1586,7 @@ export const pricingSnapshotsListQueryKey = (options?: Options<PricingSnapshotsL
  * List / filter price snapshots (append-only daily history)
  *
  * Read-only append-only price history. List filterable by
- * ``?printing=&edition=&from=&to=`` — the slice-4 price-chart shape. The
+ * ``?printing=&edition=&from=&to=``, the price-chart shape. The
  * ``latest`` action returns the most-recent snapshot for one
  * ``(printing, edition)``, the "today's price" lookup; this is structured as
  * an action (not the latest-first ordered list's first row) so a consumer
@@ -1614,7 +1611,7 @@ export const pricingSnapshotsListInfiniteQueryKey = (options?: Options<PricingSn
  * List / filter price snapshots (append-only daily history)
  *
  * Read-only append-only price history. List filterable by
- * ``?printing=&edition=&from=&to=`` — the slice-4 price-chart shape. The
+ * ``?printing=&edition=&from=&to=``, the price-chart shape. The
  * ``latest`` action returns the most-recent snapshot for one
  * ``(printing, edition)``, the "today's price" lookup; this is structured as
  * an action (not the latest-first ordered list's first row) so a consumer
@@ -1648,7 +1645,7 @@ export const pricingSnapshotsRetrieveQueryKey = (options: Options<PricingSnapsho
  * Retrieve one price snapshot
  *
  * Read-only append-only price history. List filterable by
- * ``?printing=&edition=&from=&to=`` — the slice-4 price-chart shape. The
+ * ``?printing=&edition=&from=&to=``, the price-chart shape. The
  * ``latest`` action returns the most-recent snapshot for one
  * ``(printing, edition)``, the "today's price" lookup; this is structured as
  * an action (not the latest-first ordered list's first row) so a consumer
@@ -1670,7 +1667,7 @@ export const pricingSnapshotsRetrieveOptions = (options: Options<PricingSnapshot
 export const pricingSnapshotsLatestRetrieveQueryKey = (options: Options<PricingSnapshotsLatestRetrieveData>) => createQueryKey('pricingSnapshotsLatestRetrieve', options);
 
 /**
- * Latest snapshot for one (printing, edition) — the 'today's price' lookup
+ * Latest snapshot for one (printing, edition): the 'today's price' lookup
  *
  * The most recent snapshot for one ``(printing, edition)``. 404 when no
  * snapshot exists for the pair (a printing TCGCSV doesn't price, or one
@@ -1770,11 +1767,11 @@ export const valuationMoversListQueryKey = (options?: Options<ValuationMoversLis
 /**
  * Biggest price movers among owned (printing, edition) pairs
  *
- * Read-only "biggest movers" analytics (DECISIONS 2026-05-31): each owned
+ * Read-only "biggest movers" analytics: each owned
  * ``(printing, edition)``'s price change over a selectable window. Rows are
  * computed from the valuation engine's usable-price helpers across two date
  * anchors (today and today - window), scoped to currently-held holdings, then
- * server-ordered (the ``?ordering=`` allowlist) and paginated — like every other
+ * server-ordered (the ``?ordering=`` allowlist) and paginated, like every other
  * list endpoint. Inherits the global ``IsAuthenticated`` + ``PageNumberPagination``.
  */
 export const valuationMoversListOptions = (options?: Options<ValuationMoversListData>) => queryOptions<ValuationMoversListResponse, DefaultError, ValuationMoversListResponse, ReturnType<typeof valuationMoversListQueryKey>>({
@@ -1795,11 +1792,11 @@ export const valuationMoversListInfiniteQueryKey = (options?: Options<ValuationM
 /**
  * Biggest price movers among owned (printing, edition) pairs
  *
- * Read-only "biggest movers" analytics (DECISIONS 2026-05-31): each owned
+ * Read-only "biggest movers" analytics: each owned
  * ``(printing, edition)``'s price change over a selectable window. Rows are
  * computed from the valuation engine's usable-price helpers across two date
  * anchors (today and today - window), scoped to currently-held holdings, then
- * server-ordered (the ``?ordering=`` allowlist) and paginated — like every other
+ * server-ordered (the ``?ordering=`` allowlist) and paginated, like every other
  * list endpoint. Inherits the global ``IsAuthenticated`` + ``PageNumberPagination``.
  */
 export const valuationMoversListInfiniteOptions = (options?: Options<ValuationMoversListData>) => infiniteQueryOptions<ValuationMoversListResponse, DefaultError, InfiniteData<ValuationMoversListResponse>, QueryKey<Options<ValuationMoversListData>>, number | Pick<QueryKey<Options<ValuationMoversListData>>[0], 'body' | 'headers' | 'path' | 'query'>>(

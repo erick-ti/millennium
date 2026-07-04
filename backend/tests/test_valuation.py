@@ -82,11 +82,11 @@ def _price(
 @pytest.mark.django_db
 def test_latest_price_map_scopes_to_printing_ids() -> None:
     """The ``printing_ids`` kwarg (added for the Phase 5 movers query) narrows the
-    map to those printings; the default (``None``) stays catalog-wide — the
+    map to those printings; the default (``None``) stays catalog-wide, the
     contract ``value_all_portfolios`` relies on. Pinned directly because the
     movers API tests can't catch a no-op/over-narrow regression here: their
     owned-only result loop reads the same values whether or not the catalog map is
-    scoped (Codex review 2026-05-31, finding #6)."""
+    scoped."""
     first = Edition.FIRST_EDITION.value
     p1 = _printing(set_code="AAA-EN001")
     p2 = _printing(set_code="BBB-EN001")
@@ -176,7 +176,7 @@ def test_unknown_cost_lot_excluded_and_marks_partial() -> None:
 
     snap = PortfolioValueSnapshot.objects.get(portfolio=portfolio)
     assert snap.market_value == Decimal("20.00")  # priced
-    assert snap.cost_basis == Decimal("0.00")  # no known cost — not coerced upward
+    assert snap.cost_basis == Decimal("0.00")  # no known cost, not coerced upward
     assert snap.priced_card_count == 2
     assert snap.costed_card_count == 0
     assert snap.cost_basis_complete is False
@@ -201,7 +201,7 @@ def test_base_price_falls_back_market_then_mid_then_low() -> None:
 @pytest.mark.django_db
 def test_zero_market_price_is_priced_not_skipped() -> None:
     """A 0.00 price point is a real price (``is not None``), so the holding is priced
-    (counts toward priced_card_count) and contributes 0 — not treated as unpriced (the
+    (counts toward priced_card_count) and contributes 0, not treated as unpriced (the
     bug a truthiness ``or`` chain would introduce)."""
     portfolio = Portfolio.objects.create(name="Zero")
     printing = _printing()
@@ -236,7 +236,7 @@ def test_uses_latest_price_on_or_before_day() -> None:
 @pytest.mark.django_db
 def test_ignores_price_snapshots_after_the_valuation_day() -> None:
     """The price map only uses snapshots on or before the valuation day, so a
-    future-dated snapshot is never picked up. NB only *pricing* is as-of-date —
+    future-dated snapshot is never picked up. NB only *pricing* is as-of-date,
     holdings are always current, so the command exposes no past-date backfill (see the
     engine docstring); this exercises the price-date filter, not holdings history."""
     portfolio = Portfolio.objects.create(name="Asof")
@@ -280,7 +280,7 @@ def test_empty_portfolio_values_to_zero_and_complete() -> None:
     assert snap.market_value == Decimal("0.00")
     assert snap.cost_basis == Decimal("0.00")
     assert snap.total_card_count == 0
-    assert snap.is_complete is True  # vacuously — nothing is missing
+    assert snap.is_complete is True  # vacuously true: nothing is missing
     assert snap.unrealized_gain == Decimal("0.00")
 
 
@@ -302,7 +302,7 @@ def test_values_each_portfolio_independently() -> None:
 
 
 def test_condition_factors_cover_all_conditions() -> None:
-    """Every Condition has a factor — an unmapped one would KeyError mid-run, so this
+    """Every Condition has a factor. An unmapped one would KeyError mid-run, so this
     guards adding a Condition without a multiplier (no DB needed)."""
     assert set(CONDITION_FACTORS) == set(Condition.values)
 
@@ -311,8 +311,7 @@ def test_condition_factors_cover_all_conditions() -> None:
 def test_failed_run_rolls_back_all_snapshots() -> None:
     """A run is all-or-nothing (transaction.atomic): if a later portfolio raises, the
     snapshots already written for earlier portfolios roll back, so a retry recomputes
-    the whole day rather than skipping a half-written, unfixable append-only series
-    (caught in a Codex adversarial review)."""
+    the whole day rather than skipping a half-written, unfixable append-only series."""
     Portfolio.objects.create(name="One")
     Portfolio.objects.create(name="Two")
 
@@ -340,9 +339,9 @@ def test_failed_run_rolls_back_all_snapshots() -> None:
 
 @pytest.mark.django_db
 def test_value_all_portfolios_stamps_today_only() -> None:
-    """The public entry has no date parameter — it always stamps timezone.localdate(),
+    """The public entry has no date parameter, it always stamps timezone.localdate(),
     so a backdated row can't be produced through it (the backdating path is closed at
-    the API, not just the CLI; DECISIONS 2026-05-25, after a Codex adversarial review)."""
+    the API, not just the CLI)."""
     portfolio = Portfolio.objects.create(name="Today")
     today = timezone.localdate()
 
@@ -356,7 +355,7 @@ def test_value_all_portfolios_stamps_today_only() -> None:
 def test_latest_usable_price_used_when_newer_snapshot_is_unusable() -> None:
     """_latest_price_map picks the latest *usable* snapshot (market/mid/low), so a newer
     high/direct-low-only row doesn't mask an older usable price and wrongly mark the
-    holding unpriced (caught in a Codex adversarial review)."""
+    holding unpriced."""
     portfolio = Portfolio.objects.create(name="Masking")
     printing = _printing()
     item = _holding(portfolio, printing)

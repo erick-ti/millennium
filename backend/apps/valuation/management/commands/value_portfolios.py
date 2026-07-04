@@ -12,10 +12,10 @@ class Command(BaseCommand):
 
     def handle(self, *args: Any, **options: Any) -> None:
         # Run the valuation engine under the advisory lock + the same-day-pricing
-        # dependency, recording a ValuationRun (DECISIONS 2026-05-25 slice 4c) -- the same
-        # orchestration the Celery task uses. Always values today: there is deliberately
-        # no --date option, because holdings are taken as current, so a backdated run
-        # would write an unfixable misdated row (DECISIONS 2026-05-25 slice 4b).
+        # dependency, recording a ValuationRun: the same orchestration the Celery task
+        # uses. Always values today: there is deliberately no --date option, because
+        # holdings are taken as current, so a backdated run would write an unfixable
+        # misdated row (PortfolioValueSnapshot is unique-per-day and append-only).
         result = run_valuation()
         if result is None:
             self.stdout.write(

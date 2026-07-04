@@ -164,10 +164,10 @@ export const auditEventsRetrieve = <ThrowOnError extends boolean = false>(option
 /**
  * Log in to the read-only demo account
  *
- * Establish a session for the read-only demo account (recruiter showcase).
+ * Establish a session for the read-only demo account (a public demo).
  *
  * A public, password-less counterpart to ``LoginView``: it ``login()``s the seeded
- * ``demo`` account (``DEMO_USERNAME``) so a recruiter reaches the full authenticated
+ * ``demo`` account (``DEMO_USERNAME``) so a visitor reaches the full authenticated
  * app in one click, while ``DemoReadOnly`` (a global default permission) denies that
  * session every unsafe method. ``AllowAny`` + no authenticators (the ``LoginView``
  * precedent) so an anonymous browser can reach it; ``csrf_protect`` re-arms CSRF on the
@@ -187,13 +187,13 @@ export const authDemoLoginCreate = <ThrowOnError extends boolean = false>(option
  * Establish a session for valid credentials (Phase 5 auth slice).
  *
  * ``AllowAny`` + no authenticators so an anonymous browser can reach it (the
- * ``HealthView``/``CsrfView`` precedent — every other endpoint stays
+ * ``HealthView``/``CsrfView`` precedent, every other endpoint stays
  * ``IsAuthenticated``). The credential check + status choice live in
  * ``LoginSerializer`` (a failure is a generic 400, see its docstring).
  *
  * ``csrf_protect`` re-arms CSRF on this POST: DRF marks every ``APIView``
  * ``csrf_exempt`` because CSRF normally runs inside
- * ``SessionAuthentication.enforce_csrf`` — which an *anonymous* request never
+ * ``SessionAuthentication.enforce_csrf``, which an *anonymous* request never
  * reaches (it returns before the check). So without this decorator the login
  * POST would be silently CSRF-naked. The ``csrftoken`` is already seeded by
  * ``GET /api/csrf/`` on app load and echoed via ``proxy.ts``'s ``X-CSRFToken``
@@ -215,14 +215,14 @@ export const authLoginCreate = <ThrowOnError extends boolean = false>(options: O
  *
  * POST (an unsafe method) deliberately, so it travels the *authenticated* CSRF
  * path: the caller is authenticated, so ``SessionAuthentication.enforce_csrf``
- * runs and ``proxy.ts`` already injects ``X-CSRFToken`` — no ``csrf_protect``
+ * runs and ``proxy.ts`` already injects ``X-CSRFToken``, no ``csrf_protect``
  * needed here (unlike login). Returns 200 with a body (not 204) so the generated
  * TS client has a typed, non-void response to branch on.
  *
  * Sets ``permission_classes = [IsAuthenticated]`` to OPT OUT of the global
  * ``DemoReadOnly`` write-block: logout is the one unsafe method the demo account
  * must be allowed (the ``LogoutButton`` hard-navigates to ``/login`` on a 200; a 403
- * would strand the recruiter in the demo session). Still requires auth, so an
+ * would strand the visitor in the demo session). Still requires auth, so an
  * anonymous logout 403s like everything else.
  */
 export const authLogoutCreate = <ThrowOnError extends boolean = false>(options?: Options<AuthLogoutCreateData, ThrowOnError>) => (options?.client ?? client).post<AuthLogoutCreateResponses, unknown, ThrowOnError>({
@@ -243,7 +243,7 @@ export const authLogoutCreate = <ThrowOnError extends boolean = false>(options?:
  * Inherits the global ``IsAuthenticated``, so an anonymous request → **403**
  * (DRF's session-auth posture: ``authenticate_header`` is ``None``, so a 401
  * downgrades to 403). The SPA's ``AuthProvider`` reads that 403 as "not signed
- * in" — it is the expected anonymous signal, not an error to surface.
+ * in", it is the expected anonymous signal, not an error to surface.
  */
 export const authMeRetrieve = <ThrowOnError extends boolean = false>(options?: Options<AuthMeRetrieveData, ThrowOnError>) => (options?.client ?? client).get<AuthMeRetrieveResponses, unknown, ThrowOnError>({
     security: [{
@@ -259,10 +259,9 @@ export const authMeRetrieve = <ThrowOnError extends boolean = false>(options?: O
  * List / search cards
  *
  * Read-only catalog of card identities. List returns ``{id, passcode, name}``
- * and is ``?search=``-filterable by name (the slice-6 import-review override picker
- * finds a card by name → lists its printings); retrieve nests printings (a card has
- * at most a handful — DECISIONS 2026-05-18) so slice 4's card-detail view loads in
- * one round-trip.
+ * and is ``?search=``-filterable by name (the import-review override picker
+ * finds a card by name, then lists its printings); retrieve nests printings (a card
+ * has at most a handful) so the card-detail view loads in one round-trip.
  */
 export const cardsCardsList = <ThrowOnError extends boolean = false>(options?: Options<CardsCardsListData, ThrowOnError>) => (options?.client ?? client).get<CardsCardsListResponses, unknown, ThrowOnError>({
     security: [{
@@ -278,10 +277,9 @@ export const cardsCardsList = <ThrowOnError extends boolean = false>(options?: O
  * Retrieve one card (with printings inline)
  *
  * Read-only catalog of card identities. List returns ``{id, passcode, name}``
- * and is ``?search=``-filterable by name (the slice-6 import-review override picker
- * finds a card by name → lists its printings); retrieve nests printings (a card has
- * at most a handful — DECISIONS 2026-05-18) so slice 4's card-detail view loads in
- * one round-trip.
+ * and is ``?search=``-filterable by name (the import-review override picker
+ * finds a card by name, then lists its printings); retrieve nests printings (a card
+ * has at most a handful) so the card-detail view loads in one round-trip.
  */
 export const cardsCardsRetrieve = <ThrowOnError extends boolean = false>(options: Options<CardsCardsRetrieveData, ThrowOnError>) => (options.client ?? client).get<CardsCardsRetrieveResponses, unknown, ThrowOnError>({
     security: [{
@@ -296,7 +294,7 @@ export const cardsCardsRetrieve = <ThrowOnError extends boolean = false>(options
 /**
  * List distinct archetypes
  *
- * Every distinct non-null archetype, sorted — the source for the /cards archetype filter dropdown. Not paginated (a few hundred at most).
+ * Every distinct non-null archetype, sorted: the source for the /cards archetype filter dropdown. Not paginated (a few hundred at most).
  */
 export const cardsCardsArchetypesRetrieve = <ThrowOnError extends boolean = false>(options?: Options<CardsCardsArchetypesRetrieveData, ThrowOnError>) => (options?.client ?? client).get<CardsCardsArchetypesRetrieveResponses, unknown, ThrowOnError>({
     security: [{
@@ -345,7 +343,7 @@ export const cardsPrintingsRetrieve = <ThrowOnError extends boolean = false>(opt
  *
  * Read-only collection holdings. List returns one row per holding with
  * ``quantity`` = SUM over lots (an item with no lots reads as 0); retrieve
- * nests the lots — the per-acquisition cost-basis history. ``portfolio`` /
+ * nests the lots, the per-acquisition cost-basis history. ``portfolio`` /
  * ``printing`` FKs and the storage location are pre-joined for the list shape.
  */
 export const collectionItemsList = <ThrowOnError extends boolean = false>(options?: Options<CollectionItemsListData, ThrowOnError>) => (options?.client ?? client).get<CollectionItemsListResponses, unknown, ThrowOnError>({
@@ -363,7 +361,7 @@ export const collectionItemsList = <ThrowOnError extends boolean = false>(option
  *
  * Read-only collection holdings. List returns one row per holding with
  * ``quantity`` = SUM over lots (an item with no lots reads as 0); retrieve
- * nests the lots — the per-acquisition cost-basis history. ``portfolio`` /
+ * nests the lots, the per-acquisition cost-basis history. ``portfolio`` /
  * ``printing`` FKs and the storage location are pre-joined for the list shape.
  */
 export const collectionItemsRetrieve = <ThrowOnError extends boolean = false>(options: Options<CollectionItemsRetrieveData, ThrowOnError>) => (options.client ?? client).get<CollectionItemsRetrieveResponses, unknown, ThrowOnError>({
@@ -381,7 +379,7 @@ export const collectionItemsRetrieve = <ThrowOnError extends boolean = false>(op
  *
  * Read-only per-acquisition lots. List filterable by ``?item=`` /
  * ``?portfolio=`` (via the item join). Default order matches the model's
- * natural (item, acquired_at-asc-nulls-last, id) — chronological within a
+ * natural (item, acquired_at-asc-nulls-last, id): chronological within a
  * holding, with unknown-date lots last.
  */
 export const collectionLotsList = <ThrowOnError extends boolean = false>(options?: Options<CollectionLotsListData, ThrowOnError>) => (options?.client ?? client).get<CollectionLotsListResponses, unknown, ThrowOnError>({
@@ -399,7 +397,7 @@ export const collectionLotsList = <ThrowOnError extends boolean = false>(options
  *
  * Read-only per-acquisition lots. List filterable by ``?item=`` /
  * ``?portfolio=`` (via the item join). Default order matches the model's
- * natural (item, acquired_at-asc-nulls-last, id) — chronological within a
+ * natural (item, acquired_at-asc-nulls-last, id): chronological within a
  * holding, with unknown-date lots last.
  */
 export const collectionLotsRetrieve = <ThrowOnError extends boolean = false>(options: Options<CollectionLotsRetrieveData, ThrowOnError>) => (options.client ?? client).get<CollectionLotsRetrieveResponses, unknown, ThrowOnError>({
@@ -415,11 +413,11 @@ export const collectionLotsRetrieve = <ThrowOnError extends boolean = false>(opt
 /**
  * Seed the CSRF cookie
  *
- * Seed the ``csrftoken`` cookie (slice 6, DECISIONS 2026-05-29).
+ * Seed the ``csrftoken`` cookie (slice 6).
  *
  * Django sets the cookie only when a request *uses* the token (``get_token``);
  * with ``CSRF_USE_SESSIONS=False`` and an all-JSON API that never renders a
- * form, nothing here was setting it — so the SPA had no token to send on its
+ * form, nothing here was setting it, so the SPA had no token to send on its
  * first POST. The frontend GETs this on load; ``CsrfViewMiddleware`` then writes
  * the (non-HttpOnly) cookie, and ``proxy.ts`` copies it into ``X-CSRFToken`` on
  * unsafe requests. ``AllowAny`` + no auth: a not-yet-signed-in browser must be
@@ -431,12 +429,12 @@ export const csrfRetrieve = <ThrowOnError extends boolean = false>(options?: Opt
 /**
  * List decks (each with its member count)
  *
- * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the
  * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
  * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
  * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
  * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
- * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * nested here: members are mutable + paginated, so they live on their own flat endpoint
  * (the import-batch-detail header/rows split, not the cards/collection nested-detail
  * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -453,12 +451,12 @@ export const decksDecksList = <ThrowOnError extends boolean = false>(options?: O
 /**
  * Create a deck
  *
- * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the
  * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
  * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
  * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
  * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
- * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * nested here: members are mutable + paginated, so they live on their own flat endpoint
  * (the import-batch-detail header/rows split, not the cards/collection nested-detail
  * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -479,12 +477,12 @@ export const decksDecksCreate = <ThrowOnError extends boolean = false>(options: 
 /**
  * Delete a deck (its memberships cascade away)
  *
- * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the
  * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
  * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
  * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
  * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
- * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * nested here: members are mutable + paginated, so they live on their own flat endpoint
  * (the import-batch-detail header/rows split, not the cards/collection nested-detail
  * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -501,12 +499,12 @@ export const decksDecksDestroy = <ThrowOnError extends boolean = false>(options:
 /**
  * Retrieve a deck
  *
- * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the
  * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
  * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
  * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
  * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
- * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * nested here: members are mutable + paginated, so they live on their own flat endpoint
  * (the import-batch-detail header/rows split, not the cards/collection nested-detail
  * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -523,12 +521,12 @@ export const decksDecksRetrieve = <ThrowOnError extends boolean = false>(options
 /**
  * Rename / edit a deck
  *
- * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the
  * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
  * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
  * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
  * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
- * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * nested here: members are mutable + paginated, so they live on their own flat endpoint
  * (the import-batch-detail header/rows split, not the cards/collection nested-detail
  * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -549,12 +547,12 @@ export const decksDecksPartialUpdate = <ThrowOnError extends boolean = false>(op
 /**
  * Replace a deck
  *
- * Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+ * Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the
  * explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
  * retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
  * inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
  * through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
- * nested here — members are mutable + paginated, so they live on their own flat endpoint
+ * nested here: members are mutable + paginated, so they live on their own flat endpoint
  * (the import-batch-detail header/rows split, not the cards/collection nested-detail
  * shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -577,9 +575,9 @@ export const decksDecksUpdate = <ThrowOnError extends boolean = false>(options: 
  *
  * A deck's membership feed + add/remove. A membership is a stateless join row, so this
  * is a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,
- * which exists only for that app's batch/row state machine — decks have no such state).
+ * which exists only for that app's batch/row state machine, decks have no such state).
  * OWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card
- * has no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``
+ * has no id to add. Add is idempotent-aware: a duplicate ``(deck, collection_item)``
  * returns 409 (the holding is already in the deck), never a second row. Inherits
  * ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -598,9 +596,9 @@ export const decksMembershipsList = <ThrowOnError extends boolean = false>(optio
  *
  * A deck's membership feed + add/remove. A membership is a stateless join row, so this
  * is a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,
- * which exists only for that app's batch/row state machine — decks have no such state).
+ * which exists only for that app's batch/row state machine, decks have no such state).
  * OWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card
- * has no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``
+ * has no id to add. Add is idempotent-aware: a duplicate ``(deck, collection_item)``
  * returns 409 (the holding is already in the deck), never a second row. Inherits
  * ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -623,9 +621,9 @@ export const decksMembershipsCreate = <ThrowOnError extends boolean = false>(opt
  *
  * A deck's membership feed + add/remove. A membership is a stateless join row, so this
  * is a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,
- * which exists only for that app's batch/row state machine — decks have no such state).
+ * which exists only for that app's batch/row state machine, decks have no such state).
  * OWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card
- * has no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``
+ * has no id to add. Add is idempotent-aware: a duplicate ``(deck, collection_item)``
  * returns 409 (the holding is already in the deck), never a second row. Inherits
  * ``IsAuthenticated`` + ``PageNumberPagination``.
  */
@@ -642,7 +640,7 @@ export const decksMembershipsDestroy = <ThrowOnError extends boolean = false>(op
 /**
  * Service health
  *
- * Liveness probe — returns 200 when the process is up.
+ * Liveness probe: returns 200 when the process is up.
  */
 export const healthRetrieve = <ThrowOnError extends boolean = false>(options?: Options<HealthRetrieveData, ThrowOnError>) => (options?.client ?? client).get<HealthRetrieveResponses, unknown, ThrowOnError>({ url: '/api/health/', ...options });
 
@@ -650,7 +648,7 @@ export const healthRetrieve = <ThrowOnError extends boolean = false>(options?: O
  * List import batches with per-status row counts
  *
  * Import history + upload. List/retrieve batches with derived per-status row counts, and
- * POST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import (slice 6). The review
+ * POST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import. The review
  * surface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly. Defining
  * ``create`` makes the router bind POST on the collection route (no separate mixin needed).
  */
@@ -667,9 +665,9 @@ export const importsBatchesList = <ThrowOnError extends boolean = false>(options
 /**
  * Upload a Dragon Shield CSV → run the import
  *
- * Upload a Dragon Shield CSV and run the import synchronously (DECISIONS 2026-05-29).
+ * Upload a Dragon Shield CSV and run the import synchronously.
  *
- * Decode the file as utf-8-sig (mirroring the ``import_dragon_shield`` command — Excel
+ * Decode the file as utf-8-sig (mirroring the ``import_dragon_shield`` command, since Excel
  * "CSV UTF-8" saves prepend a BOM), hand the text to ``run_import``, and return the created
  * batch with its derived row counts. A file that isn't a recognized DS export is **not** a
  * request error: ``run_import`` records a FAILED ``ImportBatch`` (a durable history row), so
@@ -697,7 +695,7 @@ export const importsBatchesCreate = <ThrowOnError extends boolean = false>(optio
  * Retrieve one import batch
  *
  * Import history + upload. List/retrieve batches with derived per-status row counts, and
- * POST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import (slice 6). The review
+ * POST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import. The review
  * surface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly. Defining
  * ``create`` makes the router bind POST on the collection route (no separate mixin needed).
  */
@@ -715,10 +713,10 @@ export const importsBatchesRetrieve = <ThrowOnError extends boolean = false>(opt
  * List / filter import rows
  *
  * The review queue. List/filter staged rows (by ``batch`` / ``status`` /
- * ``match_confidence`` / ``needs_review`` — served by the ``(batch, status)`` index) and
+ * ``match_confidence`` / ``needs_review``, served by the ``(batch, status)`` index) and
  * resolve a PENDING one via three actions, all routed through ``apps.imports.sync`` so the
- * collection writes go through the single ``_materialize`` chokepoint (DECISIONS 2026-05-26
- * slice 4): ``approve`` materializes the row's matched printing, ``override`` re-points it at
+ * collection writes go through the single ``_materialize`` chokepoint:
+ * ``approve`` materializes the row's matched printing, ``override`` re-points it at
  * a human-chosen printing, ``reject`` skips it.
  */
 export const importsRowsList = <ThrowOnError extends boolean = false>(options?: Options<ImportsRowsListData, ThrowOnError>) => (options?.client ?? client).get<ImportsRowsListResponses, unknown, ThrowOnError>({
@@ -735,10 +733,10 @@ export const importsRowsList = <ThrowOnError extends boolean = false>(options?: 
  * Retrieve one import row
  *
  * The review queue. List/filter staged rows (by ``batch`` / ``status`` /
- * ``match_confidence`` / ``needs_review`` — served by the ``(batch, status)`` index) and
+ * ``match_confidence`` / ``needs_review``, served by the ``(batch, status)`` index) and
  * resolve a PENDING one via three actions, all routed through ``apps.imports.sync`` so the
- * collection writes go through the single ``_materialize`` chokepoint (DECISIONS 2026-05-26
- * slice 4): ``approve`` materializes the row's matched printing, ``override`` re-points it at
+ * collection writes go through the single ``_materialize`` chokepoint:
+ * ``approve`` materializes the row's matched printing, ``override`` re-points it at
  * a human-chosen printing, ``reject`` skips it.
  */
 export const importsRowsRetrieve = <ThrowOnError extends boolean = false>(options: Options<ImportsRowsRetrieveData, ThrowOnError>) => (options.client ?? client).get<ImportsRowsRetrieveResponses, unknown, ThrowOnError>({
@@ -755,9 +753,9 @@ export const importsRowsRetrieve = <ThrowOnError extends boolean = false>(option
  * Approve a row → materialize its matched printing
  *
  * Materialize the row through ``_materialize``, overriding the auto-materialization
- * freshness gate (the reviewer is the human attention that gate proxies for — DECISIONS
- * 2026-05-27). 200 with the updated row on MATERIALIZED/SKIPPED; 409 when the holding was
- * already imported with a different quantity/cost/date (the row stays PENDING — the API
+ * freshness gate (the reviewer is the human attention that gate proxies for).
+ * 200 with the updated row on MATERIALIZED/SKIPPED; 409 when the holding was
+ * already imported with a different quantity/cost/date (the row stays PENDING, the API
  * surfaces the conflict rather than overwriting cost basis); 400 if the row isn't an
  * approvable PENDING row with a matched printing.
  */
@@ -814,7 +812,7 @@ export const importsRowsRejectCreate = <ThrowOnError extends boolean = false>(op
  * Read-only portfolios. Each row carries the latest ``PortfolioValueSnapshot``
  * inline (NULL when a portfolio has never been valued, e.g. a freshly-created
  * one from a Dragon Shield import that runs before the next 04:00 UTC
- * valuation beat — DECISIONS 2026-05-25 slice 4c).
+ * valuation beat).
  */
 export const portfolioPortfoliosList = <ThrowOnError extends boolean = false>(options?: Options<PortfolioPortfoliosListData, ThrowOnError>) => (options?.client ?? client).get<PortfolioPortfoliosListResponses, unknown, ThrowOnError>({
     security: [{
@@ -832,7 +830,7 @@ export const portfolioPortfoliosList = <ThrowOnError extends boolean = false>(op
  * Read-only portfolios. Each row carries the latest ``PortfolioValueSnapshot``
  * inline (NULL when a portfolio has never been valued, e.g. a freshly-created
  * one from a Dragon Shield import that runs before the next 04:00 UTC
- * valuation beat — DECISIONS 2026-05-25 slice 4c).
+ * valuation beat).
  */
 export const portfolioPortfoliosRetrieve = <ThrowOnError extends boolean = false>(options: Options<PortfolioPortfoliosRetrieveData, ThrowOnError>) => (options.client ?? client).get<PortfolioPortfoliosRetrieveResponses, unknown, ThrowOnError>({
     security: [{
@@ -849,8 +847,8 @@ export const portfolioPortfoliosRetrieve = <ThrowOnError extends boolean = false
  *
  * Read-only append-only daily valuation timeline. The slice-5 portfolio
  * chart consumes ``?portfolio=&from=&to=`` to pull a range, then renders the
- * value series. ``unrealized_gain`` may be NULL on a row (partial coverage —
- * DECISIONS 2026-05-25 slice 4a); consumers handle NULL distinctly from 0.
+ * value series. ``unrealized_gain`` may be NULL on a row (partial coverage);
+ * consumers handle NULL distinctly from 0.
  */
 export const portfolioSnapshotsList = <ThrowOnError extends boolean = false>(options?: Options<PortfolioSnapshotsListData, ThrowOnError>) => (options?.client ?? client).get<PortfolioSnapshotsListResponses, unknown, ThrowOnError>({
     security: [{
@@ -867,8 +865,8 @@ export const portfolioSnapshotsList = <ThrowOnError extends boolean = false>(opt
  *
  * Read-only append-only daily valuation timeline. The slice-5 portfolio
  * chart consumes ``?portfolio=&from=&to=`` to pull a range, then renders the
- * value series. ``unrealized_gain`` may be NULL on a row (partial coverage —
- * DECISIONS 2026-05-25 slice 4a); consumers handle NULL distinctly from 0.
+ * value series. ``unrealized_gain`` may be NULL on a row (partial coverage);
+ * consumers handle NULL distinctly from 0.
  */
 export const portfolioSnapshotsRetrieve = <ThrowOnError extends boolean = false>(options: Options<PortfolioSnapshotsRetrieveData, ThrowOnError>) => (options.client ?? client).get<PortfolioSnapshotsRetrieveResponses, unknown, ThrowOnError>({
     security: [{
@@ -884,7 +882,7 @@ export const portfolioSnapshotsRetrieve = <ThrowOnError extends boolean = false>
  * List / filter price snapshots (append-only daily history)
  *
  * Read-only append-only price history. List filterable by
- * ``?printing=&edition=&from=&to=`` — the slice-4 price-chart shape. The
+ * ``?printing=&edition=&from=&to=``, the price-chart shape. The
  * ``latest`` action returns the most-recent snapshot for one
  * ``(printing, edition)``, the "today's price" lookup; this is structured as
  * an action (not the latest-first ordered list's first row) so a consumer
@@ -904,7 +902,7 @@ export const pricingSnapshotsList = <ThrowOnError extends boolean = false>(optio
  * Retrieve one price snapshot
  *
  * Read-only append-only price history. List filterable by
- * ``?printing=&edition=&from=&to=`` — the slice-4 price-chart shape. The
+ * ``?printing=&edition=&from=&to=``, the price-chart shape. The
  * ``latest`` action returns the most-recent snapshot for one
  * ``(printing, edition)``, the "today's price" lookup; this is structured as
  * an action (not the latest-first ordered list's first row) so a consumer
@@ -921,7 +919,7 @@ export const pricingSnapshotsRetrieve = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Latest snapshot for one (printing, edition) — the 'today's price' lookup
+ * Latest snapshot for one (printing, edition): the 'today's price' lookup
  *
  * The most recent snapshot for one ``(printing, edition)``. 404 when no
  * snapshot exists for the pair (a printing TCGCSV doesn't price, or one
@@ -1001,11 +999,11 @@ export const statusOverviewRetrieve = <ThrowOnError extends boolean = false>(opt
 /**
  * Biggest price movers among owned (printing, edition) pairs
  *
- * Read-only "biggest movers" analytics (DECISIONS 2026-05-31): each owned
+ * Read-only "biggest movers" analytics: each owned
  * ``(printing, edition)``'s price change over a selectable window. Rows are
  * computed from the valuation engine's usable-price helpers across two date
  * anchors (today and today - window), scoped to currently-held holdings, then
- * server-ordered (the ``?ordering=`` allowlist) and paginated — like every other
+ * server-ordered (the ``?ordering=`` allowlist) and paginated, like every other
  * list endpoint. Inherits the global ``IsAuthenticated`` + ``PageNumberPagination``.
  */
 export const valuationMoversList = <ThrowOnError extends boolean = false>(options?: Options<ValuationMoversListData, ThrowOnError>) => (options?.client ?? client).get<ValuationMoversListResponses, unknown, ThrowOnError>({

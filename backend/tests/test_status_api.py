@@ -343,7 +343,7 @@ def test_checks_maps_backup_and_cd_by_slug(
             "last_ping": "2026-06-16T23:40:00+00:00",
             "n_pings": 700,
         },
-        {"slug": "doppel-backup", "name": "Doppel backup", "status": "down", "n_pings": 1},
+        {"slug": "cotenant-backup", "name": "Cotenant backup", "status": "down", "n_pings": 1},
     ]
     monkeypatch.setattr("apps.status.providers.healthchecks._fetch_raw", lambda key: raw)
 
@@ -358,7 +358,7 @@ def test_checks_maps_backup_and_cd_by_slug(
     assert body["cd"]["n_pings"] == 700
     # A co-tenant check is NOT surfaced, and NO credential (ping URL / unique_key)
     # ever leaves the backend — _row is an explicit allowlist.
-    assert "doppel" not in str(body).lower()
+    assert "cotenant" not in str(body).lower()
     assert "SECRET" not in str(body)
     assert "STABLE-KEY" not in str(body)
     assert "unique_key" not in str(body)
@@ -444,12 +444,12 @@ def test_checks_unset_slug_never_matches_an_empty_slug_co_tenant(
     # slugs UNSET, the explicit empty-slug guard must NOT surface it.
     monkeypatch.setattr(
         "apps.status.providers.healthchecks._fetch_raw",
-        lambda key: [{"slug": "", "name": "Doppel backup", "status": "down", "n_pings": 9}],
+        lambda key: [{"slug": "", "name": "Cotenant backup", "status": "down", "n_pings": 9}],
     )
     body = client.get(CHECKS).json()
     assert body["backup"] is None
     assert body["cd"] is None
-    assert "doppel" not in str(body).lower()
+    assert "cotenant" not in str(body).lower()
 
 
 def _stub_httpx_get(monkeypatch: pytest.MonkeyPatch, status_code: int, json: Any) -> None:

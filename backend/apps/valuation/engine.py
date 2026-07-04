@@ -13,17 +13,17 @@ from apps.collection.models import CollectionItem, Condition
 from apps.portfolio.models import Portfolio, PortfolioValueSnapshot
 from apps.pricing.models import PriceSnapshot, Provider
 
-# --- Valuation method (DECISIONS 2026-05-25 — condition factors / liquidation) ---
+# --- Valuation method (condition factors / liquidation) ---
 # Recorded on every snapshot so a row stays interpretable after the formula
 # changes: bumping any constant below is a method change -> bump VALUATION_VERSION,
 # which applies going forward (history is tagged, never re-valued). Hardcoded here,
-# not in settings or a DB table — the engine owns the valuation method; no env knob
+# not in settings or a DB table: the engine owns the valuation method; no env knob
 # and no mutable config sitting under append-only snapshots.
 VALUATION_METHOD = "tcgcsv_market_condition"
 VALUATION_VERSION = 1
 
 # Multiplier on the product-level (~ Near Mint) TCGCSV price for a holding's
-# condition — TCGCSV prices a product, not a graded card. Anchored at Near Mint =
+# condition. TCGCSV prices a product, not a graded card. Anchored at Near Mint =
 # 1.00; covers every Condition (a test asserts completeness, so adding a condition
 # without a factor fails loudly rather than silently mis-valuing).
 CONDITION_FACTORS: dict[str, Decimal] = {
@@ -36,18 +36,18 @@ CONDITION_FACTORS: dict[str, Decimal] = {
     Condition.POOR.value: Decimal("0.40"),
 }
 
-# Quick-sell estimate = market value x this flat haircut (DECISIONS 2026-05-25).
+# Quick-sell estimate = market value x this flat haircut.
 # A single knob for v1; a per-condition / per-liquidity model can refine it later.
 LIQUIDATION_HAIRCUT = Decimal("0.80")
 
 _CENTS = Decimal("0.01")
 
-# A snapshot is usable for valuation iff it carries a base price (market/mid/low — the
+# A snapshot is usable for valuation iff it carries a base price (market/mid/low, the
 # fields _base_price reads). _latest_price_map filters on this so the latest *usable*
 # snapshot wins, not merely the latest row: ingestion persists high-only / direct-low-only
 # rows (it drops a row only when all five points are null), and picking such a newer row
 # would yield no base price and wrongly mark a holding unpriced even when an older usable
-# snapshot exists (DECISIONS 2026-05-25, after a Codex adversarial review).
+# snapshot exists.
 _USABLE_PRICE = (
     Q(market_price__isnull=False) | Q(mid_price__isnull=False) | Q(low_price__isnull=False)
 )
@@ -65,7 +65,7 @@ class ValuationResult:
 
 
 def _money(value: Decimal) -> Decimal:
-    """Round a money amount to cents (ROUND_HALF_UP — the money convention)."""
+    """Round a money amount to cents (ROUND_HALF_UP, the money convention)."""
     return value.quantize(_CENTS, rounding=ROUND_HALF_UP)
 
 
@@ -73,7 +73,7 @@ def _base_price(snapshot: PriceSnapshot | None) -> Decimal | None:
     """A printing+edition's base price: the first present of market / mid / low on
     its latest usable snapshot (tested with ``is not None``, so a legitimate 0.00 counts
     and isn't treated as missing). high / direct-low are deliberately not used as
-    fallbacks (they'd skew the estimate) — and ``_latest_price_map`` only returns rows
+    fallbacks (they'd skew the estimate); ``_latest_price_map`` only returns rows
     that have one of these three, so None here means there was no usable snapshot."""
     if snapshot is None:
         return None
@@ -90,13 +90,13 @@ def _latest_price_map(
     before the day (usable = has a market/mid/low base price; see ``_USABLE_PRICE``).
     A correlated subquery picks each group's max ``snapshot_date`` among usable rows
     (the ``(printing, edition, source, date)`` key has one row per date, so no ties)
-    and the outer filter keeps that row — backend-portable (no Postgres-only
+    and the outer filter keeps that row: backend-portable (no Postgres-only
     ``DISTINCT ON``, which ``make test``'s sqlite can't run) and bounded to one row per
     printing+edition. Filtering to usable rows means a newer high-only / direct-low-only
     snapshot doesn't mask an older usable price. ``on_or_before`` lets a past day be
     valued with the prices that existed then.
 
-    ``printing_ids`` (optional) restricts the outer scan to those printings — the
+    ``printing_ids`` (optional) restricts the outer scan to those printings: the
     collection-scoped "biggest movers" caller passes its owned set so it doesn't
     materialise the whole catalog's latest map twice (one per anchor); the
     correlated subquery is already scoped per printing via ``OuterRef``, so the
@@ -145,8 +145,8 @@ def _value_portfolio(
             holding_qty += lot.quantity
             if lot.unit_cost is not None:
                 # unit_cost is per-card and exact at 2dp, quantity is an int, so the
-                # cost is exact — no rounding. A NULL unit_cost is "unknown": excluded
-                # from cost_basis and costed_qty, never coerced to 0 (DECISIONS 2026-05-25).
+                # cost is exact; no rounding. A NULL unit_cost is "unknown": excluded
+                # from cost_basis and costed_qty, never coerced to 0.
                 holding_cost += lot.unit_cost * lot.quantity
                 costed_qty += lot.quantity
         total_cards += holding_qty
@@ -168,7 +168,7 @@ def _value_portfolio(
 
     # Coverage is full only when every owned card was both priced and costed; only
     # then do market_value and cost_basis describe the same whole portfolio and the
-    # difference is a true gain — otherwise leave it NULL (DECISIONS 2026-05-25).
+    # difference is a true gain, otherwise leave it NULL.
     complete = priced_cards >= total_cards and costed_cards >= total_cards
     unrealized_gain = (market_value - cost_basis) if complete else None
 
@@ -195,26 +195,26 @@ def value_all_portfolios() -> ValuationResult:
 
     Per holding: cost basis = SUM(quantity x unit_cost) over its lots; market value =
     quantity x base_price x condition_factor, where base_price is the latest *usable*
-    TCGCSV price for ``(printing, edition)`` (DECISIONS 2026-05-18 — edition is a
-    pricing dimension); liquidation = market x haircut. Unknowns are excluded from the
-    totals, never zeroed (DECISIONS 2026-05-25): a NULL-cost lot doesn't count toward
+    TCGCSV price for ``(printing, edition)`` (edition is a pricing dimension);
+    liquidation = market x haircut. Unknowns are excluded from the
+    totals, never zeroed: a NULL-cost lot doesn't count toward
     cost_basis / costed_card_count, an unpriced holding doesn't count toward
     market_value / priced_card_count, and unrealized_gain is left NULL unless coverage
-    is full on both sides. Append-only and idempotent — a same-day re-run is a no-op.
+    is full on both sides. Append-only and idempotent: a same-day re-run is a no-op.
 
-    The day is ``timezone.localdate()`` (not ``date.today()``) — the project's UTC day,
-    not the worker's OS-local one — since snapshot_date is part of the append-only key,
-    so an off-by-one near midnight would misbucket the series (DECISIONS 2026-05-24).
+    The day is ``timezone.localdate()`` (not ``date.today()``), the project's UTC day,
+    not the worker's OS-local one, since snapshot_date is part of the append-only key,
+    so an off-by-one near midnight would misbucket the series.
     There is deliberately NO date parameter: holdings are taken as current (lots aren't
     filtered by ``acquired_at`` and there is no disposal model), so only valuing *today*
     yields correct history. Backdating is structurally prevented at the API, not just
-    discouraged — the date-parameterized ``_value_portfolios_for_day`` is private and
-    test-only (DECISIONS 2026-05-25, after a Codex adversarial review).
+    discouraged: the date-parameterized ``_value_portfolios_for_day`` is private and
+    test-only.
 
-    Single-writer: there is no production caller in 4b — the advisory lock, run
+    Single-writer: there is no production caller in 4b. The advisory lock, run
     recording, and the ``value_portfolios`` command all land in the slice-4c
     orchestration that will wrap this (deferred so nothing persists an unguarded
-    valuation before that coordination exists; DECISIONS 2026-05-25 review #3).
+    valuation before that coordination exists).
     """
     return _value_portfolios_for_day(timezone.localdate())
 
@@ -224,12 +224,12 @@ def _value_portfolios_for_day(day: date) -> ValuationResult:
     ``transaction.atomic()``, so a mid-run failure rolls back every snapshot and a retry
     recomputes the day rather than skipping a half-written, unfixable series).
 
-    INTERNAL / test-only — NOT a production entry point. It stamps each snapshot with
+    INTERNAL / test-only: NOT a production entry point. It stamps each snapshot with
     ``day`` while reading *current* holdings, so a past ``day`` would write today's
     holdings into a historical, unrepairable (unique-per-day, delete-blocked) row.
     ``value_all_portfolios`` is the sole production caller and always passes
     ``timezone.localdate()``; this split lets tests drive a controlled day without
-    exposing backdating to production (DECISIONS 2026-05-25, after a Codex review).
+    exposing backdating to production.
     """
     price_map = _latest_price_map(on_or_before=day)
     seen = created = existing = valued = unpriced = 0

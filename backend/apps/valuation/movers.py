@@ -15,7 +15,7 @@ from apps.valuation.engine import _base_price, _latest_price_map
 # The lookback windows the "biggest movers" view offers. A closed set (validated
 # at the view → 400) rather than free text: each value is an anchor offset, and a
 # small fixed menu keeps the query + the UI selector honest. Days, not an enum
-# column — there is nothing to store, so no DB CHECK.
+# column, so there is nothing to store and no DB CHECK.
 WINDOW_DAYS_CHOICES: tuple[int, ...] = (7, 30, 90)
 DEFAULT_WINDOW_DAYS = 30
 
@@ -37,9 +37,9 @@ DEFAULT_ORDERING = "-pct_change"
 # reported. A move off a near-zero base ($0.05 → $0.95) is a real DOLLAR move but a
 # meaningless/explosive PERCENT (+1800%), and dividing by a legitimate 0.00 base is
 # undefined; the dollar change is still computed and the row still ranks. NULL
-# (never a fake 0% / ∞) is the same partial≠zero posture as ``unrealized_gain``
-# (DECISIONS 2026-05-25). A method constant in code — the engine's CONDITION_FACTORS
-# precedent — not a setting/env knob.
+# (never a fake 0% / ∞) is the same partial≠zero posture as ``unrealized_gain``.
+# A method constant in code (the engine's CONDITION_FACTORS precedent), not a
+# setting/env knob.
 PCT_CHANGE_PRICE_FLOOR = Decimal("1.00")
 
 
@@ -47,7 +47,7 @@ PCT_CHANGE_PRICE_FLOOR = Decimal("1.00")
 class MoverRow:
     """One ``(printing, edition)`` the user owns, with its price move over the
     window. ``pct_change`` is None when the older-anchor base is below
-    ``PCT_CHANGE_PRICE_FLOOR`` (see above); the other fields are always present —
+    ``PCT_CHANGE_PRICE_FLOOR`` (see above); the other fields are always present:
     a pair missing either anchor's usable price is excluded entirely (partial ≠
     zero), never emitted with a zeroed anchor."""
 
@@ -70,11 +70,11 @@ def _owned_pairs() -> set[tuple[int, str]]:
     """The distinct ``(printing_id, edition)`` pairs the user currently HOLDS.
 
     A single owned printing+edition can span several ``CollectionItem`` rows
-    (different condition/language/portfolio — all part of the natural key), so
+    (different condition/language/portfolio, all part of the natural key), so
     group to the pair. ``quantity`` is derived (SUM of child lots; the cost-basis-
-    on-lots decision, DECISIONS 2026-05-18), and every lot is strictly positive
+    on-lots decision), and every lot is strictly positive
     (the ``collection_lot_quantity_positive`` CHECK), so the group SUM is 0 only
-    for an item with NO lots — a holding identity that exists but holds no copies.
+    for an item with NO lots: a holding identity that exists but holds no copies.
     Those are filtered out (``qty > 0``): "cards I own" means currently held, not
     merely catalogued."""
     rows = (
@@ -89,14 +89,14 @@ def compute_collection_movers(*, window_days: int) -> list[MoverRow]:
     """Biggest price movers among the ``(printing, edition)`` pairs the user owns,
     over ``window_days``.
 
-    Two anchors: ``end`` = today (``timezone.localdate()`` — the project's UTC day,
-    not the OS-local one; DECISIONS 2026-05-24), ``start`` = today - window. For each
-    anchor, the price is the latest *usable* TCGCSV snapshot ON OR BEFORE that day —
+    Two anchors: ``end`` = today (``timezone.localdate()``, the project's UTC day,
+    not the OS-local one), ``start`` = today - window. For each
+    anchor, the price is the latest *usable* TCGCSV snapshot ON OR BEFORE that day,
     reusing the valuation engine's ``_latest_price_map`` / ``_base_price`` so the
     market→mid→low fallback and the "a newer high-only row doesn't mask an older
-    usable price" rule (DECISIONS 2026-05-25) are applied identically here, never a
+    usable price" rule are applied identically here, never a
     raw ``market_price``. A pair without a usable price at BOTH anchors is excluded
-    (partial ≠ zero) — newly-priced-within-the-window pairs simply don't appear.
+    (partial ≠ zero): newly-priced-within-the-window pairs simply don't appear.
 
     Returned UNORDERED; the view applies the ``?ordering=`` allowlist + pagination."""
     owned = _owned_pairs()
@@ -126,7 +126,7 @@ def compute_collection_movers(*, window_days: int) -> list[MoverRow]:
         if end_price is None or start_price is None:
             continue
         printing = printings.get(key[0])
-        if printing is None:  # defensive — the PROTECT FK keeps this from happening
+        if printing is None:  # defensive, the PROTECT FK keeps this from happening
             continue
 
         abs_change = end_price - start_price
@@ -158,7 +158,7 @@ def order_rows(rows: list[MoverRow], ordering: str) -> list[MoverRow]:
     ``(printing_id, edition)`` base order so equal primary values page
     deterministically (the slice-5 paginator-determinism lesson, for a list).
     Rows whose ``pct_change`` is NULL (sub-floor base) always sort LAST when
-    ordering by percent, in either direction — a missing percent is never treated
+    ordering by percent, in either direction, a missing percent is never treated
     as the largest or smallest value."""
     attribute, reverse = _ORDERING[ordering]
     base = sorted(rows, key=lambda row: (row.printing_id, row.edition))

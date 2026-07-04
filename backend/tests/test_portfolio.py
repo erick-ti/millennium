@@ -24,7 +24,7 @@ def test_portfolio_name_must_be_unique() -> None:
 
 @pytest.mark.django_db
 def test_get_or_create_resolves_folder_to_one_portfolio() -> None:
-    """The DS-import path (DECISIONS 2026-05-18): Folder Name find-or-creates a
+    """The DS-import path: Folder Name find-or-creates a
     portfolio by name. A repeat import of the same folder reuses the row."""
     first, created_first = Portfolio.objects.get_or_create(name="Long-term hold")
     second, created_second = Portfolio.objects.get_or_create(name="Long-term hold")
@@ -118,7 +118,7 @@ def test_snapshots_differing_by_date_are_distinct() -> None:
 
 @pytest.mark.django_db
 def test_deleting_portfolio_with_snapshots_is_protected() -> None:
-    """portfolio FK is PROTECT — the value timeline isn't cheaply re-derivable, so
+    """portfolio FK is PROTECT (the value timeline isn't cheaply re-derivable), so
     a portfolio delete must not cascade it away."""
     portfolio = Portfolio.objects.create(name="Yubel Deck")
     _value_snapshot(portfolio)
@@ -129,7 +129,7 @@ def test_deleting_portfolio_with_snapshots_is_protected() -> None:
 
 @pytest.mark.django_db
 def test_totals_are_required() -> None:
-    """No model default on the money fields — a valuation is a computed event, so a
+    """No model default on the money fields: a valuation is a computed event, so a
     writer that omits a total fails closed (NOT NULL) rather than silently storing 0."""
     portfolio = Portfolio.objects.create(name="Yubel Deck")
 
@@ -147,7 +147,7 @@ def test_totals_are_required() -> None:
 
 @pytest.mark.django_db
 def test_negative_total_rejected_by_db() -> None:
-    """CHECK market_value >= 0 — a portfolio total can't be negative (a loss lives
+    """CHECK market_value >= 0: a portfolio total can't be negative (a loss lives
     in unrealized_gain, not the totals). gain stays consistent so only the
     market_value CHECK fires."""
     portfolio = Portfolio.objects.create(name="Yubel Deck")
@@ -158,7 +158,7 @@ def test_negative_total_rejected_by_db() -> None:
 
 @pytest.mark.django_db
 def test_unrealized_gain_must_match_market_minus_cost() -> None:
-    """CHECK unrealized_gain = market_value - cost_basis — a stored gain can't drift
+    """CHECK unrealized_gain = market_value - cost_basis: a stored gain can't drift
     from the row's own totals."""
     portfolio = Portfolio.objects.create(name="Yubel Deck")
 
@@ -185,7 +185,7 @@ def test_unrealized_gain_may_be_negative() -> None:
 
 @pytest.mark.django_db
 def test_snapshots_ordered_latest_first() -> None:
-    """Default order is deterministic latest-first within a portfolio — (portfolio,
+    """Default order is deterministic latest-first within a portfolio: (portfolio,
     snapshot_date) is the unique key, so no tiebreaker is needed."""
     portfolio = Portfolio.objects.create(name="Yubel Deck")
     may = _value_snapshot(portfolio, snapshot_date=date(2026, 5, 1))
@@ -230,7 +230,7 @@ def test_value_snapshot_admin_blocks_edit_and_delete_of_existing() -> None:
 def test_value_snapshot_admin_change_permission_defers_to_user() -> None:
     """Edit-locking existing rows must NOT bypass Django's model-level permissions:
     has_change_permission(obj=None) gates the changelist, so it still defers to the
-    user's perms — a staff user without them is denied, a superuser allowed."""
+    user's perms: a staff user without them is denied, a superuser allowed."""
     admin_obj = PortfolioValueSnapshotAdmin(PortfolioValueSnapshot, AdminSite())
     request = RequestFactory().get("/")
 
@@ -241,7 +241,7 @@ def test_value_snapshot_admin_change_permission_defers_to_user() -> None:
     assert admin_obj.has_change_permission(request) is True
 
 
-# --- Coverage (DECISIONS 2026-05-25) ----------------------------------------
+# --- Coverage ----------------------------------------------------------------
 
 
 @pytest.mark.django_db
@@ -267,7 +267,7 @@ def test_partial_coverage_leaves_gain_null() -> None:
 
 @pytest.mark.django_db
 def test_gain_set_while_incomplete_rejected() -> None:
-    """CHECK gain_iff_complete — a non-null gain on a partially-covered valuation is
+    """CHECK gain_iff_complete: a non-null gain on a partially-covered valuation is
     rejected even when it is arithmetically correct, so the engine must leave it NULL
     under partial coverage."""
     portfolio = Portfolio.objects.create(name="Yubel Deck")
@@ -287,8 +287,8 @@ def test_gain_set_while_incomplete_rejected() -> None:
 @pytest.mark.django_db
 def test_complete_with_null_gain_rejected() -> None:
     """CHECK gain_iff_complete is bidirectional: a fully-covered snapshot MUST carry
-    the gain, so a complete row with NULL unrealized_gain is rejected — otherwise it
-    would read as is_complete yet have no P&L (caught in a Codex adversarial review)."""
+    the gain, so a complete row with NULL unrealized_gain is rejected. Otherwise it
+    would read as is_complete yet have no P&L."""
     portfolio = Portfolio.objects.create(name="Yubel Deck")
 
     with pytest.raises(IntegrityError), transaction.atomic():
@@ -305,7 +305,7 @@ def test_complete_with_null_gain_rejected() -> None:
 
 @pytest.mark.django_db
 def test_priced_count_cannot_exceed_total() -> None:
-    """CHECK priced_count_within_total — priced is a subset of total, never more.
+    """CHECK priced_count_within_total: priced is a subset of total, never more.
     gain is forced NULL so only the count CHECK can fire."""
     portfolio = Portfolio.objects.create(name="Yubel Deck")
 
@@ -321,7 +321,7 @@ def test_priced_count_cannot_exceed_total() -> None:
 
 @pytest.mark.django_db
 def test_costed_count_cannot_exceed_total() -> None:
-    """CHECK costed_count_within_total — costed is a subset of total, never more."""
+    """CHECK costed_count_within_total: costed is a subset of total, never more."""
     portfolio = Portfolio.objects.create(name="Yubel Deck")
 
     with pytest.raises(IntegrityError), transaction.atomic():
@@ -336,7 +336,7 @@ def test_costed_count_cannot_exceed_total() -> None:
 
 @pytest.mark.django_db
 def test_empty_portfolio_snapshot_is_complete() -> None:
-    """An empty portfolio writes explicit 0 totals with 0 coverage counts — that is
+    """An empty portfolio writes explicit 0 totals with 0 coverage counts; that is
     vacuously complete (nothing is missing), so unrealized_gain is 0, not NULL."""
     portfolio = Portfolio.objects.create(name="Empty")
     snap = _value_snapshot(

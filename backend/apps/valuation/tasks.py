@@ -10,7 +10,7 @@ from apps.valuation.sync import run_valuation
 
 @shared_task(name="valuation.value_portfolios")
 def value_portfolios() -> dict[str, Any]:
-    """Celery entry point for the daily portfolio valuation (DECISIONS 2026-05-25 slice 4c).
+    """Celery entry point for the daily portfolio valuation.
 
     A thin wrapper: the advisory lock, the same-day pricing dependency, and the
     ``ValuationRun`` recording all live in ``run_valuation``, shared with the management

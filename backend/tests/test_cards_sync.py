@@ -21,7 +21,7 @@ from apps.pricing.providers.base import (
 
 
 class FakeMetadataProvider(MetadataProvider):
-    """Yields a fixed list of records — no network, no HTTP."""
+    """Yields a fixed list of records, no network, no HTTP."""
 
     def __init__(self, records: list[CardMetadata]) -> None:
         self._records = records
@@ -116,7 +116,7 @@ def test_sync_creates_card_with_archetype() -> None:
 
 @pytest.mark.django_db
 def test_sync_updates_changed_archetype() -> None:
-    """An archetype change (added/corrected/withdrawn) is a real metadata update — it
+    """An archetype change (added/corrected/withdrawn) is a real metadata update: it
     counts and writes like a rename, so the next scheduled sync backfills existing cards."""
     sync_cards_from_metadata(FakeMetadataProvider([CardMetadata(passcode=1, name="X")]))  # None
     tagged = CardMetadata(passcode=1, name="X", archetype="Newly Tagged")
@@ -130,7 +130,7 @@ def test_sync_updates_changed_archetype() -> None:
 
 @pytest.mark.django_db
 def test_sync_unchanged_when_archetype_same() -> None:
-    """An unchanged archetype performs no write (the idempotency contract — updated_at
+    """An unchanged archetype performs no write (the idempotency contract: updated_at
     stays meaningful)."""
     record = CardMetadata(passcode=1, name="X", archetype="Stable")
     sync_cards_from_metadata(FakeMetadataProvider([record]))
@@ -143,7 +143,7 @@ def test_sync_unchanged_when_archetype_same() -> None:
 
 def _seed_tagged_cards(n: int, archetype: str = "Blue-Eyes") -> None:
     """Seed ``n`` already-archetyped cards (bulk_create bypasses save(), so
-    normalized_name is set explicitly — the withdrawal guard only reads passcode/archetype)."""
+    normalized_name is set explicitly; the withdrawal guard only reads passcode/archetype)."""
     Card.objects.bulk_create(
         Card(passcode=i, name=f"Card {i}", normalized_name=f"card {i}", archetype=archetype)
         for i in range(1, n + 1)
@@ -166,8 +166,8 @@ def test_sync_rejects_mass_archetype_withdrawal_before_writing() -> None:
 
 @pytest.mark.django_db
 def test_sync_allows_small_archetype_correction() -> None:
-    """A handful of legit withdrawals (below the absolute floor) are applied, not blocked
-    — the guard targets mass loss, not routine errata."""
+    """A handful of legit withdrawals (below the absolute floor) are applied, not blocked:
+    the guard targets mass loss, not routine errata."""
     _seed_tagged_cards(40)
     # 37 unchanged (still tagged) + 3 legitimate withdrawals.
     records = [
@@ -196,8 +196,9 @@ def test_sync_card_without_printings() -> None:
 def test_sync_resolves_through_alias_after_reconciliation() -> None:
     """Once TCGCSV reconciliation has corrected a provisional rarity and recorded a
     PrintingAlias, a YGOPRODeck re-sync of the *original* provisional key resolves to
-    the canonical printing instead of recreating the provisional duplicate — the
-    round-4 rerun-safety prerequisite (DECISIONS 2026-05-23)."""
+    the canonical printing instead of recreating the provisional duplicate, satisfying
+    the rerun-safety prerequisite for the metadata sync to run repeatedly without
+    duplicating rows."""
     card = Card.objects.create(passcode=24094653, name="Super Polymerization")
     canonical = CardPrinting.objects.create(
         card=card,
@@ -332,12 +333,12 @@ def test_run_ygoprodeck_sync_records_archetype_coverage_telemetry() -> None:
 
 @pytest.mark.django_db
 def test_run_ygoprodeck_sync_rejects_partial_archetype_withdrawal() -> None:
-    """The round-2 Codex case: a PARTIAL key-drop that leaves >50% of cards tagged (so an
+    """A PARTIAL key-drop that leaves >50% of cards tagged (so an
     aggregate count floor would pass) is still rejected by the withdrawal guard, recorded
     FAILED, and every existing tag survives."""
     record_run(SyncKind.YGOPRODECK_METADATA, SyncStatus.SUCCESS, card_count=60)  # clears card floor
     _seed_tagged_cards(60)
-    # All 60 cards still present (clears the card floor) but archetype dropped for 30 — 30
+    # All 60 cards still present (clears the card floor) but archetype dropped for 30: 30
     # remain tagged, which a 50% aggregate-count floor would have let through. (At n=60 the
     # absolute floor of 25 is the active threshold; 30 > 25.)
     payload: dict[str, object] = {
@@ -378,8 +379,7 @@ def test_run_ygoprodeck_sync_first_run_enforces_bootstrap_floor() -> None:
 @override_settings(SYNC_GUARD_METADATA_TOLERANCE=2.0)
 def test_run_ygoprodeck_sync_rejects_misconfigured_tolerance() -> None:
     """A percent-style tolerance (=2 for "2%") would push the floor non-positive and
-    silently disable the guard; the sync fails closed instead and records FAILED
-    (adversarial-review F1)."""
+    silently disable the guard; the sync fails closed instead and records FAILED."""
     with pytest.raises(ValueError, match="tolerance"):
         run_ygoprodeck_sync(fetch=_fetch(_ygo_payload([(1, "A", [])])))
 
@@ -392,7 +392,7 @@ def test_run_ygoprodeck_sync_rejects_misconfigured_tolerance() -> None:
 @pytest.mark.django_db
 def test_run_ygoprodeck_sync_skips_when_lock_held(monkeypatch: pytest.MonkeyPatch) -> None:
     """If another run holds the advisory lock, this one skips: returns None, records no
-    SyncRun, and writes nothing (adversarial-review F2)."""
+    SyncRun, and writes nothing."""
 
     @contextmanager
     def _held(_kind: object) -> Iterator[bool]:

@@ -9,11 +9,11 @@ from typing import Any
 from apps.collection.models import Condition, Language
 from apps.core.enums import Edition
 
-# --- Dragon Shield CSV format (recon PHASE_1A5_FINDINGS Q1/Q2/Q5) -----------
+# --- Dragon Shield CSV format -----------
 
 # The columns this importer reads. Their presence is how a file is recognized as a
-# DS export; extra / reordered columns are tolerated. (DS exports more — Trade
-# Quantity, Set Code, Set Name, LOW/MID/MARKET — but the matcher / materializer
+# DS export; extra / reordered columns are tolerated. (DS exports more, Trade
+# Quantity, Set Code, Set Name, LOW/MID/MARKET, but the matcher / materializer
 # don't need them; the full raw row is preserved on ImportRow.raw_data regardless.)
 _REQUIRED_COLUMNS = frozenset(
     {
@@ -31,13 +31,13 @@ _REQUIRED_COLUMNS = frozenset(
 )
 
 # Excel prepends a delimiter-hint line so it knows the separator; it isn't data and is
-# dropped before the header (recon Q1). Dragon Shield *quotes* it ('"sep=,"', verified
+# dropped before the header. Dragon Shield *quotes* it ('"sep=,"', verified
 # against the real sample); some tools emit it bare ('sep=,'). `_is_sep_hint` handles both.
 _SEP_HINT_PREFIX = "sep="
 
 # DS appends alt-art onto the Card Number as a trailing "alt" (a DS-only convention,
-# absent from YGOPRODeck / TCGCSV); strip it for the set_code and record the variant
-# (recon Q2/Q4). Lowercase, as DS emits it — card numbers otherwise end in digits, so
+# absent from YGOPRODeck / TCGCSV); strip it for the set_code and record the variant.
+# Lowercase, as DS emits it: card numbers otherwise end in digits, so
 # this can't false-strip a real code.
 _ALT_SUFFIX = "alt"
 _ALT_VARIANT_LABEL = "alt art"
@@ -45,9 +45,8 @@ _ALT_VARIANT_LABEL = "alt art"
 # DS rarity shorthand -> YGOPRODeck `set_rarity` name. This is the *provisional*
 # rarity the matcher resolves a printing against (alias-aware: TCGCSV may have
 # reconciled it to e.g. "Prismatic Ultimate Rare" in place, recording a
-# PrintingAlias on this original value — DECISIONS 2026-05-23/24). The recon Q5
-# sample set: a v1 table to expand against real data — an unmapped code is flagged
-# (-> review), never guessed into a wrong match.
+# PrintingAlias on this original value). This is a v1 table to expand against real
+# data; an unmapped code is flagged (-> review), never guessed into a wrong match.
 _RARITY_BY_DS_CODE = {
     "C": "Common",
     "R": "Rare",
@@ -92,7 +91,7 @@ _LANGUAGE_BY_DS = {
 
 # Downstream-contract limits a normalized value must satisfy to materialize without
 # silent rounding or a late DB error, so "no issues" means "materializable", not just
-# "well-formed" (Codex review 2026-05-26). These mirror the stable CollectionLot field
+# "well-formed". These mirror the stable CollectionLot field
 # params (DecimalField(max_digits=12, decimal_places=2); PositiveIntegerField), kept as
 # constants rather than model introspection for mypy-clean simplicity; a value that
 # violates them is flagged (-> review), never clamped/rounded.
@@ -125,7 +124,7 @@ class NormalizedRow:
     ``data`` holds JSON-native values only (str / int / None) so it round-trips
     through the ``JSONField``: Decimal cost and the date are kept as strings and
     parsed back when a lot is materialized. A value that can't be mapped is left
-    ``None`` with an entry in ``issues`` rather than aborting — the row is staging a
+    ``None`` with an entry in ``issues`` rather than aborting: the row is staging a
     human will triage. ``issues`` empty means a clean row; the orchestration turns a
     non-empty list into the row's error / needs-review state (slice 4).
     """
@@ -141,12 +140,12 @@ def parse_dragon_shield(content: str) -> list[ParsedRow]:
     ``csv.DictReader`` so quoted commas (DS ``Set Name`` contains them) parse
     correctly. Raises ``ImportParseError`` if the header lacks the DS columns. Does
     NOT normalize (that's ``normalize_row``), so a row is preserved verbatim even if
-    it later fails normalization — the basis for re-normalizing when logic improves.
+    it later fails normalization: the basis for re-normalizing when logic improves.
     """
     # Strip a leading UTF-8 BOM: str.strip() doesn't treat a BOM (U+FEFF) as whitespace, so a
     # BOM (which Excel adds to "CSV UTF-8" saves) before the sep hint / header would
-    # otherwise be read as data and batch-fail the file. Belt-and-suspenders with
-    # slice 4 decoding the upload as utf-8-sig (Codex review 2026-05-26).
+    # otherwise be read as data and batch-fail the file. Belt-and-suspenders with the
+    # upload also being decoded as utf-8-sig.
     content = content.removeprefix("\ufeff")
     lines = content.splitlines()
     if lines and _is_sep_hint(lines[0]):
@@ -180,7 +179,7 @@ def normalize_row(raw: dict[str, str]) -> NormalizedRow:
     edition, condition, language, a positive quantity) record an issue when absent;
     an absent cost or date is the normal "unknown" state (gifts, trades, legacy
     hand-entry) and is NOT an issue. ``set_code`` / ``set_rarity`` are trimmed at this
-    boundary (the deferred canonicalization obligation, DECISIONS 2026-05-21).
+    boundary (the deferred canonicalization obligation).
     """
     issues: list[str] = []
 
@@ -257,7 +256,7 @@ def _parse_quantity(value: str, issues: list[str]) -> int | None:
         issues.append(f"non-positive quantity {quantity}")
         return None
     if quantity > _MAX_QUANTITY:
-        # Above PositiveIntegerField's range — would error at materialize, not round.
+        # Above PositiveIntegerField's range: would error at materialize, not round.
         issues.append(f"quantity {quantity} exceeds the maximum {_MAX_QUANTITY}")
         return None
     return quantity
@@ -305,7 +304,7 @@ def _parse_date(value: str, issues: list[str]) -> str | None:
 def _is_sep_hint(line: str) -> bool:
     # The hint line is quoted in real DS exports ('"sep=,"') and bare in some tools
     # ('sep=,'); strip surrounding quotes/whitespace before the check so a quoted hint
-    # isn't read as the header and used to batch-fail a valid export (Codex review,
-    # 2026-05-26 — the original raw-line check matched only the bare form).
+    # isn't read as the header and used to batch-fail a valid export (the original
+    # raw-line check matched only the bare form).
     candidate = line.strip().strip('"').strip().lower().replace(" ", "")
     return candidate.startswith(_SEP_HINT_PREFIX)

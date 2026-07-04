@@ -20,22 +20,22 @@ logger = structlog.get_logger(__name__)
 def run_tcgcsv_sync(
     *, fetch: JsonFetcher = fetch_json
 ) -> tuple[ReconcileResult, IngestResult] | None:
-    """Run the TCGCSV pipeline (reconcile → ingest) under the compare-to-previous
-    cardinality guard, recording the outcome in ``SyncRun`` (DECISIONS 2026-05-24 slice 3).
+    """Run the TCGCSV pipeline (reconcile, then ingest) under the compare-to-previous
+    cardinality guard, recording the outcome in ``SyncRun``.
 
     Reconcile must precede ingest so ``external_price_ids`` exist before pricing joins
-    through them (DECISIONS 2026-05-23). The recurring-safety guard (round-4 prerequisite
-    #2) raises the provider's product and price-row floors to ``last_good * (1 - tolerance)``
-    once history exists, so a truncated fetch is rejected before writes; the first run
-    uses the provider's absolute bootstrap floors. A SUCCESS row records both
-    cardinalities (the next run's baseline); a failure (including a guard rejection or a
-    misconfigured tolerance) records FAILED + the error and re-raises.
+    through them. The recurring-safety guard raises the provider's product and
+    price-row floors to ``last_good * (1 - tolerance)`` once history exists, so a
+    truncated fetch is rejected before writes; the first run uses the provider's
+    absolute bootstrap floors. A SUCCESS row records both cardinalities (the next
+    run's baseline); a failure (including a guard rejection or a misconfigured
+    tolerance) records FAILED + the error and re-raises.
 
     Serialized by a per-kind advisory lock: reconciliation's per-group get-then-create
     paths assume a single writer, which beat alone doesn't enforce (e.g. a manual
     ``sync_tcgcsv`` overlapping the scheduled task could collide on ``external_price_ids``,
     aborting a run mid-way with partial commits). If another run holds the lock this one
-    **skips** (logs and returns ``None`` -- no ``SyncRun``). The single entry point for the
+    **skips** (logs and returns ``None``, no ``SyncRun``). The single entry point for the
     pipeline, called by both the management command and the Celery task. ``fetch`` is
     injectable for tests; one provider instance fetches the group list once, shared by
     ``fetch_products`` and ``fetch_prices``.
@@ -74,7 +74,7 @@ def run_tcgcsv_sync(
 
 
 def reconcile_detail(rec: ReconcileResult) -> dict[str, Any]:
-    # asdict leaves the frozenset intact, which JSONField can't serialize — render it
+    # asdict leaves the frozenset intact, which JSONField can't serialize. Render it
     # as a sorted list so the audit detail round-trips.
     data = asdict(rec)
     data["conflicted_external_ids"] = sorted(data["conflicted_external_ids"])

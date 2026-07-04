@@ -30,12 +30,12 @@ from apps.decks.serializers import DeckMembershipSerializer, DeckSerializer
     ),
 )
 class DeckViewSet(viewsets.ModelViewSet[Deck]):
-    """Full CRUD for decks — mutable user resources (the ``Portfolio`` posture; the
+    """Full CRUD for decks, mutable user resources (the ``Portfolio`` posture; the
     explicit-full-surface case where ``ModelViewSet`` is the honest choice). List +
     retrieve carry a ``member_count`` annotation; create / rename (PATCH) / delete are the
     inherited writes (global session auth + ``proxy.ts`` CSRF apply). Members are managed
     through the separate ``DeckMembershipViewSet`` (a deck's member feed + add/remove), NOT
-    nested here — members are mutable + paginated, so they live on their own flat endpoint
+    nested here: members are mutable + paginated, so they live on their own flat endpoint
     (the import-batch-detail header/rows split, not the cards/collection nested-detail
     shape). Inherits ``IsAuthenticated`` + ``PageNumberPagination``.
     """
@@ -43,7 +43,7 @@ class DeckViewSet(viewsets.ModelViewSet[Deck]):
     serializer_class = DeckSerializer
 
     def get_queryset(self) -> QuerySet[Deck]:
-        # Annotate member_count for BOTH list and retrieve — the serializer field reads it
+        # Annotate member_count for BOTH list and retrieve; the serializer field reads it
         # (a create/update response falls back to a live count). name isn't unique, so id
         # is the deterministic paginator tiebreaker; the Count's GROUP BY also flips the
         # queryset to unordered, which makes the explicit order_by REQUIRED (filterwarnings
@@ -83,9 +83,9 @@ class DeckMembershipViewSet(
 ):
     """A deck's membership feed + add/remove. A membership is a stateless join row, so this
     is a plain List+Create+Destroy resource (NOT the imports ``@action``-chokepoint style,
-    which exists only for that app's batch/row state machine — decks have no such state).
+    which exists only for that app's batch/row state machine, decks have no such state).
     OWNED-only is structural: the membership FKs ``CollectionItem``, so a non-owned card
-    has no id to add. Add is idempotent-aware — a duplicate ``(deck, collection_item)``
+    has no id to add. Add is idempotent-aware: a duplicate ``(deck, collection_item)``
     returns 409 (the holding is already in the deck), never a second row. Inherits
     ``IsAuthenticated`` + ``PageNumberPagination``.
     """
@@ -100,11 +100,11 @@ class DeckMembershipViewSet(
                 "collection_item__printing__card",
                 "collection_item__portfolio",
             )
-            # The holding's copy count — SUM over its lots (the CollectionItem.quantity
-            # definition, DECISIONS 2026-05-18), Coalesce'd to 0 for a lot-less holding. A
+            # The holding's copy count: SUM over its lots (the CollectionItem.quantity
+            # definition), Coalesce'd to 0 for a lot-less holding. A
             # deck counts distinct HOLDINGS (member_count); this per-row quantity is how the
-            # member table shows that one holding is N copies (Codex adversarial review
-            # 2026-05-31). The Sum's GROUP BY makes the explicit order_by required.
+            # member table shows that one holding is N copies.
+            # The Sum's GROUP BY makes the explicit order_by required.
             .annotate(quantity=Coalesce(Sum("collection_item__lots__quantity"), 0))
             .order_by("deck", "id")
         )
@@ -137,7 +137,7 @@ class DeckMembershipViewSet(
                 {"detail": "This holding is already in the deck."},
                 status=status.HTTP_409_CONFLICT,
             )
-        # Re-fetch through the annotated queryset so the 201 carries `quantity` — the
+        # Re-fetch through the annotated queryset so the 201 carries `quantity`; the
         # get_or_create'd instance has no annotation (the member_count create-trap, here too).
         membership = self.get_queryset().get(pk=membership.pk)
         out = self.get_serializer(membership)

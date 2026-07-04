@@ -10,7 +10,7 @@ def last_successful_count(kind: SyncKind, dimension: str) -> int | None:
 
     ``dimension`` is a count field name on ``SyncRun`` (``card_count``,
     ``product_count``, ...). Returns ``None`` when no prior successful run carries that
-    dimension — the first-run case, where the caller leaves the provider's own absolute
+    dimension, the first-run case, where the caller leaves the provider's own absolute
     bootstrap floor in force instead of a compare-to-previous one. Only SUCCESS rows are
     considered, so a rejected (FAILED) run never becomes the baseline.
     """
@@ -30,9 +30,9 @@ def last_successful_count(kind: SyncKind, dimension: str) -> int | None:
 def shrink_floor(kind: SyncKind, dimension: str, *, tolerance: float) -> int | None:
     """The compare-to-previous fetch floor for ``dimension``: ``last_good * (1 - tolerance)``.
 
-    The round-4 recurring-safety guard (DECISIONS 2026-05-24 slice 3). Catalogs only
+    This is the rerun-safety guard: catalogs only
     grow (Konami never un-releases; the TCGCSV catalog only expands), so the floor
-    tracks the last-good high-water mark and a fetch below it is a likely truncation —
+    tracks the last-good high-water mark and a fetch below it is a likely truncation,
     rejected before any write. Returns ``None`` on the first run (no history); the
     caller then passes ``None`` to the provider, which falls back to its absolute
     bootstrap floor. ``tolerance`` is the allowed downward drift (e.g. ``0.02`` = 2%).

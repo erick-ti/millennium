@@ -12,7 +12,7 @@ from apps.pricing.providers.base import PriceData
 
 # TCGCSV subTypeName → Edition. Sealed "Normal" rows are already dropped by the
 # adapter; any other unrecognized subtype is skipped here, never coerced into an
-# edition (DECISIONS 2026-05-23 — join on productId first, then map editions).
+# edition (join on productId first, then map editions).
 _SUBTYPE_TO_EDITION = {
     "1st Edition": Edition.FIRST_EDITION,
     "Unlimited": Edition.UNLIMITED,
@@ -41,9 +41,9 @@ def ingest_prices(
 ) -> IngestResult:
     """Write append-only ``PriceSnapshot`` rows from a provider's price rows for one day.
 
-    The ``external_price_ids`` join is the gate (DECISIONS 2026-05-23): a price row is
+    The ``external_price_ids`` join is the gate: a price row is
     snapshotted only when its ``external_id`` (productId) resolves to a ``CardPrinting``
-    that reconciliation already matched — unmatched / non-single-card ids have no mapping
+    that reconciliation already matched, since unmatched / non-single-card ids have no mapping
     and are skipped. ``excluded_external_ids`` are the ids reconciliation flagged as an
     ``EXTERNAL_ID_CONFLICT`` *this run* (their ``ExternalPriceId`` points at a different
     printing than the current catalog); they still have a stale mapping, so pricing must
@@ -52,11 +52,11 @@ def ingest_prices(
     still skipped (the queue's triage status is mutable and would miss it). ``subtype_name``
     then maps to an ``Edition``; an unrecognized subtype is skipped, not coerced.
     Append-only and idempotent: the natural key ``(printing, edition, source, day)`` is
-    ``get_or_create``'d, so a same-day re-run is a no-op (the first capture stands —
-    prices are never overwritten). Single-writer — no row locking.
+    ``get_or_create``'d, so a same-day re-run is a no-op (the first capture stands,
+    prices are never overwritten). Single-writer, no row locking.
     """
     # timezone.localdate() (not date.today()) so the date is the project's UTC day
-    # (TIME_ZONE/USE_TZ), not the worker's OS-local day — snapshot_date is part of the
+    # (TIME_ZONE/USE_TZ), not the worker's OS-local day. snapshot_date is part of the
     # append-only natural key, so an off-by-one near midnight would misbucket the series.
     day = snapshot_date or timezone.localdate()
     prices_seen = snapshots_created = snapshots_existing = 0
@@ -70,7 +70,7 @@ def ingest_prices(
             provider=Provider.TCGCSV
         ).values_list("external_id", "printing_id")
     }
-    # Ids reconciliation flagged as contested this run — don't price through their stale
+    # Ids reconciliation flagged as contested this run. Don't price through their stale
     # mapping (see the docstring); sourced from the live run, not the queue's triage status.
     conflicted_ids = set(excluded_external_ids)
 
@@ -97,8 +97,7 @@ def ingest_prices(
         ):
             # No usable price. Don't write a priceless snapshot: it's noise, and the
             # same-day get_or_create would lock it in against a later good row. A missing
-            # price is a coverage gap (no snapshot), not a snapshot-that-isn't-a-price
-            # (DECISIONS 2026-05-22 coverage concern).
+            # price is a coverage gap (no snapshot), not a snapshot-that-isn't-a-price.
             skipped_no_price += 1
             continue
         _, created = PriceSnapshot.objects.get_or_create(

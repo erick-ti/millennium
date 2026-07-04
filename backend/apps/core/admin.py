@@ -42,9 +42,9 @@ class SyncRunAdmin(admin.ModelAdmin[SyncRun]):
     def has_change_permission(self, request: HttpRequest, obj: SyncRun | None = None) -> bool:
         # Append-only: an existing run is immutable history, so existing rows render
         # view-only. The obj=None (model-level) case still defers to Django's
-        # permission check — it gates the changelist — so don't hard-code True there
-        # (that would leak history to unprivileged staff). The PriceSnapshotAdmin
-        # precedent (DECISIONS 2026-05-22 append-only-admin follow-up).
+        # permission check (it gates the changelist), so don't hard-code True there
+        # (that would leak history to unprivileged staff). Follows the same pattern
+        # as PriceSnapshotAdmin.
         if obj is not None:
             return False
         return super().has_change_permission(request, obj)

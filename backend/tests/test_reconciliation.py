@@ -90,7 +90,7 @@ def test_no_printing_match_is_queued() -> None:
 @pytest.mark.django_db
 def test_rarity_disagreement_is_queued() -> None:
     # The card exists for this set_code but at a different, non-Prismatic rarity
-    # (the New artwork / Short Print class) — not auto-corrected in v1.
+    # (the New artwork / Short Print class), not auto-corrected in v1.
     card = Card.objects.create(name="Fallen of Albaz")
     _printing(card, "CH01-EN001", "Ultra Rare")
 
@@ -117,7 +117,7 @@ def test_multi_variant_group_is_queued_and_flags_the_generic_printing() -> None:
     assert UnmatchedProduct.objects.filter(reason=UnmatchedReason.MULTI_VARIANT).count() == 3
     assert ExternalPriceId.objects.count() == 0  # never auto-attached
     # The generic variant-NULL printing is flagged so the DS matcher later downgrades a
-    # match on it to review rather than auto-materializing it (DECISIONS 2026-05-26).
+    # match on it to review rather than auto-materializing it.
     printing.refresh_from_db()
     assert printing.is_multi_variant is True
     assert result.multi_variant_flagged == 1
@@ -127,8 +127,8 @@ def test_multi_variant_group_is_queued_and_flags_the_generic_printing() -> None:
 def test_multi_variant_prismatic_group_flags_the_provisional_printing() -> None:
     """A multi-variant group whose TCGCSV rarity is "Prismatic X" must flag the
     YGOPRODeck-seeded *provisional* "X" printing (resolved via the Prismatic strip), not
-    look for a nonexistent "Prismatic X" row — otherwise a DS "X" row later matches that
-    unflagged placeholder as EXACT (Codex review 2026-05-26)."""
+    look for a nonexistent "Prismatic X" row, otherwise a DS "X" row later matches that
+    unflagged placeholder as EXACT."""
     card = Card.objects.create(name="Super Polymerization")
     provisional = _printing(card, "RA03-EN053", "Ultimate Rare")  # YGOPRODeck provisional
     products = [
@@ -166,7 +166,7 @@ def test_reconciliation_is_idempotent() -> None:
     second = reconcile_products_to_printings(products)
 
     # Second run: the printing now carries the canonical rarity, so the product
-    # exact-matches it — no correction, no new external_id/alias, no duplicate.
+    # exact-matches it: no correction, no new external_id/alias, no duplicate.
     assert second.exact_matched == 1
     assert second.rarity_reconciled == 0
     assert second.external_ids_created == 0
@@ -224,7 +224,7 @@ def test_prismatic_does_not_reclaim_an_exactly_matched_printing() -> None:
 def test_external_id_conflict_is_queued_not_silently_accepted() -> None:
     """If a productId already maps to a *different* printing (provider-side drift, a
     manual edit, or a prior bad run), reconciliation must not report it matched while
-    leaving the stale mapping — it queues a conflict for human repair."""
+    leaving the stale mapping: it queues a conflict for human repair."""
     card = Card.objects.create(name="Eternal Favorite")
     other = _printing(card, "PHNI-EN038", "Secret Rare")  # the printing the id wrongly points at
     _printing(card, "MP25-EN172", "Ultra Rare")  # what 651572 actually resolves to
@@ -241,7 +241,7 @@ def test_external_id_conflict_is_queued_not_silently_accepted() -> None:
 @pytest.mark.django_db
 def test_external_id_conflict_on_prismatic_path_leaves_printing_uncorrected() -> None:
     """A Prismatic fallback whose id already maps elsewhere is queued before any
-    mutation — the provisional rarity is left uncorrected and no alias is written."""
+    mutation: the provisional rarity is left uncorrected and no alias is written."""
     card = Card.objects.create(name="Super Polymerization")
     base = _printing(card, "RA03-EN053", "Ultimate Rare")
     other = _printing(card, "PHNI-EN038", "Secret Rare")

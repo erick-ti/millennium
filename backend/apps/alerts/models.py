@@ -5,7 +5,7 @@ from django.db import models
 from apps.core.enums import Edition
 from apps.core.models import TimeStampedModel
 
-# The lookback windows an alert rule may use — the same closed set the "biggest movers"
+# The lookback windows an alert rule may use, the same closed set the "biggest movers"
 # view offers (apps/valuation/movers.py WINDOW_DAYS_CHOICES). A small fixed menu keeps
 # the rule form, the DB CHECK, and the per-window evaluation grouping honest; an open
 # integer column would spread the evaluation's "one movers query per distinct window"
@@ -26,7 +26,7 @@ class Direction(models.TextChoices):
 
 class AlertStatus(models.TextChoices):
     """Outcome of an alert-evaluation run. Mirrors ``ValuationStatus``: SUCCESS/FAILED
-    plus SKIPPED — a run refused because its same-day pricing dependency wasn't met."""
+    plus SKIPPED, a run refused because its same-day pricing dependency wasn't met."""
 
     SUCCESS = "success", "Success"
     FAILED = "failed", "Failed"
@@ -37,14 +37,14 @@ class AlertRule(TimeStampedModel):
     """A user-configured price-move alert: fire when an owned ``(printing, edition)``
     pair moves at least ``threshold_pct`` percent over ``window_days``, in ``direction``.
 
-    Mutable user config (NOT append-only — the ``Portfolio`` / ``StorageLocation``
+    Mutable user config (NOT append-only, unlike the ``Portfolio`` / ``StorageLocation``
     posture): the user creates/edits/deactivates rules. ``is_active`` gates evaluation;
     the rich edit/delete/mute UI is deferred (this is the pipeline-first slice), but the
     column exists so a later slice can toggle it without a migration.
 
     ``threshold_pct`` is a HUMAN percent (``10.00`` = 10%), always positive (a
-    magnitude — the ``direction`` decides up/down). The evaluation converts it to the
-    movers ratio (``pct / 100``) before comparing — see ``apps/alerts/evaluation.py``.
+    magnitude: the ``direction`` decides up/down). The evaluation converts it to the
+    movers ratio (``pct / 100``) before comparing (see ``apps/alerts/evaluation.py``).
     """
 
     name = models.CharField(max_length=255)
@@ -62,7 +62,7 @@ class AlertRule(TimeStampedModel):
         ordering = ["name"]
         constraints = [
             # Closed-vocabulary / domain guards at the DB (``choices`` is form-layer
-            # only) — the SyncRun / ValuationRun enum-CHECK precedent; all enforced on
+            # only), the SyncRun / ValuationRun enum-CHECK precedent; all enforced on
             # sqlite too. ``threshold_pct`` is a magnitude, so it must be strictly > 0.
             models.CheckConstraint(
                 condition=models.Q(threshold_pct__gt=0),
@@ -83,20 +83,20 @@ class AlertRule(TimeStampedModel):
 
 
 class AlertEvent(TimeStampedModel):
-    """Append-only record of one rule firing on one ``(printing, edition)`` on one day —
+    """Append-only record of one rule firing on one ``(printing, edition)`` on one day,
     the rows the in-app feed renders.
 
     Append-only (the ``PriceSnapshot`` / ``ValuationRun`` posture): inserted by the
     daily evaluation, never edited; the admin blocks edit/delete. The ``rule`` FK is
-    PROTECT — an event is non-re-derivable history, so deleting a rule must not silently
+    PROTECT: an event is non-re-derivable history, so deleting a rule must not silently
     erase its feed (the ``PriceSnapshot.printing`` posture). The rule's defining
     parameters are ALSO denormalized onto the event at fire time (the ``rule_*`` fields),
     so a later edit of the *mutable* rule can't rewrite what a past event reports it
-    fired on — the event stays a faithful immutable record (the user-settled choice).
+    fired on, the event stays a faithful immutable record (the user-settled choice).
 
     All price/move fields are non-null: an event is created only from a movers row that
     has a usable price at BOTH anchors AND a non-null ``pct_change`` (a percent rule
-    skips a sub-floor, null-percent row — there is no event without a real percent move).
+    skips a sub-floor, null-percent row, so there is no event without a real percent move).
     If a future slice adds dollar-threshold rules, ``pct_change`` becomes nullable then.
     """
 
@@ -105,7 +105,7 @@ class AlertEvent(TimeStampedModel):
         "cards.CardPrinting", on_delete=models.PROTECT, related_name="alert_events"
     )
     edition = models.CharField(max_length=16, choices=Edition.choices)
-    # The UTC day the event was recorded (``timezone.localdate()`` — the snapshot_date
+    # The UTC day the event was recorded (``timezone.localdate()``, the snapshot_date
     # append-only-key precedent; the daily get_or_create keys on it).
     triggered_on = models.DateField()
 
@@ -123,12 +123,12 @@ class AlertEvent(TimeStampedModel):
     #
     # ``pct_change`` is WIDER than the money fields (16,2 vs 12,2): the percent is a RATIO of
     # two prices, so an extreme move off the $1.00 movers floor (e.g. a $1 base → a $20k chase
-    # printing) yields ~2,000,000% — which a (8,2) column (max 999,999.99) would overflow,
+    # printing) yields ~2,000,000%, which a (8,2) column (max 999,999.99) would overflow,
     # and because the whole pass runs in one transaction that DataError would roll back the
     # ENTIRE day's events (and recur daily until the move ages out of the window). 14 integer
     # digits covers the full reachable range: a max price (~1e10) over the $1.00 floor, as a
-    # percent (times 100), is about 1e12. Caught in adversarial review 2026-05-31 (a
-    # Postgres-only overflow -- sqlite ignores the precision, so it surfaces only on Postgres).
+    # percent (times 100), is about 1e12. This is a Postgres-only overflow: sqlite ignores
+    # the precision, so it surfaces only on Postgres.
     start_price = models.DecimalField(max_digits=12, decimal_places=2)
     end_price = models.DecimalField(max_digits=12, decimal_places=2)
     pct_change = models.DecimalField(max_digits=16, decimal_places=2)
@@ -139,7 +139,7 @@ class AlertEvent(TimeStampedModel):
         # when two events share a ``triggered_on`` (the CollectionLot ordering lesson).
         ordering = ["-triggered_on", "-id"]
         constraints = [
-            # One event per (rule, printing, edition) per UTC day — granular, so the feed
+            # One event per (rule, printing, edition) per UTC day, granular, so the feed
             # shows *which* cards moved (a per-(rule, day) digest couldn't reconstruct
             # that). All four columns are non-null, so this is a plain UNIQUE created AND
             # exercised on sqlite (no ``nulls_distinct`` Postgres-only apparatus); the
@@ -153,7 +153,7 @@ class AlertEvent(TimeStampedModel):
                 name="alert_event_edition_valid",
             ),
             # Anchor prices are non-negative (the PriceSnapshot posture); ``pct_change``
-            # and ``dollar_change`` carry no sign bound — a down-move is legitimately
+            # and ``dollar_change`` carry no sign bound: a down-move is legitimately
             # negative (the ``unrealized_gain`` precedent).
             models.CheckConstraint(
                 condition=models.Q(start_price__gte=0),
@@ -176,7 +176,7 @@ class AlertEvent(TimeStampedModel):
 
 
 class AlertRun(TimeStampedModel):
-    """Append-only record of one alert-evaluation pass — the run history backing the
+    """Append-only record of one alert-evaluation pass, the run history backing the
     daily beat job (mirrors ``ValuationRun``).
 
     A dedicated model rather than a ``SyncKind`` on ``core.SyncRun``: alerts does no
@@ -191,11 +191,11 @@ class AlertRun(TimeStampedModel):
 
     status = models.CharField(max_length=16, choices=AlertStatus.choices)
     # Per-pass counts, filled on SUCCESS. Left NULL on SKIPPED (nothing evaluated) and
-    # FAILED (the pass rolled back) — the SyncRun/ValuationRun pattern, where a count
+    # FAILED (the pass rolled back), the SyncRun/ValuationRun pattern, where a count
     # that doesn't apply to an outcome stays NULL rather than a misleading 0.
     rules_evaluated = models.PositiveIntegerField(null=True, blank=True)
     events_created = models.PositiveIntegerField(null=True, blank=True)
-    # Open-shape audit detail (no CHECK — the SyncRun.detail precedent).
+    # Open-shape audit detail (no CHECK, the SyncRun.detail precedent).
     detail = models.JSONField(default=dict, blank=True)
     # Why a run FAILED or was SKIPPED (blank on success).
     error = models.TextField(blank=True, default="")

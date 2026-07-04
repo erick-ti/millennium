@@ -17,7 +17,7 @@ logger = structlog.get_logger(__name__)
 
 # One request returns the full card list. YGOPRODeck's own prices (`card_prices`)
 # are the cheapest across all versions and useless for a specific printing, so
-# this provider is metadata only — pricing comes from TCGCSV (the source split).
+# this provider is metadata only: pricing comes from TCGCSV (the source split).
 CARDINFO_URL = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
 
 # Absolute bootstrap floor for the FIRST run only (no history yet): the full dump
@@ -25,7 +25,7 @@ CARDINFO_URL = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
 # that never false-rejects but catches a grossly truncated response (a cut connection
 # yields a handful of cards). Once a prior successful sync exists, the orchestration
 # injects the precise compare-to-previous floor (last_good * (1 - tolerance)) via
-# `min_cards`, which supersedes this coarse one (DECISIONS 2026-05-24 slice 3).
+# `min_cards`, which supersedes this coarse one.
 _MIN_EXPECTED_CARDS = 1000
 
 
@@ -43,11 +43,11 @@ class YgoprodeckProvider(MetadataProvider):
         data = payload.get("data") if isinstance(payload, dict) else None
         # Fail closed: the full dump is always a non-empty list. A missing/
         # non-list `data` or zero usable cards is an upstream/API-shape failure
-        # (e.g. a 200 carrying {"error": ...}), not a valid empty catalog —
-        # raise so it can't masquerade as a successful zero-row sync.
+        # (e.g. a 200 carrying {"error": ...}), not a valid empty catalog,
+        # so raise so it can't masquerade as a successful zero-row sync.
         if not isinstance(data, list):
             raise ValueError(
-                "YGOPRODeck response has no 'data' list — refusing to treat an "
+                "YGOPRODeck response has no 'data' list, refusing to treat an "
                 "upstream failure as an empty catalog."
             )
         cards: list[CardMetadata] = []
@@ -59,13 +59,13 @@ class YgoprodeckProvider(MetadataProvider):
                 cards.append(card)
         if not cards:
             raise ValueError(
-                "YGOPRODeck returned zero usable cards — refusing to treat an "
+                "YGOPRODeck returned zero usable cards, refusing to treat an "
                 "upstream failure as an empty catalog."
             )
         if len(cards) < self._min_cards:
             raise ValueError(
                 f"YGOPRODeck returned {len(cards)} usable cards, below the sanity "
-                f"floor of {self._min_cards} — refusing a likely-truncated bulk "
+                f"floor of {self._min_cards}, refusing a likely-truncated bulk "
                 f"dump (the full dump is ~14k cards)."
             )
         if skipped_invalid_rarity:
@@ -110,7 +110,7 @@ def _normalize_printings(
 ) -> tuple[tuple[PrintingMetadata, ...], int]:
     # Keyed by (set_code, set_rarity) to drop duplicates: YGOPRODeck lists
     # alt-arts as repeated rows with no distinguishing label, and we can't
-    # disambiguate them here (variant_label stays NULL), so keep the first —
+    # disambiguate them here (variant_label stays NULL), so keep the first:
     # per-art splitting is a Phase 3 import-matching concern.
     seen: dict[tuple[str, str], PrintingMetadata] = {}
     skipped = 0
@@ -118,17 +118,17 @@ def _normalize_printings(
         set_code = str(entry.get("set_code", "")).strip()
         set_rarity = str(entry.get("set_rarity", "")).strip()
         if not set_code:
-            # No set to identify — structural, can't form a printing key.
+            # No set to identify: structural, can't form a printing key.
             # (Defensive trim/skip: this sync is the controlled writer the
-            # set_code canonicalization was deferred to — DECISIONS 2026-05-21.)
+            # set_code canonicalization was deferred to.)
             continue
         if not _is_plausible_rarity(set_rarity):
             # Drop only *blatant* garbage (blank/numeric, e.g. L5DD-ENC09 "2").
             # This is NOT rarity validation: the systematic YGOPRODeck-vs-TCGCSV
             # disagreements (Prismatic / "New artwork" / "Short Print") look like
-            # valid names and pass through here as provisional rarities — TCGCSV
-            # is canonical and reconciles them in the ingestion slice (DECISIONS
-            # 2026-05-23). "Flag, don't crash" — skip and count, don't abort.
+            # valid names and pass through here as provisional rarities. TCGCSV
+            # is canonical and reconciles them in the ingestion slice.
+            # "Flag, don't crash": skip and count, don't abort.
             skipped += 1
             continue
         key = (set_code, set_rarity)
@@ -136,7 +136,7 @@ def _normalize_printings(
             seen[key] = PrintingMetadata(
                 set_code=set_code,
                 set_rarity=set_rarity,
-                # set_name is display prose like the card name — decode entities.
+                # set_name is display prose like the card name, decode entities.
                 # set_code/set_rarity are identifiers (natural-key components),
                 # left as trimmed-only to avoid altering a key.
                 set_name=html.unescape(str(entry.get("set_name", ""))).strip(),
@@ -150,5 +150,5 @@ def _is_plausible_rarity(set_rarity: str) -> bool:
     # Yu-Gi-Oh rarity is a name ("Common", "Secret Rare", ...), never blank or
     # purely numeric, so reject "2"/"3" (the documented YGOPRODeck bug). Valid-
     # looking but non-canonical rarities (Prismatic / "New artwork" / "Short
-    # Print") deliberately pass — TCGCSV reconciles those (DECISIONS 2026-05-23).
+    # Print") deliberately pass: TCGCSV reconciles those.
     return bool(set_rarity) and not set_rarity.isdigit()

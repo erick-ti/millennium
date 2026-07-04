@@ -16,8 +16,8 @@ class ValuationStatus(models.TextChoices):
 
 
 class ValuationRun(TimeStampedModel):
-    """Append-only record of one valuation pass -- the run history backing the slice-4c
-    orchestration that wraps the valuation engine (DECISIONS 2026-05-25 slice 4c).
+    """Append-only record of one valuation pass -- the run history backing the
+    orchestration that wraps the valuation engine.
 
     Each scheduled/manual run writes one row at completion:
     - SUCCESS with the pass's counts (the next-day audit / coverage-collapse baseline),
@@ -57,8 +57,8 @@ class ValuationRun(TimeStampedModel):
 
     class Meta:
         # Most-recent-first; `-id` is a stable tiebreaker so "latest" is deterministic
-        # even if two runs share a created_at (the CollectionLot ordering lesson,
-        # DECISIONS 2026-05-22). No `kind` ordering -- this model is valuation-only.
+        # even if two runs share a created_at (the CollectionLot ordering lesson).
+        # No `kind` ordering -- this model is valuation-only.
         ordering = ["-created_at", "-id"]
         constraints = [
             # Closed-vocabulary guard at the DB (`choices` is form-layer only) -- the

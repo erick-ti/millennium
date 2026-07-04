@@ -36,7 +36,7 @@ def _parse_iso_date(value: str, *, field: str) -> date:
                 "edition",
                 OpenApiTypes.STR,
                 enum=Edition.values,
-                description="Filter by edition (a pricing dimension — DECISIONS 2026-05-18).",
+                description="Filter by edition (a pricing dimension).",
             ),
             OpenApiParameter(
                 "from",
@@ -54,7 +54,7 @@ def _parse_iso_date(value: str, *, field: str) -> date:
 )
 class PriceSnapshotViewSet(viewsets.ReadOnlyModelViewSet[PriceSnapshot]):
     """Read-only append-only price history. List filterable by
-    ``?printing=&edition=&from=&to=`` — the slice-4 price-chart shape. The
+    ``?printing=&edition=&from=&to=``, the price-chart shape. The
     ``latest`` action returns the most-recent snapshot for one
     ``(printing, edition)``, the "today's price" lookup; this is structured as
     an action (not the latest-first ordered list's first row) so a consumer
@@ -95,7 +95,7 @@ class PriceSnapshotViewSet(viewsets.ReadOnlyModelViewSet[PriceSnapshot]):
         return qs
 
     @extend_schema(
-        summary="Latest snapshot for one (printing, edition) — the 'today's price' lookup",
+        summary="Latest snapshot for one (printing, edition): the 'today's price' lookup",
         parameters=[
             OpenApiParameter(
                 "printing",
@@ -125,7 +125,7 @@ class PriceSnapshotViewSet(viewsets.ReadOnlyModelViewSet[PriceSnapshot]):
         params = request.query_params
         printing = params.get("printing")
         edition = params.get("edition")
-        # Both required — surface the missing field rather than returning an
+        # Both required, so surface the missing field rather than returning an
         # arbitrary "latest across everything" row.
         if printing is None or edition is None:
             raise ValidationError({"detail": "both 'printing' and 'edition' are required"})

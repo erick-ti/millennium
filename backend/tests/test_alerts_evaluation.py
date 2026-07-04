@@ -16,7 +16,7 @@ from apps.pricing.models import PriceSnapshot, Provider
 from apps.valuation import movers as movers_module
 
 # Evaluation anchors on timezone.localdate() (via compute_collection_movers), so tests
-# place snapshots RELATIVE to "today" — the movers-test convention.
+# place snapshots RELATIVE to "today" (the movers-test convention).
 TODAY = timezone.localdate()
 
 
@@ -99,8 +99,8 @@ def test_human_percent_threshold_matches_movers_ratio() -> None:
 
 @pytest.mark.django_db
 def test_threshold_just_above_the_move_does_not_fire() -> None:
-    """A 19.00%-threshold rule does NOT fire on a +18% move — the boundary is real, not a
-    units artifact (a 18 vs 0.18 bug would fire here too)."""
+    """A 19.00%-threshold rule does NOT fire on a +18% move (the boundary is real, not a
+    units artifact: a 18 vs 0.18 bug would fire here too)."""
     _gainer()  # +18%
     _rule(threshold_pct="19.00", direction=Direction.UP)
 
@@ -288,8 +288,7 @@ def test_extreme_move_does_not_overflow_pct_change_column() -> None:
     """A move off the $1.00 movers floor to a high price yields a percent in the
     millions; the pct_change column (16,2) must hold it without a numeric-overflow
     DataError that would roll back the whole run. Postgres enforces the precision
-    (sqlite ignores it), so this runs on the CI postgres job where the (8,2) bug bit
-    (adversarial review 2026-05-31)."""
+    (sqlite ignores it), so this runs on the CI postgres job where the (8,2) bug bit."""
     printing = _printing()
     _own(printing)
     _snap(printing, days_ago=30, market=Decimal("1.00"))  # at the inclusive floor
@@ -308,7 +307,7 @@ def test_extreme_move_does_not_overflow_pct_change_column() -> None:
 def test_human_percent_quantizes_a_non_terminating_ratio() -> None:
     """_human_percent recomputes the stored percent from the Decimal anchors (not the
     float ratio) and quantizes to 2dp. A non-terminating ratio (1/30 = 3.333…%) must
-    store as 3.33 — pins the quantize + the Decimal (not float) recompute."""
+    store as 3.33 (pins the quantize and the Decimal, not float, recompute)."""
     printing = _printing()
     _own(printing)
     _snap(printing, days_ago=30, market=Decimal("30.00"))

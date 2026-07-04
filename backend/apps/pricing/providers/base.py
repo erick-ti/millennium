@@ -47,14 +47,15 @@ class PrintingMetadata:
     *systematically* disagrees with TCGCSV on whole classes (RA03 ``"Ultimate
     Rare"`` vs TCGCSV ``"Prismatic Ultimate Rare"``; CH01 ``"New artwork"`` vs
     ``"Ultra Rare"``; LOB ``"Short Print"`` vs ``"Common"``). TCGCSV is the source
-    of truth for rarity (recon PHASE_1A5_FINDINGS; DECISIONS 2026-05-23). A
-    metadata sync seeds best-effort rarities and drops only *blatant* garbage
-    (blank/numeric) at its boundary — it does NOT reconcile the disagreement
-    class. The TCGCSV-ingestion slice reconciles by updating the seeded printing
-    in place when it's the same real printing (FK refs are by ``id``, so this is
-    a column update, not a key migration) and splitting into separate
-    ``variant_label`` rows when TCGCSV proves distinct sellable variants — never
-    duplicating the same canonical key — and review-queues the unresolved.
+    of truth for rarity: it reflects the actual product that sells, so canonical
+    rarity follows TCGCSV when the two disagree. A metadata sync seeds
+    best-effort rarities and drops only *blatant* garbage (blank/numeric) at its
+    boundary, it does NOT reconcile the disagreement class. The TCGCSV-ingestion
+    slice reconciles by updating the seeded printing in place when it's the same
+    real printing (FK refs are by ``id``, so this is a column update, not a key
+    migration) and splitting into separate ``variant_label`` rows when TCGCSV
+    proves distinct sellable variants, never duplicating the same canonical key,
+    and review-queues the unresolved.
     """
 
     set_code: str
@@ -69,12 +70,12 @@ class CardMetadata:
 
     ``passcode`` is required because the only metadata provider today
     (YGOPRODeck) gives every card one. TCGCSV-only entities such as tokens have
-    no passcode (DECISIONS 2026-05-18); representing them means widening this to
-    ``passcode: int | None`` with a fallback identity key — deferred to the slice
+    no passcode; representing them means widening this to
+    ``passcode: int | None`` with a fallback identity key, deferred to the slice
     that adds TCGCSV catalog ingestion (see ``PricingProvider``).
 
     ``archetype`` is the card's Yu-Gi-Oh archetype (e.g. "Blue-Eyes"), supplied by
-    the provider; ``None`` when the card has none (~40% don't) — never coerce a
+    the provider; ``None`` when the card has none (~40% don't), never coerce a
     missing archetype to ``""`` (NULL is the canonical "no archetype").
     """
 
@@ -93,7 +94,7 @@ class PriceData:
     ``external_price_ids``); ``subtype_name`` is the raw provider edition (e.g.
     TCGCSV ``"1st Edition"``, normalized to an ``Edition`` downstream and kept
     verbatim as the snapshot's ``source_subtype_name``); the five price points
-    map 1:1 to the snapshot's columns (a provider may report any subset — absent
+    map 1:1 to the snapshot's columns (a provider may report any subset, absent
     ones are ``None``). ``TcgcsvProvider`` is the first implementation.
     """
 
@@ -115,12 +116,12 @@ class ProductListing:
     the catalog of printings that *exist*; a pricing provider supplies the
     products it *sells*, which the matching slice links to those printings (then
     prices via ``PriceData``, joined by ``external_id``). ``set_rarity`` here is
-    the provider's *canonical* rarity — TCGCSV is the source of truth (DECISIONS
-    2026-05-23), so it is what a provisional metadata rarity gets reconciled
-    against. ``name`` is the raw product name (e.g. ``"Blue-Eyes White Dragon
-    (Version 1)"``); its parenthetical is the only signal distinguishing
-    same-``(set_code, set_rarity)`` variant artworks (recon Q5), so it is kept
-    verbatim for the matcher rather than parsed here.
+    the provider's *canonical* rarity, TCGCSV is the source of truth, so it is
+    what a provisional metadata rarity gets reconciled against. ``name`` is the
+    raw product name (e.g. ``"Blue-Eyes White Dragon (Version 1)"``); its
+    parenthetical is the only signal distinguishing same-``(set_code, set_rarity)``
+    variant artworks, so it is kept verbatim for the matcher rather than parsed
+    here.
     """
 
     external_id: str
@@ -134,7 +135,7 @@ class ProductListing:
 
 
 class MetadataProvider(abc.ABC):
-    """A source of card *metadata* — identity and catalog printings.
+    """A source of card *metadata*: identity and catalog printings.
 
     Feeds ``cards`` / ``card_printings``; YGOPRODeck is the only one today.
     Deliberately split from ``PricingProvider``: metadata sources carry no
@@ -153,7 +154,7 @@ class PricingProvider(abc.ABC):
     docstring for why the roles are separate). ``TcgcsvProvider`` is the first
     implementation (Phase 2 price ingestion).
 
-    ``fetch_prices`` yields ``PriceData`` — a provider id plus price points. On
+    ``fetch_prices`` yields ``PriceData``, a provider id plus price points. On
     its own that can't be matched to a printing on the first run (``external_price_ids``
     is empty until something populates it), so a concrete pricing provider also
     surfaces its product catalog as ``ProductListing`` (``external_id`` +
@@ -164,7 +165,7 @@ class PricingProvider(abc.ABC):
     stays concrete until a second provider shows what generalizes.
 
     Still deferred (token slice): TCGCSV is the *only* catalog source for entities
-    absent from YGOPRODeck (tokens — DECISIONS 2026-05-18). Creating passcode-null
+    absent from YGOPRODeck (tokens). Creating passcode-null
     ``Card`` / ``CardPrinting`` rows for them needs ``CardMetadata`` to gain a
     passcode-optional form (see its docstring); until then a pricing provider
     matches its products to *existing* YGOPRODeck-seeded printings only, and the

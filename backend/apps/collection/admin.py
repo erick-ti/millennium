@@ -44,9 +44,9 @@ class CollectionItemAdmin(admin.ModelAdmin[CollectionItem]):
 
     # Drop the one-click bulk "delete selected" action. A holding's child lots are
     # the only (non-re-derivable) cost-basis history, and the lot FK is CASCADE, so a
-    # mass delete here would silently destroy that history. Single-object delete —
-    # which shows the cascade-listing confirmation — stays available. Holding removal
-    # will route through an explicit archive/dispose path in Phase 2 (DECISIONS 2026-05-22).
+    # mass delete here would silently destroy that history. Single-object delete,
+    # which shows the cascade-listing confirmation, stays available. Holding removal
+    # will route through an explicit archive/dispose path in Phase 2.
     def get_actions(self, request: HttpRequest) -> dict[str, Any]:
         actions = super().get_actions(request)
         actions.pop("delete_selected", None)
@@ -73,7 +73,7 @@ class CollectionLotAdmin(admin.ModelAdmin[CollectionLot]):
     ordering = ["collection_item", "acquired_at", "id"]
     readonly_fields = ["created_at", "updated_at"]
 
-    # Same bulk-delete guard as CollectionItemAdmin — lots *are* the cost-basis history.
+    # Same bulk-delete guard as CollectionItemAdmin: lots *are* the cost-basis history.
     def get_actions(self, request: HttpRequest) -> dict[str, Any]:
         actions = super().get_actions(request)
         actions.pop("delete_selected", None)

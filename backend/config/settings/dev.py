@@ -17,8 +17,7 @@ SECRET_KEY = env("DJANGO_SECRET_KEY", default="dev-not-secret-do-not-use-in-prod
 # (or localhost:8000) while the browser still sends Origin=http://localhost:3000.
 # CsrfViewMiddleware._origin_verified() builds good_origin=scheme://request.get_host()
 # and compares to HTTP_ORIGIN; the mismatch 403s every unsafe method unless the
-# frontend origin is whitelisted here. Found by Codex adversarial review of
-# Phase 4 slice 1.
+# frontend origin is whitelisted here.
 CSRF_TRUSTED_ORIGINS = env.list(
     "DJANGO_CSRF_TRUSTED_ORIGINS",
     default=["http://localhost:3000"],

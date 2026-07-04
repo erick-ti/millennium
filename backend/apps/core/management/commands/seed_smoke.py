@@ -4,7 +4,7 @@ No app fixtures exist, so the end-to-end smoke flows need a deterministic seed:
 
 * a login user (every page 403s without a session);
 * an **import-target** Card + CardPrinting whose name/set_code/set_rarity align
-  with the smoke Dragon Shield CSV, so the upload matches EXACT — but with NO
+  with the smoke Dragon Shield CSV, so the upload matches EXACT, but with NO
   same-day TCGCSV reconciliation `SyncRun`, an EXACT row stages PENDING (it is
   NOT auto-materialized), so it lands in the review queue for the smoke to
   Approve (a human approve overrides the freshness gate). This card is NOT
@@ -17,7 +17,7 @@ Idempotent: every object is found-or-created, so re-running is safe. `--reset`
 first removes the smoke-owned rows (identified by the ``SMOKE-`` set_code
 prefix, the smoke card names, the smoke portfolio names, the smoke CSV
 filename, and the ``Smoke E2E`` deck-name prefix the deck spec uses) so a local
-re-run starts clean — in particular it drops the import-created holding so the
+re-run starts clean, in particular it drops the import-created holding so the
 next import materializes afresh. A CI run starts from an empty DB, where
 ``--reset`` is a no-op. Scoped to smoke-marked data only, so it is safe to run
 against a shared dev database. That contract covers the login user too: the
@@ -26,7 +26,7 @@ email, no staff/superuser bits) and fails closed on a colliding real account
 rather than resetting its password to the committed value.
 
 Two fail-closed guards, on different axes: ``DEBUG=False`` refuses (prod
-*settings posture*; ``--force`` bypasses — that's how the test settings run it),
+*settings posture*; ``--force`` bypasses, that's how the test settings run it),
 and a non-loopback *database target* refuses regardless of ``--force``
 (``SEED_SMOKE_ALLOW_REMOTE_DB=1`` is the only override). The smoke suite is
 local/CI by definition; a mis-pointed ``DATABASE_URL`` must not receive a
@@ -36,7 +36,7 @@ The import smoke relies on the import-target row staging PENDING (no same-day
 successful TCGCSV reconciliation covers a printing created after it). ``--reset``
 re-creates that printing fresh, so any earlier same-day reconciliation predates
 it and the row stays PENDING. The one way to break this is to run ``sync_tcgcsv``
-AFTER the seed against the same DB before the smoke runs — don't.
+AFTER the seed against the same DB before the smoke runs, don't.
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ from apps.imports.models import ImportBatch
 from apps.portfolio.models import Portfolio
 
 # Login credentials the smoke specs use. A throwaway local/CI seed account, never
-# created on a prod-posture or remote target (the two guards below refuse) — not
+# created on a prod-posture or remote target (the two guards below refuse), not
 # a real secret.
 SMOKE_USERNAME = "smoke"
 SMOKE_PASSWORD = "smoke-password"
@@ -92,8 +92,8 @@ SMOKE_DECK_NAME_PREFIX = "Smoke E2E"
 def _database_target_is_local() -> bool:
     """True when the default DB is sqlite (always a local file/memory), a
     unix-socket connection (empty HOST), or a loopback host. This covers every
-    legitimate smoke target — the compose Postgres on 127.0.0.1, the CI service
-    on localhost, and the sqlite test settings — while a deployed/remote host
+    legitimate smoke target (the compose Postgres on 127.0.0.1, the CI service
+    on localhost, and the sqlite test settings) while a deployed/remote host
     fails it."""
     db = settings.DATABASES["default"]
     if "sqlite" in str(db.get("ENGINE", "")):
@@ -117,14 +117,14 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args: Any, **options: Any) -> None:
-        # Two fail-closed guards on two different axes (Codex review round 3):
+        # Two fail-closed guards on two different axes:
         # DEBUG guards the *settings posture* of the operator's shell; the host
         # check guards the *database actually being mutated*. DEBUG alone is not
-        # a boundary — config.settings.smoke inherits dev (DEBUG=True always),
+        # a boundary, since config.settings.smoke inherits dev (DEBUG=True always),
         # so a DATABASE_URL mis-pointed at a deployed DB would sail through it
         # and seed a known-password account into an app whose entire API is
         # plain IsAuthenticated (no per-user scoping). The smoke suite is
-        # local/CI by definition, so a non-loopback DB target is refused — and
+        # local/CI by definition, so a non-loopback DB target is refused, and
         # deliberately NOT bypassed by --force, whose only meaning is "skip the
         # DEBUG check" (the test settings run with DEBUG=False); a remote seed
         # is a separate, more dangerous decision that needs its own explicit act.
@@ -157,8 +157,8 @@ class Command(BaseCommand):
         Smoke portfolios are deleted ONLY when they have no valuation history:
         on a shared dev DB the beat-scheduled valuation values EVERY portfolio,
         and ``PortfolioValueSnapshot.portfolio`` is PROTECT (append-only audit
-        history this command must not destroy) — an unconditional delete would
-        raise ``ProtectedError`` and roll back the whole reset (Codex review).
+        history this command must not destroy), so an unconditional delete would
+        raise ``ProtectedError`` and roll back the whole reset.
         A surviving empty portfolio is harmless: the seed and the import flow
         both find-or-create by name, so it is simply reused.
         """
@@ -186,8 +186,8 @@ class Command(BaseCommand):
             username=SMOKE_USERNAME,
             defaults={"email": SMOKE_EMAIL, "is_active": True},
         )
-        # Ownership check (Codex review): the seed may only (re)set credentials
-        # on the account IT created — marked by the smoke email and no privilege
+        # Ownership check: the seed may only (re)set credentials
+        # on the account IT created, marked by the smoke email and no privilege
         # bits. A pre-existing account that merely shares the username must not
         # be silently converted into a known-password login (the "smoke-marked
         # data only" contract applies to the user row too). Fail closed; the
@@ -196,7 +196,7 @@ class Command(BaseCommand):
             raise CommandError(
                 f"A user named '{SMOKE_USERNAME}' already exists and does not look "
                 "seed-owned (different email, or staff/superuser). Refusing to reset "
-                "its credentials — rename or remove that account first."
+                "its credentials, rename or remove that account first."
             )
         # (Re)set the credentials on the seed-owned row so login is deterministic
         # across runs; keep it unprivileged (the smoke flows use the regular API,
@@ -208,7 +208,7 @@ class Command(BaseCommand):
         user.set_password(SMOKE_PASSWORD)
         user.save()
 
-        # Import-target printing — matched EXACT by the smoke CSV, staged PENDING
+        # Import-target printing: matched EXACT by the smoke CSV, staged PENDING
         # because the seed records NO same-day TCGCSV reconciliation SyncRun. Not
         # pre-owned: the import flow materializes it.
         import_card, _ = Card.objects.get_or_create(name=IMPORT_CARD_NAME)

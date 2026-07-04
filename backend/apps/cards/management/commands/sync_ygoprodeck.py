@@ -11,11 +11,11 @@ class Command(BaseCommand):
     help = "Sync card and printing metadata from YGOPRODeck's bulk card dump."
 
     def handle(self, *args: Any, **options: Any) -> None:
-        # Runs under the compare-to-previous cardinality guard and records a SyncRun
-        # (DECISIONS 2026-05-24 slice 3) — same orchestration the Celery task uses.
+        # Runs under the compare-to-previous cardinality guard and records a SyncRun,
+        # the same orchestration the Celery task uses.
         result = run_ygoprodeck_sync()
         if result is None:
-            # Another run held the advisory lock — this invocation was skipped.
+            # Another run held the advisory lock, so this invocation was skipped.
             self.stdout.write(
                 self.style.WARNING("YGOPRODeck sync skipped: another run is already in progress.")
             )

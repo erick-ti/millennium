@@ -18,8 +18,8 @@ logger = structlog.get_logger(__name__)
 def _pricing_succeeded_today() -> bool:
     """Whether a TCGCSV pricing sync recorded SUCCESS for the current UTC day.
 
-    The hard dependency the valuation orchestration refuses to run without (DECISIONS
-    2026-05-25 slice 4c). Pricing's ingest commits ``PriceSnapshot`` rows incrementally,
+    The hard dependency the valuation orchestration refuses to run without.
+    Pricing's ingest commits ``PriceSnapshot`` rows incrementally,
     so valuing before today's pricing run has *succeeded* could roll a mixed/stale price
     set into the day's unique, delete-blocked snapshot -- uncorrectable. The
     03:00->04:00 beat gap alone is not enough (a slow ingest could overrun 04:00), so
@@ -60,8 +60,8 @@ def record_valuation_run(
 
 def run_valuation() -> ValuationResult | None:
     """Value every portfolio for today under a per-run advisory lock and a hard
-    dependency on a successful same-day TCGCSV pricing run, recording a ``ValuationRun``
-    (DECISIONS 2026-05-25 slice 4c). The single entry point both the ``value_portfolios``
+    dependency on a successful same-day TCGCSV pricing run, recording a ``ValuationRun``.
+    The single entry point both the ``value_portfolios``
     management command and the Celery task call, so a manual run is equally guarded and
     recorded -- the ``run_tcgcsv_sync`` orchestration pattern.
 
@@ -80,7 +80,7 @@ def run_valuation() -> ValuationResult | None:
       holds the pricing lock right now -- e.g. a manual rerun): logs, records SKIPPED,
       returns ``None``. A same-day SUCCESS proves pricing finished *once*, not that it
       isn't appending rows again, so valuing mid-run would read a partial price table
-      into the irreversible daily snapshot (adversarial review 2026-05-25, finding 1).
+      into the irreversible daily snapshot.
 
     The snapshot writes and the SUCCESS ``ValuationRun`` commit in one outer
     ``transaction.atomic`` (the engine's own per-pass atomic nests as a savepoint), so the
@@ -113,8 +113,8 @@ def run_valuation() -> ValuationResult | None:
         # table into the day's unique, delete-blocked snapshot, understating coverage
         # irreversibly. So gate on the pricing lock too: skip if a pricing run is active,
         # otherwise hold it across the price-map read + snapshot write so none starts
-        # mid-valuation (adversarial review 2026-05-25, finding 1). No deadlock -- pricing
-        # never takes the valuation lock, so the two locks are only ever nested here.
+        # mid-valuation. No deadlock -- pricing never takes the valuation lock, so the
+        # two locks are only ever nested here.
         with sync_lock(SyncKind.TCGCSV_PRICING) as pricing_idle:
             if not pricing_idle:
                 logger.warning("valuation.skipped_pricing_in_progress")
@@ -132,9 +132,8 @@ def run_valuation() -> ValuationResult | None:
                 # run insert rolls the snapshots back too. Without this the snapshot tx
                 # commits on return, and a crash before record_valuation_run would orphan an
                 # append-only, delete-blocked snapshot with no audit row -- which a retry's
-                # get_or_create would then misreport as "0 created" (adversarial review
-                # 2026-05-25, finding: snapshot/run atomicity). FAILED is recorded after the
-                # rollback, outside the block.
+                # get_or_create would then misreport as "0 created". FAILED is recorded after
+                # the rollback, outside the block.
                 with transaction.atomic():
                     result = value_all_portfolios()
                     record_valuation_run(ValuationStatus.SUCCESS, result=result)

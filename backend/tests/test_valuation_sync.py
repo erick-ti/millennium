@@ -91,9 +91,9 @@ def test_run_valuation_values_and_records_success() -> None:
 @pytest.mark.django_db
 def test_run_valuation_skips_without_same_day_pricing_run() -> None:
     """The hard dependency: with no successful TCGCSV pricing run for today, valuation
-    refuses -- records a SKIPPED ValuationRun and writes no snapshot (DECISIONS 2026-05-25
-    slice 4c). Valuing against a missing/partial price table would lock in an
-    uncorrectable (unique-per-day, delete-blocked) snapshot."""
+    refuses -- records a SKIPPED ValuationRun and writes no snapshot. Valuing against a
+    missing/partial price table would lock in an uncorrectable (unique-per-day,
+    delete-blocked) snapshot."""
     Portfolio.objects.create(name="Yubel Deck")  # would be valued if the run proceeded
 
     result = run_valuation()
@@ -128,7 +128,7 @@ def test_run_valuation_proceeds_despite_a_later_failed_pricing_run() -> None:
     completed success's table. So the existence check is sound: the table valuation reads
     is always >= the guard-passed complete baseline, and skipping here would discard a
     correct snapshot for no gain. Guards against a future wrong tightening to "latest run
-    = SUCCESS" (adversarial review 2026-05-25, finding 3 -- considered, not adopted)."""
+    = SUCCESS" (considered, not adopted)."""
     portfolio = Portfolio.objects.create(name="Yubel Deck")
     _priced_holding(portfolio)
     _record_pricing_success()  # the 03:00 scheduled run completed fully
@@ -203,8 +203,8 @@ def test_run_valuation_rolls_back_snapshots_if_success_record_fails(
     """The snapshot writes and the SUCCESS ValuationRun commit in one transaction, so a
     failure to record the run rolls the snapshots back too -- an append-only,
     delete-blocked snapshot is never orphaned without its audit row, and a retry then
-    recomputes cleanly rather than finding an orphan (adversarial review 2026-05-25,
-    snapshot/run atomicity). The failure is still recorded as a FAILED run."""
+    recomputes cleanly rather than finding an orphan (snapshot/run atomicity). The
+    failure is still recorded as a FAILED run."""
     portfolio = Portfolio.objects.create(name="Yubel Deck")
     _priced_holding(portfolio)  # the engine would write one snapshot...
     _record_pricing_success()
@@ -262,8 +262,8 @@ def test_run_valuation_skips_when_pricing_run_in_progress(
     """Even with a same-day pricing SUCCESS, if a pricing run is *currently* active
     (holds the pricing lock -- e.g. a manual rerun), valuation skips and records SKIPPED
     rather than valuing a partially-committed price table into the irreversible daily
-    snapshot (adversarial review 2026-05-25, finding 1). Unlike the valuation-lock skip,
-    this one *records* -- no other run is covering the day."""
+    snapshot. Unlike the valuation-lock skip, this one *records* -- no other run is
+    covering the day."""
     portfolio = Portfolio.objects.create(name="Yubel Deck")
     _priced_holding(portfolio)
     _record_pricing_success()
@@ -289,7 +289,7 @@ def test_run_valuation_skips_while_real_pricing_lock_is_held() -> None:
     """Real cross-connection exclusion (not a monkeypatch): while a *separate* connection
     holds the TCGCSV pricing advisory lock, run_valuation -- which now takes that lock
     after the dependency check -- skips. Proves the coordination is a genuine Postgres
-    guarantee, not a no-op (the test_core advisory-lock pattern; finding 1)."""
+    guarantee, not a no-op (the test_core advisory-lock pattern)."""
     portfolio = Portfolio.objects.create(name="Yubel Deck")
     _priced_holding(portfolio)
     _record_pricing_success()

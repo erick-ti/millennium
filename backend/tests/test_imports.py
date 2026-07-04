@@ -105,7 +105,7 @@ def test_import_row_unique_per_batch() -> None:
 
 @pytest.mark.django_db
 def test_same_row_number_in_different_batches_is_allowed() -> None:
-    """The uniqueness is per batch — line 1 of two different imports don't collide."""
+    """The uniqueness is per batch: line 1 of two different imports don't collide."""
     ImportRow.objects.create(batch=_batch(), row_number=1, raw_data={})
     ImportRow.objects.create(batch=_batch(), row_number=1, raw_data={})
 
@@ -114,7 +114,7 @@ def test_same_row_number_in_different_batches_is_allowed() -> None:
 
 @pytest.mark.django_db
 def test_deleting_batch_cascades_its_rows() -> None:
-    """batch FK is CASCADE — rows are composition of their batch."""
+    """batch FK is CASCADE: rows are composition of their batch."""
     batch = _batch()
     ImportRow.objects.create(batch=batch, row_number=1, raw_data={})
     ImportRow.objects.create(batch=batch, row_number=2, raw_data={})
@@ -126,13 +126,12 @@ def test_deleting_batch_cascades_its_rows() -> None:
 
 @pytest.mark.django_db
 def test_deleting_matched_printing_nulls_the_fk_but_not_the_confidence() -> None:
-    """matched_printing FK is SET_NULL — a printing delete nulls the staging pointer
+    """matched_printing FK is SET_NULL: a printing delete nulls the staging pointer
     (rather than being blocked or cascading the row away). SET_NULL bypasses save(),
     so match_confidence is deliberately left as-is: matched_printing is the
     authoritative match signal, and a NULL printing means unmatched regardless of the
     stale tier (slices 3-4 honor that; a re-match overwrites both). Pinning this keeps
-    the stale tier from being mistaken for a live 'exact' match (Codex review
-    2026-05-26)."""
+    the stale tier from being mistaken for a live 'exact' match."""
     printing = _printing()
     row = ImportRow.objects.create(
         batch=_batch(),

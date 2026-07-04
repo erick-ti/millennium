@@ -16,7 +16,7 @@ from apps.pricing.providers.base import (
 
 logger = structlog.get_logger(__name__)
 
-# TCGCSV mirrors TCGplayer's catalog as flat JSON. YuGiOh is categoryId 2 — a
+# TCGCSV mirrors TCGplayer's catalog as flat JSON. YuGiOh is categoryId 2, a
 # stable id, so the /categories endpoint is not fetched. Per group we read the
 # product catalog (printing identity: set_code + rarity) and the price rows
 # separately; they are joined downstream by productId.
@@ -25,7 +25,7 @@ _YUGIOH_CATEGORY_ID = 2
 
 # "Normal" is TCGCSV's subtype for sealed products (booster boxes, decks), which
 # also lack an extendedData "Number"; neither is a single card, so both forms are
-# dropped (recon Q7/Q8). The single-card editions are the other subtypes (1st
+# dropped. The single-card editions are the other subtypes (1st
 # Edition / Unlimited / Limited), mapped to `Edition` when snapshots are written.
 _SEALED_SUBTYPE = "Normal"
 
@@ -39,7 +39,7 @@ _RARITY_FIELD = "Rarity"  # TCGCSV-canonical rarity, e.g. "Prismatic Ultimate Ra
 # that never false-rejects but catches a grossly truncated fetch (a cut connection
 # yields a handful of rows). Once a prior successful sync exists, the orchestration
 # injects the precise compare-to-previous floor (last_good * (1 - tolerance)) via
-# `min_products` / `min_price_rows`, superseding these (DECISIONS 2026-05-24 slice 3).
+# `min_products` / `min_price_rows`, superseding these.
 _MIN_EXPECTED_GROUPS = 100
 _MIN_EXPECTED_PRODUCTS = 1000
 
@@ -48,7 +48,7 @@ class TcgcsvProvider(PricingProvider):
     """Single-card prices + product catalog from TCGCSV's TCGplayer mirror.
 
     Implements ``fetch_prices`` (the ``PricingProvider`` contract) and adds
-    ``fetch_products`` — the catalog half the matching slice needs to link a
+    ``fetch_products``, the catalog half the matching slice needs to link a
     productId to a ``CardPrinting`` before any price can attach (see
     ``PricingProvider`` for why that method is concrete, not on the ABC). Both
     read the same group list (fetched once per instance); sealed products and
@@ -103,7 +103,7 @@ class TcgcsvProvider(PricingProvider):
     def fetch_prices(self) -> list[PriceData]:
         """Yield every non-sealed price row TCGCSV reports, across all groups.
 
-        Drops only ``"Normal"`` (sealed) rows — it does NOT by itself guarantee
+        Drops only ``"Normal"`` (sealed) rows; it does NOT by itself guarantee
         each row is a single card. That gate is downstream: the ingestion slice
         writes a snapshot only when a row's ``productId`` resolves to a
         ``CardPrinting`` via ``external_price_ids``, which only matched single-card
@@ -175,8 +175,8 @@ def _require_results(payload: Any, label: str) -> list[Any]:
 
     Every TCGCSV response is ``{success, results, errors, ...}``. Fail closed
     when ``success`` is not ``True`` or ``results`` is not a list, so an upstream
-    error body (a 200 carrying ``success: false``) can't masquerade as empty data
-    — the YgoprodeckProvider posture. An empty-but-valid per-group ``results`` is
+    error body (a 200 carrying ``success: false``) can't masquerade as empty data,
+    following the YgoprodeckProvider posture. An empty-but-valid per-group ``results`` is
     allowed (some groups have no single-card products); gross truncation is caught
     by the aggregate floors in the callers, not here.
     """
@@ -200,7 +200,7 @@ def _normalize_product(raw: dict[str, Any], set_name: str) -> ProductListing | N
     Skips anything that isn't a usable single card: sealed products (no
     ``extendedData.Number``), and the rare malformed single card missing a
     rarity / id / name. ``set_code`` / ``set_rarity`` are trimmed only (they are
-    natural-key text the matching slice canonicalizes — DECISIONS 2026-05-21),
+    natural-key text the matching slice canonicalizes),
     while ``name`` keeps its variant parenthetical verbatim for the matcher.
     """
     extended = _extended_data(raw)
@@ -224,8 +224,8 @@ def _normalize_product(raw: dict[str, Any], set_name: str) -> ProductListing | N
 def _normalize_price(raw: dict[str, Any]) -> PriceData | None:
     """Build a ``PriceData`` from a TCGCSV price row, or ``None`` to skip it.
 
-    Drops "Normal" rows (sealed products). The five price points are nullable —
-    a provider may omit any — and are converted via ``str`` so the stored Decimal
+    Drops "Normal" rows (sealed products). The five price points are nullable
+    (a provider may omit any) and are converted via ``str`` so the stored Decimal
     is exact rather than carrying binary-float noise.
     """
     subtype = raw.get("subTypeName")
@@ -259,7 +259,7 @@ def _extended_data(raw: dict[str, Any]) -> dict[str, str]:
 
 def _to_decimal(value: Any) -> Decimal | None:
     # TCGCSV prices are JSON numbers in USD (2 dp). Convert via str so we get the
-    # exact decimal — Decimal(0.67) would carry binary-float noise. A model-level
+    # exact decimal: Decimal(0.67) would carry binary-float noise. A model-level
     # CHECK on PriceSnapshot (a 2c obligation) is the all-source backstop; this
     # boundary guard is defense-in-depth: drop values that can't be a real price.
     if value is None:
@@ -270,7 +270,7 @@ def _to_decimal(value: Any) -> Decimal | None:
         logger.warning("tcgcsv_sync.unparseable_price", value=repr(value))
         return None
     # NaN/Infinity (Python's json parser accepts both literals) or a negative are
-    # structurally impossible for a price — treat as "not reported" rather than
+    # structurally impossible for a price: treat as "not reported" rather than
     # poison stored prices/aggregations. Per-field skip, not raise, so one corrupt
     # value can't abort a tens-of-thousands-row daily sync (the ygoprodeck
     # garbage-rarity posture). is_finite() is checked first so the `< 0` comparison

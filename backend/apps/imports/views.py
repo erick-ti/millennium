@@ -27,42 +27,42 @@ from apps.imports.sync import (
     run_import,
 )
 
-# Cap the synchronous upload's content size (slice 6, DECISIONS 2026-05-29). This bounds the
-# inline import's PARSE/PROCESS time and rejects an oversized file after receipt -- it does NOT
+# Cap the synchronous upload's content size. This bounds the
+# inline import's PARSE/PROCESS time and rejects an oversized file after receipt, but it does NOT
 # bound receive-side memory: the parser has already buffered the whole body by the time create()
 # runs, so a true receive guard would be a front-proxy body limit. A full personal DS export is a
 # few thousand rows / well under a MB, so 10 MB is generous headroom. The file part is exempt from
 # DATA_UPLOAD_MAX_MEMORY_SIZE (that governs non-file form fields). NOTE: this cap must stay BELOW
 # the frontend's Next proxy buffer (experimental.proxyClientMaxBodySize, currently 20 MB in
-# next.config.ts) so the proxy never silently truncates a file this endpoint would accept -- the
-# proxy forwards an over-buffer body as a truncated prefix with no error (Codex review 2026-05-30).
+# next.config.ts) so the proxy never silently truncates a file this endpoint would accept: the
+# proxy forwards an over-buffer body as a truncated prefix with no error.
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
-# Bound the synchronous import by ROW COUNT, not just bytes (Codex review 2026-05-30). The byte
+# Bound the synchronous import by ROW COUNT, not just bytes. The byte
 # cap doesn't bound the per-row DB work / request duration, and run_import runs inline in the
 # request, so a pathologically large export could outlast a worker/proxy timeout and leave a
-# stuck PROCESSING batch. Sized to the request timeout it must fit, MEASURED (adversarial
-# review 2026-06-12): a worst-case all-materialize import runs ~4.4ms/row against local
+# stuck PROCESSING batch. Sized to the request timeout it must fit, MEASURED:
+# a worst-case all-materialize import runs ~4.4ms/row against local
 # Postgres (50k rows = 218s, far past gunicorn's --timeout 120 in the prod image), so 10k
-# ≈ 44s local / est. ≤100s over Railway private networking — inside 120s with margin. A real
+# is about 44s local, estimated up to 100s over private networking between services, inside 120s with margin. A real
 # personal collection is a few thousand rows, so 10k still clears any plausible export 3-5x
 # over; a larger collection splits across files safely (per-holding re-import dedup ratchets).
-# Enforced at the HTTP boundary only -- the management command imports a trusted local file and
+# Enforced at the HTTP boundary only, the management command imports a trusted local file and
 # is uncapped. Counted via newlines (a cheap upper bound: lines >= data rows).
 MAX_UPLOAD_ROWS = 10_000
 
 # The "needs a human" set is exactly the still-PENDING rows (== ImportRow.needs_review): a
-# pending row is one the auto-path couldn't finish — a sub-EXACT match, a freshness-gated EXACT
-# row, OR a changed-duplicate cost conflict (the last two are PENDING *with* EXACT confidence, so
-# a `PENDING && != EXACT` rule would silently hide the conflict — see ImportRow.needs_review,
-# DECISIONS 2026-05-27 round 2). Defined as the row-level Q here, mirrored relation-prefixed in
+# pending row is one the auto-path couldn't finish, whether a sub-EXACT match, a freshness-gated EXACT
+# row, or a changed-duplicate cost conflict (the last two are PENDING *with* EXACT confidence, so
+# a `PENDING && != EXACT` rule would silently hide the conflict; see ImportRow.needs_review).
+# Defined as the row-level Q here, mirrored relation-prefixed in
 # the count below; both express the same model-level rule.
 _NEEDS_REVIEW = Q(status=RowStatus.PENDING)
 
 
 def _with_row_counts(batches: QuerySet[ImportBatch]) -> QuerySet[ImportBatch]:
     """Annotate each batch with its derived per-status row counts (the model does not
-    denormalize them — DECISIONS 2026-05-25 slice 1). All counts are over the single ``rows``
+    denormalize them). All counts are over the single ``rows``
     reverse relation, so one LEFT JOIN, no aggregate multiplication. ``rows_needs_review`` equals
     ``rows_pending`` (a task-oriented alias for the review UI)."""
     return batches.annotate(
@@ -86,7 +86,7 @@ def _with_row_counts(batches: QuerySet[ImportBatch]) -> QuerySet[ImportBatch]:
 )
 class ImportBatchViewSet(viewsets.ReadOnlyModelViewSet[ImportBatch]):
     """Import history + upload. List/retrieve batches with derived per-status row counts, and
-    POST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import (slice 6). The review
+    POST a Dragon Shield CSV to ``/api/imports/batches/`` to run an import. The review
     surface acts on a batch's *rows* (``ImportRowViewSet``), never on batches directly. Defining
     ``create`` makes the router bind POST on the collection route (no separate mixin needed)."""
 
@@ -98,7 +98,7 @@ class ImportBatchViewSet(viewsets.ReadOnlyModelViewSet[ImportBatch]):
     def get_queryset(self) -> QuerySet[ImportBatch]:
         # Explicit order_by, not just Meta.ordering: the count annotations add a GROUP BY, which
         # flips QuerySet.ordered to False (Meta ordering still applies in SQL, but the paginator
-        # only trusts an explicit order_by) — without it DRF emits UnorderedObjectListWarning.
+        # only trusts an explicit order_by), so without it DRF emits UnorderedObjectListWarning.
         return _with_row_counts(ImportBatch.objects.all()).order_by("-created_at", "-id")
 
     def get_serializer_class(self) -> type[BaseSerializer[Any]]:
@@ -107,9 +107,9 @@ class ImportBatchViewSet(viewsets.ReadOnlyModelViewSet[ImportBatch]):
         return ImportBatchSerializer
 
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        """Upload a Dragon Shield CSV and run the import synchronously (DECISIONS 2026-05-29).
+        """Upload a Dragon Shield CSV and run the import synchronously.
 
-        Decode the file as utf-8-sig (mirroring the ``import_dragon_shield`` command — Excel
+        Decode the file as utf-8-sig (mirroring the ``import_dragon_shield`` command, since Excel
         "CSV UTF-8" saves prepend a BOM), hand the text to ``run_import``, and return the created
         batch with its derived row counts. A file that isn't a recognized DS export is **not** a
         request error: ``run_import`` records a FAILED ``ImportBatch`` (a durable history row), so
@@ -128,11 +128,11 @@ class ImportBatchViewSet(viewsets.ReadOnlyModelViewSet[ImportBatch]):
         except UnicodeDecodeError as exc:
             raise ValidationError({"file": ["file must be UTF-8-encoded text"]}) from exc
         # Reject by row count before the inline import runs, so a pathologically large file can't
-        # outlast the request worker mid-import. Counted with splitlines() — the SAME line
+        # outlast the request worker mid-import. Counted with splitlines(), the SAME line
         # semantics the parser uses (dragon_shield.parse_dragon_shield splitlines() then
-        # csv.DictReader) — NOT a bare "\n" count: a CR-delimited file has zero newlines but
-        # still parses into all its rows, which would bypass the cap entirely (Codex review
-        # 2026-06-12). The transient list is bounded by MAX_UPLOAD_BYTES and is exactly what
+        # csv.DictReader), NOT a bare "\n" count: a CR-delimited file has zero newlines but
+        # still parses into all its rows, which would bypass the cap entirely.
+        # The transient list is bounded by MAX_UPLOAD_BYTES and is exactly what
         # the parser would allocate for an accepted file anyway.
         if len(content.splitlines()) > MAX_UPLOAD_ROWS:
             raise ValidationError(
@@ -140,7 +140,7 @@ class ImportBatchViewSet(viewsets.ReadOnlyModelViewSet[ImportBatch]):
             )
         # original_filename is CharField(max_length=255); a crafted multipart filename can
         # exceed that and (on Postgres) would raise DataError inside run_import's first write,
-        # BEFORE the FAILED-batch audit row is created -- an unhandled 500 that breaks the
+        # BEFORE the FAILED-batch audit row is created, an unhandled 500 that breaks the
         # "durable batch record" contract. Truncate at the import boundary. (sqlite silently
         # ignores the column bound, so we truncate in app code rather than rely on the DB.)
         filename = upload.name[:255]
@@ -179,10 +179,10 @@ class ImportBatchViewSet(viewsets.ReadOnlyModelViewSet[ImportBatch]):
 )
 class ImportRowViewSet(viewsets.ReadOnlyModelViewSet[ImportRow]):
     """The review queue. List/filter staged rows (by ``batch`` / ``status`` /
-    ``match_confidence`` / ``needs_review`` — served by the ``(batch, status)`` index) and
+    ``match_confidence`` / ``needs_review``, served by the ``(batch, status)`` index) and
     resolve a PENDING one via three actions, all routed through ``apps.imports.sync`` so the
-    collection writes go through the single ``_materialize`` chokepoint (DECISIONS 2026-05-26
-    slice 4): ``approve`` materializes the row's matched printing, ``override`` re-points it at
+    collection writes go through the single ``_materialize`` chokepoint:
+    ``approve`` materializes the row's matched printing, ``override`` re-points it at
     a human-chosen printing, ``reject`` skips it."""
 
     serializer_class = ImportRowSerializer
@@ -193,7 +193,7 @@ class ImportRowViewSet(viewsets.ReadOnlyModelViewSet[ImportRow]):
         )
         # Query-param filtering is a `list`-only concern. get_object() (used by retrieve + the
         # detail actions) also runs the queryset through filter_queryset, so applying these
-        # there would let a stray ?status= 404 an approve/override/reject — guard on the action.
+        # there would let a stray ?status= 404 an approve/override/reject, so guard on the action.
         if self.action != "list":
             return qs
 
@@ -237,9 +237,9 @@ class ImportRowViewSet(viewsets.ReadOnlyModelViewSet[ImportRow]):
     @action(detail=True, methods=["post"])
     def approve(self, request: Request, pk: str | None = None) -> Response:
         """Materialize the row through ``_materialize``, overriding the auto-materialization
-        freshness gate (the reviewer is the human attention that gate proxies for — DECISIONS
-        2026-05-27). 200 with the updated row on MATERIALIZED/SKIPPED; 409 when the holding was
-        already imported with a different quantity/cost/date (the row stays PENDING — the API
+        freshness gate (the reviewer is the human attention that gate proxies for).
+        200 with the updated row on MATERIALIZED/SKIPPED; 409 when the holding was
+        already imported with a different quantity/cost/date (the row stays PENDING, the API
         surfaces the conflict rather than overwriting cost basis); 400 if the row isn't an
         approvable PENDING row with a matched printing."""
         row = self.get_object()

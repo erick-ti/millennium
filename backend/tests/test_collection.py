@@ -75,7 +75,7 @@ def test_collection_item_natural_key_is_unique() -> None:
 @pytest.mark.django_db
 def test_differs_by_one_key_field_is_a_distinct_holding() -> None:
     """Same printing/condition/language/portfolio but a different edition is a
-    separate holding, not a duplicate — edition is part of the identity."""
+    separate holding, not a duplicate: edition is part of the identity."""
     printing = _printing()
     portfolio = Portfolio.objects.create(name="Yubel Deck")
     common = dict(
@@ -92,7 +92,7 @@ def test_differs_by_one_key_field_is_a_distinct_holding() -> None:
 
 @pytest.mark.django_db
 def test_deleting_referenced_printing_is_protected() -> None:
-    """printing FK is PROTECT — a stray printing delete must not wipe holdings."""
+    """printing FK is PROTECT: a stray printing delete must not wipe holdings."""
     printing = _printing()
     portfolio = Portfolio.objects.create(name="Yubel Deck")
     CollectionItem.objects.create(
@@ -109,7 +109,7 @@ def test_deleting_referenced_printing_is_protected() -> None:
 
 @pytest.mark.django_db
 def test_deleting_referenced_portfolio_is_protected() -> None:
-    """portfolio FK is PROTECT — deleting a portfolio with holdings is blocked."""
+    """portfolio FK is PROTECT: deleting a portfolio with holdings is blocked."""
     printing = _printing()
     portfolio = Portfolio.objects.create(name="Yubel Deck")
     CollectionItem.objects.create(
@@ -126,7 +126,7 @@ def test_deleting_referenced_portfolio_is_protected() -> None:
 
 @pytest.mark.django_db
 def test_deleting_storage_location_nulls_the_holding() -> None:
-    """storage_location FK is SET_NULL — the holding survives, just unlocated."""
+    """storage_location FK is SET_NULL: the holding survives, just unlocated."""
     printing = _printing()
     portfolio = Portfolio.objects.create(name="Yubel Deck")
     location = StorageLocation.objects.create(name="Deck box #2")
@@ -147,11 +147,11 @@ def test_deleting_storage_location_nulls_the_holding() -> None:
 
 @pytest.mark.django_db
 def test_storage_location_is_not_part_of_identity() -> None:
-    """Intentional scope limit (DECISIONS 2026-05-18): storage_location is a
-    holding-level annotation, not part of the natural key — so the SAME holding
-    can't be split across two locations; the second insert collides. Per-copy /
-    slot placement is deferred to a future allocation layer (after collection_lots,
-    which it would reconcile against)."""
+    """Intentional scope limit: storage_location is a holding-level annotation,
+    not part of the natural key, so the SAME holding can't be split across two
+    locations; the second insert collides. Per-copy / slot placement is deferred
+    to a future allocation layer (after collection_lots, which it would
+    reconcile against)."""
     printing = _printing()
     portfolio = Portfolio.objects.create(name="Yubel Deck")
     binder = StorageLocation.objects.create(name="Binder A")
@@ -268,7 +268,7 @@ def test_lots_sum_to_the_holding_quantity() -> None:
 
 @pytest.mark.django_db
 def test_deleting_holding_cascades_its_lots() -> None:
-    """collection_item FK is CASCADE — a lot is part of its holding, so deleting
+    """collection_item FK is CASCADE: a lot is part of its holding, so deleting
     the holding takes its acquisition events with it."""
     item = _collection_item()
     CollectionLot.objects.create(collection_item=item, quantity=1)
@@ -283,7 +283,7 @@ def test_lots_do_not_weaken_upstream_protect() -> None:
     """Cost basis on lots is shielded from accidental loss: even with lots
     present, the holding's printing FK is still PROTECT, so an upstream printing
     delete can't cascade through to wipe the lots (the reason CASCADE here is
-    safe — nothing cascades *into* a CollectionItem)."""
+    safe: nothing cascades *into* a CollectionItem)."""
     item = _collection_item()
     CollectionLot.objects.create(collection_item=item, quantity=1, unit_cost=Decimal("4.50"))
 
@@ -293,7 +293,7 @@ def test_lots_do_not_weaken_upstream_protect() -> None:
 
 @pytest.mark.django_db
 def test_quantity_zero_rejected_by_db() -> None:
-    """CHECK quantity > 0 — PositiveIntegerField only adds a form-layer validator,
+    """CHECK quantity > 0: PositiveIntegerField only adds a form-layer validator,
     so the DB CHECK is what rejects a zero-copy lot created via .create()
     (enforced on sqlite and Postgres alike)."""
     item = _collection_item()
@@ -304,7 +304,7 @@ def test_quantity_zero_rejected_by_db() -> None:
 
 @pytest.mark.django_db
 def test_negative_unit_cost_rejected_by_db() -> None:
-    """CHECK unit_cost IS NULL OR >= 0 — cost basis is never negative."""
+    """CHECK unit_cost IS NULL OR >= 0: cost basis is never negative."""
     item = _collection_item()
 
     with pytest.raises(IntegrityError), transaction.atomic():
@@ -314,7 +314,7 @@ def test_negative_unit_cost_rejected_by_db() -> None:
 @pytest.mark.django_db
 def test_unit_cost_unknown_and_free_are_both_allowed() -> None:
     """NULL unit_cost means "cost unknown"; 0.00 means "free". Both are valid and
-    distinct — the reason unit_cost is nullable rather than defaulting to 0."""
+    distinct: the reason unit_cost is nullable rather than defaulting to 0."""
     item = _collection_item()
     unknown = CollectionLot.objects.create(collection_item=item, quantity=1, unit_cost=None)
     free = CollectionLot.objects.create(collection_item=item, quantity=1, unit_cost=Decimal("0.00"))
@@ -325,7 +325,7 @@ def test_unit_cost_unknown_and_free_are_both_allowed() -> None:
 
 @pytest.mark.django_db
 def test_acquired_at_is_optional() -> None:
-    """acquired_at is nullable — an acquisition with an unknown date is allowed."""
+    """acquired_at is nullable: an acquisition with an unknown date is allowed."""
     item = _collection_item()
     lot = CollectionLot.objects.create(collection_item=item, quantity=1, acquired_at=None)
 
@@ -334,10 +334,10 @@ def test_acquired_at_is_optional() -> None:
 
 @pytest.mark.django_db
 def test_one_lot_per_item_and_import_source_ref() -> None:
-    """UNIQUE(collection_item, import_source_ref) — at most one import-sourced lot per
-    holding per source key, the DB backstop for the Phase 3 per-holding re-import dedup
-    (DECISIONS 2026-05-26 slice 4). A plain UNIQUE over a nullable column is created on
-    sqlite too, so `make test` exercises it."""
+    """UNIQUE(collection_item, import_source_ref): at most one import-sourced lot per
+    holding per source key, the DB backstop for the per-holding re-import dedup used
+    by the Dragon Shield CSV import. A plain UNIQUE over a nullable column is created
+    on sqlite too, so `make test` exercises it."""
     item = _collection_item()
     CollectionLot.objects.create(
         collection_item=item, quantity=3, import_source_ref="dragon_shield:item:1"
@@ -362,7 +362,7 @@ def test_multiple_lots_with_null_import_source_ref_allowed() -> None:
 
 @pytest.mark.django_db
 def test_same_import_source_ref_allowed_across_different_items() -> None:
-    """Uniqueness is scoped to a holding — the same ref string under two different
+    """Uniqueness is scoped to a holding: the same ref string under two different
     holdings is fine (refs are per-item-derived, so this can't actually collide, but
     the constraint must not over-reject)."""
     item_a = _collection_item()
@@ -393,7 +393,7 @@ def test_collection_lot_str() -> None:
 def test_lot_default_ordering_is_deterministic_and_nulls_last() -> None:
     """Default order is chronological with `id` as a stable same-date tiebreaker and
     unknown-date lots last. nulls_last is explicit so sqlite (NULLs-first by default)
-    and Postgres (NULLs-last) agree — otherwise undated lots sort to opposite ends
+    and Postgres (NULLs-last) agree, otherwise undated lots sort to opposite ends
     per backend and same-date lots come back in arbitrary order."""
     item = _collection_item()
     older = CollectionLot.objects.create(collection_item=item, quantity=1, acquired_at=date(2023, 6, 1))

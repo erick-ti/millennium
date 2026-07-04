@@ -10,8 +10,7 @@ from apps.cards.sync import run_ygoprodeck_sync
 
 @shared_task(name="cards.sync_ygoprodeck_metadata")
 def sync_ygoprodeck_metadata() -> dict[str, Any]:
-    """Celery entry point for the daily YGOPRODeck metadata sync (DECISIONS 2026-05-24
-    slice 3).
+    """Celery entry point for the daily YGOPRODeck metadata sync.
 
     A thin wrapper: the cardinality guard and the ``SyncRun`` recording live in
     ``run_ygoprodeck_sync``, shared with the management command. Returns the per-run

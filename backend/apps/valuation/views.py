@@ -45,11 +45,11 @@ from apps.valuation.serializers import MoverRowSerializer
     ),
 )
 class MoversViewSet(mixins.ListModelMixin, viewsets.GenericViewSet[Any]):
-    """Read-only "biggest movers" analytics (DECISIONS 2026-05-31): each owned
+    """Read-only "biggest movers" analytics: each owned
     ``(printing, edition)``'s price change over a selectable window. Rows are
     computed from the valuation engine's usable-price helpers across two date
     anchors (today and today - window), scoped to currently-held holdings, then
-    server-ordered (the ``?ordering=`` allowlist) and paginated — like every other
+    server-ordered (the ``?ordering=`` allowlist) and paginated, like every other
     list endpoint. Inherits the global ``IsAuthenticated`` + ``PageNumberPagination``."""
 
     serializer_class = MoverRowSerializer
@@ -71,12 +71,12 @@ class MoversViewSet(mixins.ListModelMixin, viewsets.GenericViewSet[Any]):
         return raw
 
     # Not a real QuerySet: movers are computed cross-model from two price anchors,
-    # reusing the engine's usable-price helpers (which return Python dicts —
+    # reusing the engine's usable-price helpers (which return Python dicts;
     # re-deriving them in ORM annotations would reintroduce the high-only-masks-usable
-    # bug, DECISIONS 2026-05-25). ListModelMixin paginates + serializes this list, and
+    # bug). ListModelMixin paginates + serializes this list, and
     # drf-spectacular still emits the standard paginated envelope from serializer_class
     # + the pagination class. Params are validated here so an unknown window/ordering
-    # 400s (the manual param-validation idiom; the list-only nature is implicit — this
+    # 400s (the manual param-validation idiom; the list-only nature is implicit, this
     # viewset has only the list action).
     def get_queryset(self) -> list[MoverRow]:  # type: ignore[override]
         return order_rows(

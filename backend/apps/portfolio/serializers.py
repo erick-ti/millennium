@@ -9,10 +9,10 @@ from apps.portfolio.models import Portfolio, PortfolioValueSnapshot
 
 
 class PortfolioValueSnapshotSerializer(serializers.ModelSerializer[PortfolioValueSnapshot]):
-    """Append-only daily valuation row (DECISIONS 2026-05-22).
+    """Append-only daily valuation row.
 
-    ``unrealized_gain`` is nullable — NULL means partial coverage and the difference
-    of two different subsets isn't a gain (DECISIONS 2026-05-25 slice 4a). The three
+    ``unrealized_gain`` is nullable: NULL means partial coverage, and the difference
+    of two different subsets isn't a gain. The three
     coverage counts say how much of the portfolio each total covers; the derived
     ``*_complete`` / ``is_complete`` flags read off the model properties (so they
     can't drift from the counts). Consumers must handle NULL ``unrealized_gain``.
@@ -46,12 +46,12 @@ class PortfolioValueSnapshotSerializer(serializers.ModelSerializer[PortfolioValu
 
 class PortfolioSerializer(serializers.ModelSerializer[Portfolio]):
     """A portfolio + its latest ``PortfolioValueSnapshot`` inline (NULL when a
-    portfolio has never been valued). Slice 5's portfolio summary shows
+    portfolio has never been valued). The portfolio summary shows
     today's value at a glance without a second round-trip; the value-history
     chart consumes ``/api/portfolio/snapshots/?portfolio=&from=&to=``.
 
-    N+1 risk on list is bounded by portfolio count (single digits in practice
-    — Yubel Deck, Long-term hold, etc.). If portfolios ever scale, switch this
+    N+1 risk on list is bounded by portfolio count (single digits in practice,
+    e.g. Yubel Deck, Long-term hold). If portfolios ever scale, switch this
     to a correlated subquery / prefetched-singleton.
     """
 
@@ -62,15 +62,14 @@ class PortfolioSerializer(serializers.ModelSerializer[Portfolio]):
         fields = ["id", "name", "latest_snapshot"]
 
     # Pass an INSTANCE with allow_null=True (not the class) so drf-spectacular
-    # marks the schema field nullable — without this, the SerializerMethodField's
+    # marks the schema field nullable. Without this, the SerializerMethodField's
     # documented `None` return on never-valued portfolios is hidden from the
     # OpenAPI contract and the generated TS client types it as non-null, so a
-    # slice-5 UI dereferencing `portfolio.latest_snapshot.market_value` crashes
-    # at runtime against a first-import-before-04:00-beat portfolio (Codex
-    # adversarial review of slice 2, round 1, 2026-05-27).
+    # UI dereferencing `portfolio.latest_snapshot.market_value` crashes
+    # at runtime against a first-import-before-04:00-beat portfolio.
     @extend_schema_field(PortfolioValueSnapshotSerializer(allow_null=True))
     def get_latest_snapshot(self, obj: Portfolio) -> dict[str, Any] | None:
-        # (portfolio, snapshot_date) is unique so a single -snapshot_date order
+        # (portfolio, snapshot_date) is unique, so a single -snapshot_date order
         # is fully deterministic with no tiebreaker.
         snapshot = obj.value_snapshots.order_by("-snapshot_date").first()
         if snapshot is None:

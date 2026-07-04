@@ -30,32 +30,31 @@ class SyncStatus(models.TextChoices):
 
 
 class SyncRun(TimeStampedModel):
-    """Append-only record of one metadata/pricing sync run — the per-sync history
-    backing the compare-to-previous cardinality guard (DECISIONS 2026-05-24 slice 3:
-    round-4 recurring-safety prerequisite #2).
+    """Append-only record of one metadata/pricing sync run, the per-sync history
+    backing the compare-to-previous cardinality guard.
 
     Each daily sync writes one row at completion: SUCCESS with the run's fetch
     cardinality, or FAILED with the error (e.g. the truncation-guard message). Before
     a run, the orchestration reads the latest SUCCESS row of its kind and raises the
     provider's fetch floor to ``last_good * (1 - tolerance)``, so an unexpectedly
     shrunken bulk dump is rejected before any write. A rejected run records FAILED,
-    never SUCCESS, so a bad fetch can't become the next run's baseline — the floor
+    never SUCCESS, so a bad fetch can't become the next run's baseline: the floor
     tracks the last-good high-water mark.
 
     Append-only (the ``PriceSnapshot`` posture): inserted, never updated; the admin
     blocks edit/delete. Chosen over a cache-backed baseline because a cache fails
-    *open* on eviction/flush (Redis has no persistence here) — silently disabling the
-    guard, the exact failure it exists to catch — and a model doubles as the run
+    *open* on eviction/flush (Redis has no persistence here), silently disabling the
+    guard, the exact failure it exists to catch, and a model doubles as the run
     audit trail the deferred coverage-collapse alerting will build on.
     """
 
     kind = models.CharField(max_length=32, choices=SyncKind.choices)
     status = models.CharField(max_length=16, choices=SyncStatus.choices)
-    # Fetch cardinality, by dimension. Which apply depends on `kind` — metadata fills
-    # card/printing counts, pricing fills product/price-row counts — so each is nullable
+    # Fetch cardinality, by dimension. Which apply depends on `kind`: metadata fills
+    # card/printing counts, pricing fills product/price-row counts, so each is nullable
     # and the other kind's (and a pre-fetch failure's) are left NULL. The guard reads
     # only the dimension relevant to a kind off its latest SUCCESS row. (Archetype
-    # coverage is per-run telemetry kept in `detail`, not a guarded count dimension —
+    # coverage is per-run telemetry kept in `detail`, not a guarded count dimension;
     # the Phase 5 archetype guard reads the live tagged set, not a SyncRun baseline.)
     card_count = models.PositiveIntegerField(null=True, blank=True)
     printing_count = models.PositiveIntegerField(null=True, blank=True)
@@ -71,7 +70,7 @@ class SyncRun(TimeStampedModel):
         # Most-recent-first within a kind; the guard's lookup is the latest SUCCESS of
         # a kind, served by the index below. `-id` is a stable tiebreaker so "latest"
         # is deterministic even if two runs share a created_at (the CollectionLot
-        # ordering lesson, DECISIONS 2026-05-22) — id is monotonic with insertion.
+        # ordering lesson): id is monotonic with insertion.
         ordering = ["kind", "-created_at", "-id"]
         constraints = [
             # Closed-vocabulary guards (the PriceSnapshot/CollectionItem precedent):

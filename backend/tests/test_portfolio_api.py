@@ -73,7 +73,7 @@ def test_portfolio_list_inlines_latest_snapshot(client: APIClient) -> None:
     assert resp.status_code == status.HTTP_200_OK
     [row] = resp.data["results"]
     assert row["name"] == "Yubel Deck"
-    # Latest = -snapshot_date.first() — Jan 15, not Jan 14.
+    # Latest = -snapshot_date.first(), Jan 15, not Jan 14.
     assert row["latest_snapshot"]["id"] == latest.id
     assert row["latest_snapshot"]["snapshot_date"] == "2026-01-15"
 
@@ -81,7 +81,7 @@ def test_portfolio_list_inlines_latest_snapshot(client: APIClient) -> None:
 @pytest.mark.django_db
 def test_portfolio_without_snapshot_returns_null_latest(client: APIClient) -> None:
     """A freshly-created portfolio (e.g. from a DS import that ran before the next
-    04:00 UTC valuation beat) has no snapshot — the inline field is NULL, not omitted."""
+    04:00 UTC valuation beat) has no snapshot, so the inline field is NULL, not omitted."""
     Portfolio.objects.create(name="New Deck")
 
     resp = client.get(reverse("portfolio:portfolio-list"))
@@ -106,12 +106,12 @@ def test_portfolio_detail_carries_latest_snapshot(client: APIClient) -> None:
 
 @pytest.mark.django_db
 def test_snapshot_partial_coverage_serializes_null_unrealized_gain(client: APIClient) -> None:
-    """Partial coverage → ``unrealized_gain`` is NULL, ``is_complete`` is False
-    (DECISIONS 2026-05-25 slice 4a). Consumers must handle NULL distinctly from 0."""
+    """Partial coverage means ``unrealized_gain`` is NULL and ``is_complete`` is False.
+    Consumers must handle NULL distinctly from 0."""
     portfolio = Portfolio.objects.create(name="Yubel Deck")
     _snapshot(
         portfolio,
-        # 10 cards owned, 7 priced, 5 costed — partial on both sides.
+        # 10 cards owned, 7 priced, 5 costed: partial on both sides.
         total=10,
         priced=7,
         costed=5,

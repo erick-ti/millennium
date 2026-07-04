@@ -127,7 +127,7 @@ def test_run_tcgcsv_sync_failure_records_failed_and_reraises(monkeypatch: pytest
 def test_run_tcgcsv_sync_skips_when_lock_held(monkeypatch: pytest.MonkeyPatch) -> None:
     """If another run holds the advisory lock, this one skips: returns None, touches
     nothing, and records no SyncRun (it never ran) -- so concurrent invocations can't
-    race the single-writer reconcile paths (adversarial-review F2)."""
+    race the single-writer reconcile paths."""
 
     @contextmanager
     def _held(_kind: object) -> Iterator[bool]:

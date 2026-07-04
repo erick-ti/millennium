@@ -8,9 +8,9 @@ from apps.core.models import TimeStampedModel
 class SourceFormat(models.TextChoices):
     """The source application / CSV layout an import came from.
 
-    Only Dragon Shield is implemented in Phase 3 (the best YGO scanner — BRAINDUMP
-    competitive landscape). The column anchors the multi-format intent (TCGplayer and
-    a manual-mapped CSV are documented future formats), but like the single-value
+    Only Dragon Shield is implemented in Phase 3 (the best YGO scanner). The column
+    anchors the multi-format intent (TCGplayer and a manual-mapped CSV are documented
+    future formats), but like the single-value
     ``Provider`` / ``MetadataSource`` enums it carries only the value a parser emits
     today: adding a format is a ``TextChoices`` edit *plus* a migration to widen the
     CHECK below (the closed-enum gotcha), so the vocabulary stays honest to what runs.
@@ -34,13 +34,13 @@ class ImportStatus(models.TextChoices):
 
 
 class ImportBatch(TimeStampedModel):
-    """One uploaded CSV import — the parent of its parsed ``ImportRow`` rows.
+    """One uploaded CSV import, the parent of its parsed ``ImportRow`` rows.
 
     A *mutable* work record (not append-only like ``SyncRun``): ``status`` advances as
     the pipeline processes the batch, so ``updated_at`` is meaningful. Per-status row
-    counts are deliberately NOT denormalized here — a batch summary ("12 matched, 3
+    counts are deliberately NOT denormalized here: a batch summary ("12 matched, 3
     need review") is derived by aggregating child rows (the project's "annotate via
-    SQL; denormalize only after profiling" discipline, BRAINDUMP quantity rule), so it
+    SQL; denormalize only after profiling" discipline), so it
     can't drift from the rows it counts.
     """
 
@@ -49,7 +49,7 @@ class ImportBatch(TimeStampedModel):
         max_length=16, choices=ImportStatus.choices, default=ImportStatus.PENDING
     )
     original_filename = models.CharField(max_length=255)
-    # Batch-level failure reason (blank unless status=FAILED) — e.g. an unrecognized
+    # Batch-level failure reason (blank unless status=FAILED), e.g. an unrecognized
     # header row. Per-row parse/match failures live on ``ImportRow.error_message``.
     error = models.TextField(blank=True, default="")
 
@@ -58,7 +58,7 @@ class ImportBatch(TimeStampedModel):
         constraints = [
             # Closed-vocabulary guards: `choices` is form-layer validation only, so
             # guard each enum at the DB on every backend (the SyncRun / PriceSnapshot
-            # precedent) — `.create()` / bulk paths would otherwise persist anything.
+            # precedent): `.create()` / bulk paths would otherwise persist anything.
             models.CheckConstraint(
                 condition=models.Q(source_format__in=SourceFormat.values),
                 name="import_batch_source_format_valid",
@@ -77,7 +77,7 @@ class ImportBatch(TimeStampedModel):
 
 
 class MatchConfidence(models.TextChoices):
-    """How sure the matching engine (slice 3) is of a row's resolved printing — a
+    """How sure the matching engine (slice 3) is of a row's resolved printing, a
     *tier*, not a numeric score, so the review queue filters by band and the
     materialization-approval policy (slice 4) reads the tier to decide which rows
     auto-commit vs await review. ``UNMATCHED`` means the matcher found no printing.
@@ -91,15 +91,15 @@ class MatchConfidence(models.TextChoices):
 
 
 class RowStatus(models.TextChoices):
-    """A row's position in the pipeline — orthogonal to match *quality* (which lives
+    """A row's position in the pipeline, orthogonal to match *quality* (which lives
     on ``match_confidence``). ``PENDING`` spans a freshly parsed row through to one
     awaiting materialization or review; ``MATERIALIZED`` once it becomes a
     collection_item + lot; ``SKIPPED`` when deduplicated on re-import or human-
     rejected; ``ERROR`` when parsing / normalization failed (``error_message`` says
-    why). The "needs review" set is *derived* — every still-PENDING row (the
+    why). The "needs review" set is *derived*: every still-PENDING row (the
     ``needs_review`` property); ``match_confidence`` / ``error_message`` say *why* a row is
-    pending — not a distinct status, so it can't drift. (The original "PENDING + sub-EXACT"
-    framing hid changed-duplicate EXACT conflicts; DECISIONS 2026-05-27 round 2.)
+    pending, not a distinct status, so it can't drift. (The original "PENDING + sub-EXACT"
+    framing hid changed-duplicate EXACT conflicts.)
     """
 
     PENDING = "pending", "Pending"
@@ -109,31 +109,30 @@ class RowStatus(models.TextChoices):
 
 
 class ImportRow(TimeStampedModel):
-    """One data row from an imported CSV — staging for the parse -> normalize -> match
+    """One data row from an imported CSV, staging for the parse -> normalize -> match
     -> materialize pipeline.
 
     ``raw_data`` preserves the original row verbatim (header -> value) so it can be
-    re-normalized / re-matched when the logic improves (BRAINDUMP "raw data
-    preservation"). ``normalized_data`` holds the mapped fields (stripped set_code,
-    canonical rarity, edition / condition / language slugs, quantity, unit_cost, date,
-    folder) as JSON rather than typed columns: a row is pre-validation staging that
-    must be able to *hold* un-mappable values for a human to fix, and typed CHECK
-    columns would reject exactly the dirty input the review queue exists to triage.
-    The resolved match, by contrast, IS typed — ``matched_printing`` + a confidence
-    tier + status — the single best match the engine picks; a human overrides it via
-    the review API (slice 5).
+    re-normalized / re-matched when the logic improves. ``normalized_data`` holds the
+    mapped fields (stripped set_code, canonical rarity, edition / condition / language
+    slugs, quantity, unit_cost, date, folder) as JSON rather than typed columns: a row
+    is pre-validation staging that must be able to *hold* un-mappable values for a
+    human to fix, and typed CHECK columns would reject exactly the dirty input the
+    review queue exists to triage. The resolved match, by contrast, IS typed:
+    ``matched_printing`` + a confidence tier + status, the single best match the
+    engine picks; a human overrides it via the review API (slice 5).
 
     ``matched_printing`` is ``SET_NULL``: a re-derivable soft pointer (re-run the
     matcher), so deleting a printing isn't blocked by stale staging rows. SET_NULL
     nulls the FK but does NOT reset ``match_confidence`` (the FK collector bypasses
     ``save()``), so a deleted-printing row can read ``matched_printing=NULL`` beside a
-    now-stale tier. ``matched_printing`` is therefore the *authoritative* match signal —
-    confidence is only a quality tier *of* a present match, meaningless without one —
+    now-stale tier. ``matched_printing`` is therefore the *authoritative* match signal,
+    confidence is only a quality tier *of* a present match, meaningless without one,
     so the matcher / materializer (slices 3-4) treat a NULL printing as unmatched
     regardless of the stale tier, and a re-match overwrites both. (PROTECT is wrong
     here: staging must not block printing cleanup. A DB CHECK tying the two is wrong
     too: on a printing delete it would make the DELETE fail rather than null the
-    pointer — worse than a stale tier consumers already ignore.) This mirrors
+    pointer, worse than a stale tier consumers already ignore.) This mirrors
     ``CollectionItem.storage_location`` (an optional annotation) and contrasts with the
     ``PROTECT`` FKs that guard real, non-re-derivable downstream data. The ``batch`` FK
     is ``CASCADE``: rows are composition of their batch.
@@ -144,7 +143,7 @@ class ImportRow(TimeStampedModel):
     # reporting. Unique within a batch (one row per source line).
     row_number = models.PositiveIntegerField()
     raw_data = models.JSONField()
-    # NULL until the normalization step runs (slice 2) — distinct from {} ("normalized
+    # NULL until the normalization step runs (slice 2), distinct from {} ("normalized
     # to nothing", which would be meaningless).
     normalized_data = models.JSONField(null=True, blank=True)
     # The single best printing the matcher resolved (slice 3); NULL while unmatched.
@@ -193,15 +192,15 @@ class ImportRow(TimeStampedModel):
 
     @property
     def needs_review(self) -> bool:
-        """True while the row is still PENDING — the canonical "a human (or a re-sync) must act
+        """True while the row is still PENDING, the canonical "a human (or a re-sync) must act
         on this" signal the review API derives from. Every reason ``run_import`` leaves a row
         PENDING qualifies: a sub-EXACT match (MEDIUM/UNMATCHED), a freshness-gated EXACT row, OR
         a changed-duplicate cost conflict (the holding was re-imported with a different
         quantity/cost/date). The last two are PENDING **with** ``match_confidence=EXACT``, so a
         ``PENDING && confidence != EXACT`` rule would silently drop them from the review surface
         (the changed-duplicate conflict in particular needs a human decision and re-approving
-        just 409s) — keying purely on PENDING can't. ``match_confidence`` / ``error_message`` say
+        just 409s): keying purely on PENDING can't. ``match_confidence`` / ``error_message`` say
         *why* a row is pending; this flag only says it is still open. Defined once here as the
         single source of truth the serialized flag, the ``?needs_review`` filter, and the
-        ``rows_needs_review`` count all share, so they can't drift (DECISIONS 2026-05-27 round 2)."""
+        ``rows_needs_review`` count all share, so they can't drift."""
         return self.status == RowStatus.PENDING

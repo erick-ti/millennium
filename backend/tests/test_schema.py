@@ -1,7 +1,7 @@
 """Schema-validation gate: ``drf-spectacular`` must generate a clean OpenAPI schema
 for the live URL tree, with no warnings. The frontend client (`@hey-api/openapi-ts`)
-is generated from this schema (DECISIONS 2026-05-27 Phase 4 slice 1), so a warning
-here would land in the generated client — a real regression, not a soft signal."""
+is generated from this schema, so a warning here would land in the generated client:
+a real regression, not a soft signal."""
 
 from __future__ import annotations
 
@@ -25,10 +25,9 @@ from rest_framework import serializers
 # (prod's backend). drf-spectacular derives a field's integer maximum/minimum/format from
 # connection.ops.integer_field_range: sqlite reports int64 for EVERY integer, postgres
 # reports true per-type ranges (smallint/int/bigint). So a sqlite-generated live schema
-# can't equal the postgres-generated snapshot — gate the exact-equality check on postgres
-# (the prod backend), the same posture nulls_distinct / advisory-lock tests take
-# (CLAUDE.md; DECISIONS 2026-05-27 slice 2 round 8). Nullability / clean-schema checks are
-# backend-independent and run everywhere.
+# can't equal the postgres-generated snapshot: gate the exact-equality check on postgres
+# (the prod backend), the same posture nulls_distinct / advisory-lock tests take.
+# Nullability / clean-schema checks are backend-independent and run everywhere.
 postgres_only = pytest.mark.skipif(
     connection.vendor != "postgresql",
     reason="integer field bounds in the schema are Postgres-specific; snapshot is generated under postgres",
@@ -57,7 +56,7 @@ def test_spectacular_generates_clean_schema() -> None:
 
 def _generate_schema() -> dict[str, Any]:
     """Build the OpenAPI schema in-process. Returns the same dict the
-    ``spectacular`` command would write to ``frontend/openapi.json`` — but
+    ``spectacular`` command would write to ``frontend/openapi.json``, but
     asserting against the LIVE URL conf, not the (potentially stale) committed
     snapshot, so a regression here fails before the snapshot is regenerated.
 
@@ -86,13 +85,13 @@ def _is_nullable(field_schema: dict[str, Any]) -> bool:
 @postgres_only
 def test_committed_openapi_snapshot_matches_live_schema() -> None:
     """The committed ``frontend/openapi.json`` is what the TS client is
-    generated from (DECISIONS 2026-05-27 Phase 4 slice 2). A serializer / view
-    change that doesn't trigger ``make frontend-snapshot-schema`` drifts the
-    snapshot from the live schema — backend tests + frontend build both still
-    pass while slice 3+ UI compiles against the stale contract.
+    generated from. A serializer / view change that doesn't trigger
+    ``make frontend-snapshot-schema`` drifts the snapshot from the live schema:
+    backend tests and frontend build both still pass while the UI compiles
+    against the stale contract.
 
-    This gates the schema → snapshot half of drift coverage. The client →
-    snapshot half is gated by the snapshot→client step in the required
+    This gates the schema to snapshot half of drift coverage. The client to
+    snapshot half is gated by the snapshot-to-client step in the required
     ``tests.yml`` job (regenerate the client + ``git status --porcelain`` on
     ``src/lib/api/generated/``). Both gates exist because they cover orthogonal
     failure modes: a dev who refreshes the snapshot but forgets
@@ -100,16 +99,15 @@ def test_committed_openapi_snapshot_matches_live_schema() -> None:
 
     Postgres-only: the snapshot is generated under ``test_postgres`` (prod's
     backend) for correct integer field bounds; on sqlite the live schema would
-    report int64 for every integer and never match (round 8). The required CI
-    ``tests`` job runs on postgres, so the gate is enforced there; ``make test``
-    (sqlite) skips it. Codex adversarial review of slice 2, round 2 (+ round 8),
-    2026-05-27.
+    report int64 for every integer and never match. The required CI ``tests``
+    job runs on postgres, so the gate is enforced there; ``make test``
+    (sqlite) skips it.
     """
     live = _generate_schema()
     snapshot_path = Path(settings.BASE_DIR).parent / "frontend" / "openapi.json"
     snapshot = json.loads(snapshot_path.read_text())
     assert live == snapshot, (
-        "frontend/openapi.json is stale relative to the live schema — run "
+        "frontend/openapi.json is stale relative to the live schema, run "
         "`make frontend-snapshot-schema && make frontend-gen-api` to refresh "
         "the committed contract, then commit the diff."
     )
@@ -153,7 +151,7 @@ def _component_name(serializer_cls: type[serializers.ModelSerializer[Any]]) -> s
 
 
 def test_explicit_serializer_fields_on_nullable_model_fields_carry_allow_null() -> None:
-    """Class-level gate for the bug class Codex caught in rounds 1 + 5: an
+    """Class-level gate for a bug class found during review: an
     EXPLICITLY-declared serializer field that backs a nullable model field
     defaults to a non-null OpenAPI contract unless the declaration carries
     ``allow_null=True``. ``ModelSerializer``'s auto-derivation reads
@@ -166,16 +164,16 @@ def test_explicit_serializer_fields_on_nullable_model_fields_carry_allow_null() 
     ``Meta.model``, asserts the schema component property is nullable iff the
     model field is. Edge cases (``source="related.attr"``, computed fields
     with no model backing, ``SerializerMethodField``) are skipped by the
-    ``FieldDoesNotExist`` branch — they fall through to per-site coverage
+    ``FieldDoesNotExist`` branch, and they fall through to per-site coverage
     (``test_portfolio_latest_snapshot_is_nullable_in_schema`` for the
     ``SerializerMethodField`` class) or are unaffected by this bug pattern.
 
     Anchored on STABLE APIs only: Django's ``model._meta.get_field()`` (stable
-    public API since Django 1.8) and the live schema dict. The R1 follow-up
-    rejected an automated gate as "introspection is brittle" — that concern
+    public API since Django 1.8) and the live schema dict. An earlier proposal
+    rejected an automated gate as "introspection is brittle", but that concern
     was valid for a drf-spectacular-internals path, NOT for a
-    ``model._meta``-anchored path. Sidesteps the brittleness entirely.
-    See DECISIONS 2026-05-27 round 5 (the R1 rejection is superseded).
+    ``model._meta``-anchored path. This implementation sidesteps the
+    brittleness entirely.
     """
     schema = _generate_schema()
     components = schema["components"]["schemas"]
@@ -208,9 +206,9 @@ def test_explicit_serializer_fields_on_nullable_model_fields_carry_allow_null() 
             # property is an array type, always present (possibly empty), NOT
             # nullable in the single-value sense. Django marks reverse FKs as
             # `null=True` in metadata, but the serializer field is `many=True`
-            # and the TS type is `T[]`, not `T | null` — so this whole check
+            # and the TS type is `T[]`, not `T | null`, so this whole check
             # doesn't apply. Skipping these is what keeps the auto-mapping
-            # accurate (the brittleness Feedback 1 warned about).
+            # accurate (the brittleness an earlier review warned about).
             if getattr(model_field, "one_to_many", False) or getattr(
                 model_field, "many_to_many", False
             ):
@@ -223,8 +221,7 @@ def test_explicit_serializer_fields_on_nullable_model_fields_carry_allow_null() 
                     f"{serializer_cls.__module__}.{serializer_cls.__name__}.{field_name} "
                     f"backs nullable {model.__name__}.{field_name} but the OpenAPI "
                     f"schema declares the property non-null. Add `allow_null=True` "
-                    f"to the field declaration. Same bug class as Codex slice 2 round 5; "
-                    f"property got: {prop!r}."
+                    f"to the field declaration. Property got: {prop!r}."
                 )
 
     assert not failures, (
@@ -238,18 +235,17 @@ def test_explicit_serializer_fields_on_nullable_model_fields_carry_allow_null() 
 def test_portfolio_latest_snapshot_is_nullable_in_schema() -> None:
     """``PortfolioSerializer.get_latest_snapshot`` returns ``None`` for
     never-valued portfolios (verified by ``test_portfolio_api.py::test_portfolio_
-    without_snapshot_returns_null_latest`` — a normal first-import-before-04:00-
+    without_snapshot_returns_null_latest``, a normal first-import-before-04:00-
     beat state). The OpenAPI contract MUST agree, or the generated TS client
     types ``latest_snapshot`` as non-null and the slice-5 portfolio UI
     runtime-crashes on dereference.
 
-    The trap is that ``@extend_schema_field(PortfolioValueSnapshotSerializer)``
-    — passing the *class* — declares the value type without nullability;
+    The trap is that ``@extend_schema_field(PortfolioValueSnapshotSerializer)``,
+    passing the *class*, declares the value type without nullability;
     ``PortfolioValueSnapshotSerializer(allow_null=True)`` (an *instance* with
     ``allow_null=True``) is the fix. Pinned here as a regression so any future
-    refactor that re-removes ``allow_null`` fails CI before the snapshot /
-    client are regenerated. Codex adversarial review of slice 2, round 1,
-    2026-05-27.
+    refactor that re-removes ``allow_null`` fails CI before the snapshot and
+    client are regenerated.
     """
     schema = _generate_schema()
     portfolio = schema["components"]["schemas"]["Portfolio"]
@@ -259,13 +255,13 @@ def test_portfolio_latest_snapshot_is_nullable_in_schema() -> None:
 
 def test_mover_row_nullable_fields_are_nullable_in_schema() -> None:
     """``MoverRowSerializer`` (Phase 5 "biggest movers") is a plain ``Serializer``,
-    not a ``ModelSerializer`` — so the class-level nullable-field gate above does
+    not a ``ModelSerializer``, so the class-level nullable-field gate above does
     NOT walk it. Its two nullable fields must therefore be pinned by hand: a
     sub-floor older-anchor base leaves ``pct_change`` null (the dollar move is still
-    real; DECISIONS 2026-05-31) and a no-variant printing has a null
+    real) and a no-variant printing has a null
     ``variant_label``. Without ``allow_null=True`` the generated TS client types
     them non-null and the /movers UI crashes on a normal null. Backend-independent
-    (a structural assertion), so it runs under ``make test`` too — unlike the
+    (a structural assertion), so it runs under ``make test`` too, unlike the
     @postgres_only snapshot-equality gate that's the only other coverage here."""
     schema = _generate_schema()
     mover = schema["components"]["schemas"]["MoverRow"]
@@ -277,12 +273,12 @@ def test_mover_row_nullable_fields_are_nullable_in_schema() -> None:
 def test_alert_event_variant_label_is_nullable_in_schema() -> None:
     """``AlertEventSerializer.variant_label`` uses ``source="printing.variant_label"``, so
     the class-level gate above SKIPS it (``AlertEvent._meta.get_field("variant_label")``
-    raises FieldDoesNotExist — the field lives on ``CardPrinting``). A no-variant printing
+    raises FieldDoesNotExist since the field lives on ``CardPrinting``). A no-variant printing
     has a null ``variant_label``, so the schema must declare it nullable or the generated TS
     client types it non-null and the /alerts feed crashes on a normal null. Pinned by hand
     here (the ``MoverRow.variant_label`` precedent) since the auto-gate can't reach it; only
-    ``allow_null=True`` on the serializer field otherwise protects it (Phase 5 slice 4
-    adversarial review, the Codex slice-2 round-5 bug class)."""
+    ``allow_null=True`` on the serializer field otherwise protects it (the same nullable-field
+    bug class covered above)."""
     schema = _generate_schema()
     event = schema["components"]["schemas"]["AlertEvent"]
     field = event["properties"]["variant_label"]
@@ -292,7 +288,7 @@ def test_alert_event_variant_label_is_nullable_in_schema() -> None:
 def test_deck_membership_variant_label_is_nullable_in_schema() -> None:
     """``DeckMembershipSerializer.variant_label`` uses
     ``source="collection_item.printing.variant_label"``, so the class-level gate SKIPS it
-    (``DeckMembership._meta.get_field("variant_label")`` raises FieldDoesNotExist — the
+    (``DeckMembership._meta.get_field("variant_label")`` raises FieldDoesNotExist since the
     field lives on ``CardPrinting``). A no-variant printing has a null ``variant_label``,
     so the schema must declare it nullable or the generated TS client types it non-null
     and the deck-detail member table crashes on a normal null. Pinned by hand here (the

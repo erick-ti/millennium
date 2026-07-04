@@ -15,8 +15,9 @@ from apps.cards.models import Card, CardPrinting
 
 @pytest.fixture
 def client() -> APIClient:
-    """An authenticated APIClient — every viewset inherits the DRF default
-    ``IsAuthenticated``, so anonymous calls 403 (the imports-API + Invariant 7 posture)."""
+    """An authenticated APIClient. Every viewset inherits the DRF default
+    ``IsAuthenticated``, so anonymous calls 403 (the same posture as the imports API
+    and the schema-permissions rule in invariant 7 in ARCHITECTURE.md)."""
     user = get_user_model().objects.create_user("reader", "r@example.com", "x")
     api = APIClient()
     api.force_authenticate(user=user)
@@ -153,10 +154,10 @@ def test_card_detail_returns_404_for_unknown(client: APIClient) -> None:
 
 @pytest.mark.django_db
 def test_printing_list_surfaces_is_multi_variant(client: APIClient) -> None:
-    """``is_multi_variant`` flags an ambiguous placeholder (DECISIONS 2026-05-24);
-    the matcher uses this to downgrade EXACT→MEDIUM/review and slice 6's UI
-    surfaces it. Confirm the flat endpoint exposes it so a slice-4 card-detail view
-    can warn the user about a multi-variant generic row."""
+    """``is_multi_variant`` flags an ambiguous placeholder. The matcher uses this
+    to downgrade EXACT to MEDIUM/review and the import UI surfaces it. Confirm the
+    flat endpoint exposes it so a card-detail view can warn the user about a
+    multi-variant generic row."""
     card = _card()
     _printing(card, set_code="A", set_rarity="Common", is_multi_variant=False)
     _printing(card, set_code="B", set_rarity="Common", is_multi_variant=True)
@@ -209,8 +210,8 @@ def test_printing_detail_carries_card_name(client: APIClient) -> None:
 
 @pytest.mark.django_db
 def test_printing_detail_ignores_query_param_filters(client: APIClient) -> None:
-    """Detail actions must not run query-param filtering — a stray ?card= shouldn't 404
-    a retrieve via filter_queryset (the imports slice-5 lesson)."""
+    """Detail actions must not run query-param filtering: a stray ?card= shouldn't 404
+    a retrieve via filter_queryset (the same lesson learned on the imports API)."""
     card = _card()
     printing = _printing(card)
     other = _card(name="Other", passcode=99999999)
@@ -226,7 +227,7 @@ def test_printing_detail_ignores_query_param_filters(client: APIClient) -> None:
 
 @pytest.mark.django_db
 def test_card_list_search_filters_by_name_case_insensitively(client: APIClient) -> None:
-    """?search= is a case-insensitive substring on name — the override picker finds a card
+    """?search= is a case-insensitive substring on name. The override picker finds a card
     by name, then lists its printings via ?card=."""
     _card(name="Ash Blossom & Joyous Spring", passcode=14558127)
     _card(name="Ghost Ogre & Snow Rabbit", passcode=59438930)
@@ -241,7 +242,7 @@ def test_card_list_search_filters_by_name_case_insensitively(client: APIClient) 
 
 @pytest.mark.django_db
 def test_card_list_blank_search_returns_all(client: APIClient) -> None:
-    """A cleared search box sends ?search= — treat empty/whitespace as 'no filter', not
+    """A cleared search box sends ?search=: treat empty/whitespace as 'no filter', not
     'match nothing'."""
     _card(name="Ash Blossom & Joyous Spring", passcode=14558127)
     _card(name="Dark Magician", passcode=46986414)
@@ -254,7 +255,7 @@ def test_card_list_blank_search_returns_all(client: APIClient) -> None:
 
 @pytest.mark.django_db
 def test_card_detail_ignores_search_param(client: APIClient) -> None:
-    """Detail must not run the list-only search filter — a stray ?search= shouldn't 404 a
+    """Detail must not run the list-only search filter: a stray ?search= shouldn't 404 a
     retrieve via filter_queryset (the list-only-guard convention)."""
     card = _card(name="Dark Magician", passcode=46986414)
 
@@ -299,7 +300,7 @@ def test_card_list_filters_by_archetype_exact(client: APIClient) -> None:
 
 @pytest.mark.django_db
 def test_card_list_blank_archetype_returns_all(client: APIClient) -> None:
-    """A cleared dropdown sends ?archetype= — empty/whitespace is 'no filter', not
+    """A cleared dropdown sends ?archetype=: empty/whitespace is 'no filter', not
     'match the empty archetype'."""
     _card(name="Blue-Eyes White Dragon", passcode=89631139, archetype="Blue-Eyes")
     _card(name="Pot of Greed", passcode=55144522)

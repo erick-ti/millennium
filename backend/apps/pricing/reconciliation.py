@@ -11,9 +11,8 @@ from apps.pricing.models import ExternalPriceId, Provider, UnmatchedProduct, Unm
 from apps.pricing.providers.base import ProductListing
 
 # TCGCSV labels Quarter-Century reprints "Prismatic <rarity>" where YGOPRODeck
-# seeded the plain "<rarity>" (recon Q3/Q5; DECISIONS 2026-05-23). When an exact
-# match fails we retry once with this prefix stripped, then correct the printing's
-# rarity to the canonical TCGCSV value.
+# seeded the plain "<rarity>". When an exact match fails we retry once with this
+# prefix stripped, then correct the printing's rarity to the canonical TCGCSV value.
 _PRISMATIC_PREFIX = "Prismatic "
 
 
@@ -33,10 +32,10 @@ class ReconcileResult:
     queued_rarity_disagreement: int = 0
     queued_external_id_conflict: int = 0
     # Generic variant-NULL printings flagged is_multi_variant this run (their key has
-    # several sellable variants queued above) — the DS matcher downgrades a match on one
-    # to MEDIUM/review (DECISIONS 2026-05-26).
+    # several sellable variants queued above): the DS matcher downgrades a match on one
+    # to MEDIUM/review.
     multi_variant_flagged: int = 0
-    # The external_ids flagged EXTERNAL_ID_CONFLICT *this run* — passed to ingestion so
+    # The external_ids flagged EXTERNAL_ID_CONFLICT *this run*, passed to ingestion so
     # it skips them regardless of the queue row's (mutable, human-set) triage status.
     conflicted_external_ids: frozenset[str] = frozenset()
 
@@ -69,22 +68,22 @@ def reconcile_products_to_printings(products: Iterable[ProductListing]) -> Recon
     """Resolve provider products to ``CardPrinting`` rows, writing ``external_price_ids``,
     correcting provisional rarities in place, and queueing what can't be resolved.
 
-    Identity only — no prices (that's the next slice). Per product:
+    Identity only, no prices (that's the next slice). Per product:
 
     * **Exact** ``(set_code, set_rarity)`` match → attach an ``ExternalPriceId``.
     * **No exact, ``"Prismatic X"`` → ``X`` fallback** match → correct the printing's
       ``set_rarity`` to the canonical TCGCSV value *in place* (FKs are by ``id``, so a
       column UPDATE preserves every reference), record a ``PrintingAlias`` from the
       provisional key, and attach the ``ExternalPriceId``.
-    * **Anything else** — no match, a ``(set_code, set_rarity)`` shared by several
-      products (multi-variant), or a non-Prismatic disagreement — goes to the
-      ``UnmatchedProduct`` review queue, never silently guessed (DECISIONS 2026-05-23).
+    * **Anything else** (no match, a ``(set_code, set_rarity)`` shared by several
+      products (multi-variant), or a non-Prismatic disagreement) goes to the
+      ``UnmatchedProduct`` review queue, never silently guessed.
 
     Two passes so a ``"Prismatic"`` fallback can never claim a printing another product
     matched exactly. Each group/product commits in its own transaction, so a failure is
     local rather than rolling back the run. Idempotent: ``external_price_ids`` / aliases
     get-or-create, the queue upserts, and a re-run finds corrected printings by their
-    now-canonical key. Single-writer — no row locking.
+    now-canonical key. Single-writer, no row locking.
     """
     counts = _Counts()
     groups: dict[tuple[str, str], list[ProductListing]] = defaultdict(list)
@@ -92,8 +91,7 @@ def reconcile_products_to_printings(products: Iterable[ProductListing]) -> Recon
         counts.products_seen += 1
         if not product.external_id.strip():
             # The provider id is the only handle for pricing later, so a blank one is
-            # unusable — trim/reject at this boundary (the deferred external_id
-            # obligation, DECISIONS 2026-05-21).
+            # unusable: trim/reject at this boundary.
             counts.skipped_blank_external_id += 1
             continue
         groups[(product.set_code, product.set_rarity)].append(product)
@@ -144,9 +142,9 @@ def _flag_multi_variant(set_code: str, set_rarity: str, counts: _Counts) -> None
     The several sellable products for this key are queued by the caller; the
     YGOPRODeck-seeded generic printing stays put, so a later Dragon Shield import would
     otherwise match it as if it were a specific printing and auto-materialize it. The flag
-    makes the matcher downgrade that match to MEDIUM/review (DECISIONS 2026-05-26).
+    makes the matcher downgrade that match to MEDIUM/review.
     Set-only (never auto-cleared here): a stale True over-routes to review, which fails
-    safe. Idempotent — skips the write if already set."""
+    safe. Idempotent, skips the write if already set."""
     printing = _generic_printing_for_rarity(set_code, set_rarity)
     if printing is not None and not printing.is_multi_variant:
         printing.is_multi_variant = True
@@ -156,11 +154,11 @@ def _flag_multi_variant(set_code: str, set_rarity: str, counts: _Counts) -> None
 
 def _generic_printing_for_rarity(set_code: str, set_rarity: str) -> CardPrinting | None:
     """The generic (variant-NULL) printing a DS row for this key would match: the row at
-    the provider rarity as-is, else — for a ``"Prismatic X"`` group — the YGOPRODeck-seeded
+    the provider rarity as-is, else, for a ``"Prismatic X"`` group, the YGOPRODeck-seeded
     *provisional* ``"X"`` row (DS / YGOPRODeck use the plain rarity; the same provisional
     resolution ``_reconcile_deferred`` applies). Without this Prismatic fallback a
     multi-variant Prismatic group wouldn't flag its provisional placeholder, so the matcher
-    could later mark that unpriced ambiguous row EXACT (Codex review 2026-05-26)."""
+    could later mark that unpriced ambiguous row EXACT."""
     printing = CardPrinting.objects.filter(
         set_code=set_code, set_rarity=set_rarity, variant_label__isnull=True
     ).first()
@@ -192,7 +190,7 @@ def _reconcile_deferred(product: ProductListing, claimed: set[int], counts: _Cou
             return
     # No resolution. Distinguish "no card at all for this set_code" (e.g. a Token absent
     # from YGOPRODeck) from "the card exists but at a rarity we won't auto-correct"
-    # (the New artwork / Short Print disagreement class — DECISIONS 2026-05-23).
+    # (the New artwork / Short Print disagreement class).
     if CardPrinting.objects.filter(set_code=product.set_code).exists():
         _queue(product, UnmatchedReason.RARITY_DISAGREEMENT, counts)
     else:
@@ -203,15 +201,15 @@ def _reconcile_rarity(
     base: CardPrinting, product: ProductListing, provisional_rarity: str, counts: _Counts
 ) -> None:
     # Resolve the id first, so an id conflict (it already maps to a different printing)
-    # is caught before we mutate anything — on conflict, queue and leave base as-is.
+    # is caught before we mutate anything, on conflict, queue and leave base as-is.
     if not _attach_external_id(base, product, counts):
         _queue(product, UnmatchedReason.EXTERNAL_ID_CONFLICT, counts)
         return
     # Correct the provisional rarity in place. FKs reference `base` by id, so this is a
-    # column UPDATE that preserves every reference (DECISIONS 2026-05-23). It can't hit a
+    # column UPDATE that preserves every reference. It can't hit a
     # unique-key collision: exact-match-first (pass 1) means no printing already carries
-    # product.set_rarity for this set_code — one would have matched there, not reached
-    # here — and products sharing a canonical rarity group together (multi-variant), so
+    # product.set_rarity for this set_code (one would have matched there, not reached
+    # here), and products sharing a canonical rarity group together (multi-variant), so
     # no two corrections target one base. The base-already-claimed case is the caller's
     # (queued as a disagreement, never corrected here).
     base.set_rarity = product.set_rarity
@@ -223,11 +221,11 @@ def _reconcile_rarity(
 def _attach_external_id(printing: CardPrinting, product: ProductListing, counts: _Counts) -> bool:
     """Map the provider id to ``printing``; return ``False`` on a conflict.
 
-    A conflict is the id already resolving to a *different* printing — provider-side
-    drift across runs, a manual edit, or a prior bad run. ``(provider, external_id)``
+    A conflict is the id already resolving to a *different* printing (provider-side
+    drift across runs, a manual edit, or a prior bad run). ``(provider, external_id)``
     is unique and which side is correct needs a human, so we never silently rewrite the
     mapping or report a false match: the caller queues it instead. (Can't use
-    ``get_or_create`` here — it returns the existing row without revealing that its
+    ``get_or_create`` here, it returns the existing row without revealing that its
     printing differs.)
     """
     external_id = product.external_id.strip()
