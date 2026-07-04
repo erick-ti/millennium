@@ -6,7 +6,7 @@ import { authDemoLoginCreate, csrfRetrieve } from "@/lib/api";
 
 import { DemoCta } from "./demo-cta";
 
-// Auth state is controllable: anonymous (the recruiter) by default; one test flips to the
+// Auth state is controllable: anonymous (the visitor) by default; one test flips to the
 // already-signed-in owner.
 const h = vi.hoisted(() => ({ isAuthenticated: false, isLoading: false }));
 vi.mock("@/components/auth-provider", () => ({
@@ -28,7 +28,7 @@ vi.mock("@/lib/api", () => ({
 const demoLogin = vi.mocked(authDemoLoginCreate);
 const csrfMock = vi.mocked(csrfRetrieve);
 
-// The CTA hard-navigates via window.location.assign — stub it (jsdom's is a noop).
+// The CTA hard-navigates via window.location.assign, so stub it (jsdom's is a noop).
 const assign = vi.fn();
 const realLocation = window.location;
 

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 interface PaginationControlsProps {
   /** 1-based current page. */
   page: number;
-  /** Total pages (cosmetic "page X of Y" — derived from `count`/PAGE_SIZE). */
+  /** Total pages (cosmetic "page X of Y", derived from `count`/PAGE_SIZE). */
   totalPages: number;
   /** Total row count across all pages. */
   count: number;
@@ -25,9 +25,9 @@ interface PaginationControlsProps {
  * pagination, so this is a thin control shared across the collection (slice 3),
  * cards (slice 4), and portfolio (slice 5) views.
  *
- * a11y rules carried from the slice-3 review (DECISIONS 2026-05-29):
+ * a11y rules carried from the slice-3 review:
  *  - Disable a button ONLY at the true boundary (`!hasPrev`/`!hasNext`), NEVER
- *    on `isPaging` — disabling the focused button mid-turn blurs focus to
+ *    on `isPaging`: disabling the focused button mid-turn blurs focus to
  *    `<body>` (a keyboard-focus trap). The `isPaging` guard in `onClick`
  *    no-ops a click while a fetch is in flight, preserving focus AND the
  *    double-click protection.

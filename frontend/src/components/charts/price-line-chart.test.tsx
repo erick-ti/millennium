@@ -3,7 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 // ResponsiveContainer measures its parent via ResizeObserver/getBoundingClientRect,
-// which report 0 in jsdom — recharts then renders nothing. Replace it with a
+// which report 0 in jsdom, so recharts then renders nothing. Replace it with a
 // wrapper that clones the chart child with explicit dimensions (the standard
 // recharts-under-jsdom approach). Runtime-only mock; types still resolve.
 vi.mock("recharts", async (importOriginal) => {
@@ -30,14 +30,14 @@ describe("PriceLineChart", () => {
   it("renders an SVG area chart for the given points", () => {
     const { container } = render(<PriceLineChart data={data} />);
     expect(container.querySelector("svg")).toBeTruthy();
-    // recharts draws the series as a <g class="recharts-area"> — the gold line
+    // recharts draws the series as a <g class="recharts-area">: the gold line
     // (.recharts-area-curve) over the gradient fill (.recharts-area-area).
     expect(container.querySelector(".recharts-area")).toBeTruthy();
   });
 
   it("exposes every point as accessible text (date + formatted price)", () => {
-    // The sr-only <table> is the chart's text alternative (review C3) AND a
-    // robust point-count assertion: the SVG dot count is unreliable under jsdom
+    // The sr-only <table> is the chart's text alternative and a reliable
+    // point-count assertion: the SVG dot count is unreliable under jsdom
     // and dot={false} anyway. One <tbody> row per data point, in order.
     render(<PriceLineChart data={data} label="Unlimited price" />);
     const table = screen.getByRole("table", { name: "Unlimited price" });
@@ -90,8 +90,7 @@ describe("PriceLineChart", () => {
 
   it("marks partial-coverage points in the accessible table when points carry coverage", () => {
     // A coverage-carrying (aggregate) series exposes a Coverage column so a
-    // coverage-driven dip isn't read as a real value move (Codex adversarial
-    // review, 2026-05-29).
+    // coverage-driven dip isn't read as a real value move.
     render(
       <PriceLineChart
         seriesLabel="Portfolio value"

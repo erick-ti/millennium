@@ -11,7 +11,7 @@ import {
 import { PortfolioDetail } from "./portfolio-detail";
 
 // Stub next/link, and the recharts chart (its jsdom rendering is covered in
-// price-line-chart.test.tsx) — here we assert it receives the right point count
+// price-line-chart.test.tsx); here we assert it receives the right point count
 // and the portfolio series label.
 vi.mock("next/link", () => ({
   default: ({
@@ -227,7 +227,7 @@ describe("PortfolioDetail", () => {
 
   it("marks partial-coverage snapshots in the series and notes them below the chart", async () => {
     // market_value on a partial day sums only the priced subset, so the chart
-    // must distinguish those points from complete ones (Codex review).
+    // must distinguish those points from complete ones.
     stubSinglePage([
       makeSnapshot({
         id: 3,
@@ -330,7 +330,7 @@ describe("PortfolioDetail", () => {
     expect(
       await screen.findByText(/Couldn.t load value history/i),
     ).toBeInTheDocument();
-    // The portfolio header still rendered — only the history errored.
+    // The portfolio header still rendered, only the history errored.
     expect(screen.getByText("Yubel Deck")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
   });

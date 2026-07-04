@@ -67,7 +67,7 @@ function deltaColorClass(value: number | null): string {
   return value > 0 ? "text-gain" : "text-loss";
 }
 
-// The ▲/▼ glyph that always accompanies a colored delta (CVD-safe — never color
+// The ▲/▼ glyph that always accompanies a colored delta (CVD-safe, never color
 // alone, the landing/movers rule). Flat/null carries no directional glyph.
 function deltaGlyph(value: number | null): string {
   if (value == null || value === 0) {
@@ -87,12 +87,12 @@ function fieldError(error: unknown, field: string): string | null {
 }
 
 // Use the bare SDK fn (not the *Mutation helper) so we read response.status and the 400
-// body directly — the import-write pattern (DECISIONS 2026-05-30).
+// body directly, following the import-write pattern.
 async function createRule(body: AlertRuleRequest): Promise<AlertRule> {
   const { data, error, response } = await alertsRulesCreate({ body });
   if (!data) {
     // A 403 can be a missing/stale CSRF cookie; re-seed so a retry carries a token without a
-    // reload (harmless for an auth 403) — the same recovery the import writes use.
+    // reload (harmless for an auth 403), the same recovery the import writes use.
     if (response?.status === 403) seedCsrf();
     const detail =
       fieldError(error, "name") ??
@@ -168,7 +168,7 @@ function CreateRuleForm({ onCreated }: { onCreated: () => void }) {
             min="0.01"
             step="0.01"
             value={threshold}
-            // Accessible name matches the visible "Threshold %" (WCAG 2.5.3 label-in-name —
+            // Accessible name matches the visible "Threshold %" (WCAG 2.5.3 label-in-name:
             // a voice-control user says what they see); screen readers still read "%" as
             // "percent", so this reads naturally too.
             aria-label="Threshold %"
@@ -231,7 +231,7 @@ function CreateRuleForm({ onCreated }: { onCreated: () => void }) {
 function PctMoveCell({ value }: { value: string }) {
   // pct_change is stored as a HUMAN percent ("20.00" = +20%); formatPercent expects a
   // RATIO (it ×100s), so divide by 100. Non-null on every event (the model field is NOT
-  // NULL — an event only fires on a real, above-floor percent move).
+  // NULL, an event only fires on a real, above-floor percent move).
   const pct = parseDecimal(value);
   const glyph = deltaGlyph(pct);
   return (
@@ -271,7 +271,7 @@ export default function AlertsPage() {
   const [page, setPage] = useState(1);
   const [ruleFilter, setRuleFilter] = useState<number | "all">("all");
 
-  // Rules for the feed filter dropdown. Loads only the first page (PAGE_SIZE=100) — a
+  // Rules for the feed filter dropdown. Loads only the first page (PAGE_SIZE=100), a
   // deliberate scope cap: a single user won't define >100 alert rules. Page-walk the
   // dropdown (or add a compact rule-options endpoint) if that ever changes.
   const rulesQuery = useQuery(alertsRulesListOptions({ query: {} }));
@@ -433,7 +433,7 @@ export default function AlertsPage() {
           // Genuinely-empty (unfiltered) feed → the lit display-case empty state
           // explaining what a fired alert is. A rule-FILTERED empty result instead
           // keeps the table chrome + the in-table "No alerts match this filter."
-          // message (the collection reference's count===0 && !hasFilter pattern) —
+          // message (the collection reference's count===0 && !hasFilter pattern):
           // "No alerts have fired yet" would misread when other rules have fired.
           <EmptyState
             title="No alerts have fired yet"

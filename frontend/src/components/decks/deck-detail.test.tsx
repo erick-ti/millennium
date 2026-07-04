@@ -257,8 +257,8 @@ describe("DeckDetail", () => {
   });
 
   it("renders the deck header (holdings count) and members (per-row copy count)", async () => {
-    // 1 distinct holding, but that holding is 3 physical copies — the header counts holdings,
-    // the row shows the copies (the Codex 2026-05-31 fix: don't conflate the two).
+    // 1 distinct holding, but that holding is 3 physical copies: the header counts holdings,
+    // the row shows the copies (don't conflate the two).
     stubDeck(makeDeck({ name: "Fire King", description: "Casual", member_count: 1 }));
     stubMembers(() => ({
       count: 1,

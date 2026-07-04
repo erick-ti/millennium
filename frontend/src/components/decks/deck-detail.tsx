@@ -75,7 +75,7 @@ function detailMessage(error: unknown): string | null {
 
 function failure(action: string, error: unknown, response: Response | undefined): Error {
   // A 403 can be a missing/stale CSRF cookie; re-seed so the next attempt carries a token
-  // without a reload (harmless for an auth 403 — the backend detail still tells the user to
+  // without a reload (harmless for an auth 403: the backend detail still tells the user to
   // sign in). The import/alert write recovery.
   if (response?.status === 403) seedCsrf();
   return new Error(
@@ -88,7 +88,7 @@ function failure(action: string, error: unknown, response: Response | undefined)
 
 type AddOutcome = "added" | "duplicate";
 
-// Bare SDK fns (not the *Mutation helpers) so we can read response.status — add returns
+// Bare SDK fns (not the *Mutation helpers) so we can read response.status, and add returns
 // 409 when the holding is already in the deck, surfaced distinctly (the import 409 pattern).
 async function addMember(args: {
   deckId: number;
@@ -146,9 +146,8 @@ export function DeckDetail({ deckId }: { deckId: number }) {
 
   function invalidate() {
     // A membership add/remove changes three caches: this deck's member feed (all pages), its
-    // header (member_count), AND the /decks list row's member_count — invalidate all three, or
-    // returning to the list shows a stale count within the provider's staleTime window (Codex
-    // adversarial review 2026-05-31).
+    // header (member_count), AND the /decks list row's member_count. Invalidate all three, or
+    // returning to the list shows a stale count within the provider's staleTime window.
     queryClient.invalidateQueries({ queryKey: decksMembershipsListQueryKey() });
     queryClient.invalidateQueries({
       queryKey: decksDecksRetrieveQueryKey({ path: { id: deckId } }),
@@ -188,14 +187,14 @@ export function DeckDetail({ deckId }: { deckId: number }) {
     mutationFn: deleteDeck,
     onSuccess: () => {
       // Drop the deleted deck's own caches BEFORE navigating, or a browser-back would render
-      // the deleted deck from a still-fresh retrieve cache (Codex adversarial review
-      // 2026-05-31) — removeQueries (not invalidate) since there's no point refetching a 404.
+      // the deleted deck from a still-fresh retrieve cache. Use removeQueries (not invalidate)
+      // since there's no point refetching a 404.
       queryClient.removeQueries({
         queryKey: decksDecksRetrieveQueryKey({ path: { id: deckId } }),
       });
       queryClient.removeQueries({ queryKey: decksMembershipsListQueryKey() });
       // Refetch the list so the deleted deck drops out, then soft-nav back. A soft nav is fine
-      // here (a voluntary delete, not an auth boundary — no stale auth observer to tear down,
+      // here (a voluntary delete, not an auth boundary: no stale auth observer to tear down,
       // unlike logout).
       queryClient.invalidateQueries({ queryKey: decksDecksListQueryKey() });
       router.push("/decks");
@@ -269,7 +268,7 @@ export function DeckDetail({ deckId }: { deckId: number }) {
       accessorKey: "quantity",
       header: () => <div className="text-right">Copies</div>,
       // The holding's copy count (SUM of its lots). A deck counts distinct holdings, but a
-      // single tagged holding can be N physical copies — show that here.
+      // single tagged holding can be N physical copies, so show that here.
       cell: ({ row }) => (
         <div className="text-right nums-terminal">{row.original.quantity}</div>
       ),
@@ -309,7 +308,7 @@ export function DeckDetail({ deckId }: { deckId: number }) {
     },
   ];
 
-  // The Remove column is owner-only — the demo can't mutate memberships (DemoReadOnly).
+  // The Remove column is owner-only: the demo can't mutate memberships (DemoReadOnly).
   if (canWrite) {
     columns.push({
       id: "actions",

@@ -3,11 +3,11 @@ import { DemoCta } from "@/components/landing/demo-cta";
 import { SPEC } from "@/components/landing/data";
 
 /**
- * 04 — The Engine Room. The tonal pivot and recruiter payload: ornament drops
+ * 04 - The Engine Room. The tonal pivot and the visitor payload: ornament drops
  * to near-zero, the discipline IS the visual. A sober two-column spec manifest
  * (this is where the import/reconciliation lineage lives, folded in), then the
  * Eye reappears small and static to close the frame it opened. Deliberately
- * breaks the page's rhythm — denser, quieter, terminal.
+ * breaks the page's rhythm: denser, quieter, terminal.
  */
 export function EngineRoom() {
   return (

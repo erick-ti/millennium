@@ -4,10 +4,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import { PaginationControls } from "./pagination-controls";
 
-// Regression coverage for the two slice-3 a11y invariants the logic carries
-// (DECISIONS 2026-05-29; review C8): Prev/Next must be disabled ONLY at true
-// boundaries — never on isPaging (disabling the focused button traps keyboard
-// focus to <body>) — and a mid-flight click must no-op (double-click guard).
+// Regression coverage for the two a11y rules the logic carries: Prev/Next
+// must be disabled ONLY at true boundaries, never on isPaging (disabling the
+// focused button traps keyboard focus to <body>), and a mid-flight click
+// must no-op (double-click guard).
 
 function setup(props: Partial<Parameters<typeof PaginationControls>[0]> = {}) {
   const onPageChange = vi.fn();
@@ -56,7 +56,7 @@ describe("PaginationControls", () => {
 
     const next = screen.getByRole("button", { name: /next/i });
     const prev = screen.getByRole("button", { name: /prev/i });
-    // Critically NOT disabled mid-flight — disabling the focused button blurs
+    // Critically NOT disabled mid-flight: disabling the focused button blurs
     // focus to <body>.
     expect(next).toBeEnabled();
     expect(prev).toBeEnabled();

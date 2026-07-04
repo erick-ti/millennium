@@ -1,6 +1,6 @@
 /**
  * Demo data for the public landing page. These are illustrative figures shown
- * to logged-out visitors (recruiters) — the catalog counts are the REAL seeded
+ * to logged-out visitors: the catalog counts are the REAL seeded
  * production numbers; the movers / chart / appraisal rows are representative
  * sample data, deliberately static so the landing needs no auth and no API
  * call (and so the global 403→/login gate never fires here).
@@ -53,7 +53,7 @@ export const CURVE: ReadonlyArray<{ date: string; value: number; complete: boole
   { date: "2026-05-01", value: 4142, complete: true },
   { date: "2026-05-08", value: 4290, complete: true },
   { date: "2026-05-15", value: 4376, complete: true },
-  { date: "2026-05-22", value: 4051, complete: false }, // TCGCSV pricing gap — partial, not a real drop
+  { date: "2026-05-22", value: 4051, complete: false }, // TCGCSV pricing gap, partial coverage, not a real drop
   { date: "2026-05-29", value: 4512, complete: true },
   { date: "2026-06-05", value: 4604, complete: true },
   { date: "2026-06-12", value: 4783, complete: true },
@@ -86,6 +86,6 @@ export const SPEC: ReadonlyArray<{ k: string; v: string }> = [
   { k: "Hosting", v: "self-hosted Hetzner VPS · Caddy auto-TLS edge · gunicorn + Next-standalone" },
   { k: "Scheduling", v: "daily syncs as systemd timers (Persistent catch-up after downtime)" },
   { k: "Backups", v: "nightly pg_dump → Cloudflare R2 · restore-tested" },
-  { k: "Quality", v: "main gated by six required CI checks · reviewed in-house + adversarial" },
+  { k: "Quality", v: "main gated by six required CI checks · reviewed in-house + independent second pass" },
   { k: "Accessibility", v: "sr-only data tables mirror every chart · aria-sort · reduced-motion throughout" },
 ];
