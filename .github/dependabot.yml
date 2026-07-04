@@ -1,0 +1,46 @@
+# Dependabot config. Weekly checks, grouped into one PR per ecosystem to keep
+# the noise down. See docs.github.com for the ecosystem list.
+version: 2
+updates:
+  # Backend Python dependencies (uv-managed: pyproject.toml + uv.lock).
+  - package-ecosystem: "uv"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    groups:
+      backend-python:
+        patterns: ["*"]
+
+  # Frontend Node dependencies.
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    groups:
+      frontend-npm:
+        patterns: ["*"]
+
+  # GitHub Actions pinned in the workflows.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  # Dockerfile base images.
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    groups:
+      backend-docker:
+        patterns: ["*"]
+  - package-ecosystem: "docker"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    groups:
+      frontend-docker:
+        patterns: ["*"]
