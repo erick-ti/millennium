@@ -1,7 +1,7 @@
 name: millennium
 
-# Millennium — Hetzner self-host stack, coexisting with another app on the same box.
-# Full rationale + operations: the deploy runbook (kept local — it carries box-
+# Millennium: Hetzner self-host stack, coexisting with another app on the same box.
+# Full rationale + operations: the deploy runbook (kept local, it carries box-
 # specific detail; this committed config is the public surface).
 #
 # Run FROM this directory (infra/hetzner/) so `.env` is auto-loaded and the
@@ -14,7 +14,7 @@ name: millennium
 # This stack exposes NO public port. The public edge is the SEPARATE edge/
 # Caddy stack (edge/docker-compose.yml), which reaches the frontend over the
 # external `edge_net` network. The backend is published on 127.0.0.1:8001 for
-# SSH-tunnel /admin/ access ONLY — never the public internet.
+# SSH-tunnel /admin/ access ONLY, never the public internet.
 #
 # Coexistence guardrails (see runbook): runs under its own `millennium` Linux
 # user; Postgres/backend publish no internet-facing port; the edge proxies ONLY
@@ -29,9 +29,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
       POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
-    # No host port — reachable only on the compose network as `postgres:5432`.
+    # No host port, reachable only on the compose network as `postgres:5432`.
     # Never publish it: postgres ships with trivial default-cred expectations
-    # and this box is internet-exposed at the edge (Invariant 5 posture).
+    # and this box is internet-exposed at the edge (invariant 5 posture in ARCHITECTURE.md).
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -44,16 +44,16 @@ services:
 
   migrate:
     # One-shot DB setup: apply migrations, create the DatabaseCache table, seed/repair the
-    # read-only demo account, and prune expired sessions — then exit 0. Run explicitly
-    # before `up` (never as an app entrypoint, Invariant-3 style). Every step is idempotent
+    # read-only demo account, and prune expired sessions, then exit 0. Run explicitly
+    # before `up` (never as an app entrypoint, per invariant 3 in ARCHITECTURE.md). Every step is idempotent
     # and safe to re-run each deploy: createcachetable + ensure_demo_user no-op when already
     # done; ensure_demo_user also REPAIRS demo-account drift so the public CTA always works
-    # on a clean deploy (Codex review 2026-06-21). clearsessions is opportunistic
-    # maintenance — `|| true` so a hiccup pruning sessions never fails a deploy (a dedicated
+    # on a clean deploy. clearsessions is opportunistic
+    # maintenance: `|| true` so a hiccup pruning sessions never fails a deploy (a dedicated
     # daily timer is the fuller cleanup if deploy cadence ever drops).
     image: millennium-backend:latest
     # Reuse the image `backend` builds (same tag). Never attempt a registry pull
-    # if it's missing locally — fail loudly so `docker compose build` is run first.
+    # if it's missing locally, fail loudly so `docker compose build` is run first.
     pull_policy: never
     command: >
       sh -c "python manage.py migrate --noinput &&
@@ -76,10 +76,10 @@ services:
         # exports GIT_SHA=$(git rev-parse --short HEAD) before build; unset → "unknown".
         GIT_SHA: ${GIT_SHA:-unknown}
     image: millennium-backend:latest
-    # gunicorn binds [::]:8000 inside the container (image CMD, WEB_CONCURRENCY=2
-    # — kept modest for the memory-tight shared box). The frontend reaches it as
+    # gunicorn binds [::]:8000 inside the container (image CMD, WEB_CONCURRENCY=2,
+    # kept modest for the memory-tight shared box). The frontend reaches it as
     # `backend:8000` over the compose network. The 127.0.0.1:8001 publish is for
-    # SSH-tunnel /admin/ access ONLY (ssh -L 8001:127.0.0.1:8001 box) — the
+    # SSH-tunnel /admin/ access ONLY (ssh -L 8001:127.0.0.1:8001 box), the
     # public edge never touches it.
     ports:
       - "127.0.0.1:8001:8000"
@@ -96,8 +96,8 @@ services:
     mem_limit: 512m
     # Drain window (Docker default 10s) sized above gunicorn's --graceful-timeout
     # 120s, so a deploy/restart mid-import lets the synchronous CSV import finish
-    # instead of leaving a stuck PROCESSING batch — the Docker analog of Railway's
-    # drainingSeconds:150 both-hops drain (Codex review 2026-06-14).
+    # instead of leaving a stuck PROCESSING batch (a both-hops drain: the frontend
+    # service drains too).
     stop_grace_period: 150s
     restart: unless-stopped
 
@@ -107,7 +107,7 @@ services:
       dockerfile: Dockerfile
       # Untargeted → the `runtime` stage (the standalone production image; the
       # dev compose pins target:dev, this one wants production). BACKEND_URL is
-      # REQUIRED and baked into server.js at build time — it points at the
+      # REQUIRED and baked into server.js at build time. It points at the
       # backend over the compose network. Changing it needs a REBUILD.
       args:
         BACKEND_URL: ${BACKEND_URL:?set BACKEND_URL in .env to http://backend:8000}
@@ -120,11 +120,10 @@ services:
     # `millennium-frontend` alias; the Next /api/* rewrite forwards to `backend`
     # over the default compose network (same-origin proxy, CORS-free).
     # The healthcheck hits /api/health/ THROUGH the baked Next rewrite (not just
-    # /) and requires EXACTLY 200 — so a dead backend (502), a broken rewrite
+    # /) and requires EXACTLY 200, so a dead backend (502), a broken rewrite
     # (404), or `backend` missing from ALLOWED_HOSTS (400 DisallowedHost) all mark
     # the frontend unhealthy at deploy time instead of serving a green shell where
-    # every /api/* call fails. A <500 predicate would let the 400/404 cases pass
-    # (the Railway healthcheck rationale, tightened; Codex review 2026-06-14).
+    # every /api/* call fails. A <500 predicate would let the 400/404 cases pass.
     healthcheck:
       test:
         - CMD
@@ -140,7 +139,7 @@ services:
         condition: service_healthy
     mem_limit: 384m
     # Drain window > the 125s Next proxyTimeout, so a deploy/restart doesn't sever
-    # an in-flight /api/* import at the frontend hop (both-hops drain; Codex review).
+    # an in-flight /api/* import at the frontend hop (both-hops drain).
     stop_grace_period: 150s
     restart: unless-stopped
     networks:

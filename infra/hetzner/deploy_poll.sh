@@ -5,45 +5,45 @@
 # and invokes the existing, health-gated deploy.sh. A no-op re-probes the public
 # route and is otherwise near-instant.
 #
-# WHY PULL, NOT PUSH (design panel, 2026-06-16): the `millennium` user is in the
+# WHY PULL, NOT PUSH: the `millennium` user is in the
 # docker group (≈ host-root) and the box is SHARED with a co-tenant. A push
 # deployer would have to store a credential in GitHub that lands here with
-# host-root power over BOTH tenants. This puller holds NO inbound credential — it
+# host-root power over BOTH tenants. This puller holds NO inbound credential: it
 # only fetches a public repo and decides locally. Worst case if compromised:
 # "read a public repo." The trust arrow points outward, like backup_db.sh's rclone.
 #
 # CI ASSUMPTION (do not remove): this trusts origin/main because branch protection
-# (the protect-main ruleset — six required checks) blocks any commit from landing
+# (the protect-main ruleset, six required checks) blocks any commit from landing
 # on main without green CI. Every commit on main is therefore green-by-construction,
 # so we deploy origin/main with no token. *** IF BRANCH PROTECTION IS EVER WEAKENED
-# OR REMOVED, THIS DEPLOYER NO LONGER GUARANTEES CI-GREEN RELEASES *** — restore it,
+# OR REMOVED, THIS DEPLOYER NO LONGER GUARANTEES CI-GREEN RELEASES ***. Restore it,
 # or add a `gh api` check-run gate between the fetch and the deploy below.
 #
 # DEPLOYED-STATE MARKER: the source of truth for "what is live" is
 # $STATE_DIR/last_deployed_sha (written ONLY after deploy.sh AND the public probe
-# succeed) — NOT the git checkout HEAD. The self-healing reset advances HEAD to
+# succeed), NOT the git checkout HEAD. The self-healing reset advances HEAD to
 # origin/main before deploy.sh runs, so a HEAD-based check would make a FAILED deploy
 # look done (no retry, false green). Comparing origin/main to the marker means a
 # failed deploy is retried every tick until it succeeds. A MISSING/lost marker means
 # the deployed state is UNKNOWN → force a (re)deploy of origin/main (idempotent +
-# health-gated); NEVER seed the marker from HEAD (Codex review).
+# health-gated); NEVER seed the marker from HEAD.
 #
 # DEDICATED-CHECKOUT POLICY: /home/millennium/millennium is CD-owned. Do NOT
-# hand-edit tracked files there — a deploy `git reset --hard` silently reverts them.
+# hand-edit tracked files there: a deploy `git reset --hard` silently reverts them.
 # The live env files (.env / backup.env / deploy.env) must stay UNTRACKED + gitignored;
-# the deploy fails closed BOTH before reset (if origin/main TRACKS one — reset --hard
+# the deploy fails closed BOTH before reset (if origin/main TRACKS one, reset --hard
 # overwrites the live secret with the committed content) AND after reset (if one
-# exists but is no longer gitignored — `git clean -fd` would delete it). NEVER run
+# exists but is no longer gitignored, `git clean -fd` would delete it). NEVER run
 # `git clean -fdx` here (-fdx deletes gitignored files). Backups (~/millennium-backups)
 # and rclone config (~/.config/rclone) live OUTSIDE the checkout. Lock, marker, and
-# run-logs live under ~/.local/state/millennium-deploy (millennium-owned, persistent —
+# run-logs live under ~/.local/state/millennium-deploy (millennium-owned, persistent,
 # NOT ~/.cache, which a reaper could clear), never world-writable /tmp (shared box).
 #
 # ROLLBACK: a manual rollback detaches HEAD (deploy.sh's `git checkout <sha>` path);
 # this poller refuses to act on a detached HEAD, so a rollback is honored until you
 # re-attach to main. The durable rollback is a `git revert` pushed to origin/main.
 #
-# Operational discipline copied from backup_db.sh (Healthchecks /start–success–/fail
+# Operational discipline copied from backup_db.sh (Healthchecks /start, success, /fail
 # dead-man pings, EXIT trap, secrets not logged) plus flock single-instance and
 # per-step `timeout` from the push_stats.sh sibling.
 set -euo pipefail
@@ -89,7 +89,7 @@ log() {
 # Healthchecks ping. GET <URL><suffix>; for /fail also POST a diagnostic body so the
 # alert is actionable. The URL is a credential: it is fed to curl via a config piped
 # on STDIN (printf is a shell builtin, so it never appears in any process's argv /
-# /proc/<pid>/cmdline) and the body via a 0600 file in the private STATE_DIR — never
+# /proc/<pid>/cmdline) and the body via a 0600 file in the private STATE_DIR, never
 # argv, which is world-readable to the co-tenant on this shared box. curl failures
 # are swallowed so a notifier outage can't fail an otherwise-good run.
 _hc_ping() {
@@ -147,7 +147,7 @@ probe_public() {
 cd "$REPO_DIR"
 
 # Honor a manual rollback: deploy.sh's rollback path detaches HEAD (git checkout
-# <sha>). If we're detached, a rollback is in progress — do NOT fetch/reset/redeploy
+# <sha>). If we're detached, a rollback is in progress, do NOT fetch/reset/redeploy
 # over it (mirrors deploy.sh's own detached-HEAD guard). Re-attach to main to resume.
 STEP="rollback-guard"
 if ! git symbolic-ref -q HEAD >/dev/null; then
@@ -157,7 +157,7 @@ fi
 
 # Read the deployed-state marker (source of truth; see header) BEFORE the fetch so a
 # fetch failure still reports it. A MISSING marker = unknown deployed state: leave
-# DEPLOYED empty so the no-op branch is skipped and origin/main is (re)deployed — do
+# DEPLOYED empty so the no-op branch is skipped and origin/main is (re)deployed, do
 # NOT infer the deployed SHA from HEAD (it advances before deploy.sh succeeds).
 DEPLOYED="$(cat "$MARKER" 2>/dev/null || true)"
 OLD_SHA="(none)"
@@ -166,16 +166,16 @@ if [[ -n "$DEPLOYED" ]]; then OLD_SHA="${DEPLOYED:0:9}"; fi
 STEP="fetch"
 # Explicit destination refspec so the ref we read is EXACTLY the ref we fetched.
 # `git fetch origin main` (source-only) writes FETCH_HEAD and only OPPORTUNISTICALLY
-# updates refs/remotes/origin/main — not guaranteed across git versions / remote
+# updates refs/remotes/origin/main, not guaranteed across git versions / remote
 # configs. If origin/main stayed stale, the marker could match it and we'd take the
-# no-op path (false green) while main had actually advanced (Codex review).
+# no-op path (false green) while main had actually advanced.
 timeout "$FETCH_TIMEOUT" git fetch --quiet origin '+refs/heads/main:refs/remotes/origin/main'
 NEW="$(git rev-parse --verify refs/remotes/origin/main)"
 NEW_SHA="${NEW:0:9}"
 
 if [[ -n "$DEPLOYED" && "$DEPLOYED" == "$NEW" ]]; then
     # Last SUCCESSFUL deploy already == origin/main. Gate the dead-man success ping
-    # on the PUBLIC route still being 200 — NOT merely on "main hasn't moved" — so
+    # on the PUBLIC route still being 200, NOT merely on "main hasn't moved", so
     # (a) a prior /fail stays sticky until the site is genuinely healthy again, and
     # (b) the site breaking for ANY reason alerts. A probe failure -> set -e -> /fail.
     STEP="probe-noop"
@@ -185,7 +185,7 @@ if [[ -n "$DEPLOYED" && "$DEPLOYED" == "$NEW" ]]; then
 fi
 
 # Deploy origin/main. Covers "main moved", "the previous deploy failed" (the marker
-# only advances on full success), and "marker missing/unknown" — all redeploy here,
+# only advances on full success), and "marker missing/unknown", all redeploy here,
 # so there is never a false green or an abandoned failure.
 log "deploying $OLD_SHA -> $NEW_SHA"
 _hc_ping /start
@@ -211,7 +211,7 @@ git reset --hard --quiet "$NEW"
 
 # Fail closed if `git clean -fd` would delete a checkout env file (it exists but is
 # not gitignored). AFTER the reset, so it checks the .gitignore that `clean` will
-# actually use — a NEW commit that drops an env file from .gitignore is caught HERE,
+# actually use: a NEW commit that drops an env file from .gitignore is caught HERE,
 # before clean deletes the live secret (which reset left in place because it's
 # untracked). Verifies the cleanup-safety invariant, never just asserts it.
 STEP="clean-guard"
@@ -227,7 +227,7 @@ git clean -fd >>"$LOG" 2>&1
 
 # The actual deploy, of EXACTLY the guarded SHA: DEPLOY_SKIP_PULL=1 tells deploy.sh
 # NOT to run its own `git pull` (which could fast-forward past $NEW if origin/main
-# advanced after our fetch + guards — bypassing the env-file track-guard and drifting
+# advanced after our fetch + guards, bypassing the env-file track-guard and drifting
 # the marker). The existing script is health-gated + rollback-aware.
 STEP="deploy.sh"
 DEPLOY_SKIP_PULL=1 timeout "$DEPLOY_TIMEOUT" "$REPO_DIR/infra/hetzner/deploy.sh" >>"$LOG" 2>&1
@@ -241,7 +241,7 @@ if [[ "$HEAD_AFTER" != "$NEW" ]]; then
     exit 1
 fi
 
-# Gate success on the PUBLIC route through the edge (req 3). A non-200 -> /fail.
+# Gate success on the PUBLIC route through the edge. A non-200 -> /fail.
 STEP="probe"
 probe_public
 

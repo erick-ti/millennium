@@ -109,41 +109,41 @@ frontend-test:
 # drf-spectacular derives a field's maximum/minimum/format from the DB backend's
 # integer_field_range, and sqlite reports int64 for every integer while postgres
 # reports true per-type ranges (smallint/int/bigint). The sqlite snapshot would
-# ship wrong bounds in the committed client. Still runs OFFLINE — no Docker, no
+# ship wrong bounds in the committed client. Still runs OFFLINE, no Docker, no
 # DB, no Redis: spectacular generates from code and integer_field_range is a pure
 # lookup, so the postgres ENGINE need not be reachable. --validate fails fast on
-# schema warnings (DECISIONS 2026-05-27 Phase 4 slice 2 round 8).
+# schema warnings.
 frontend-snapshot-schema:
 	$(BACKEND) uv run python manage.py spectacular --settings config.settings.test_postgres --format openapi-json --validate --file ../frontend/openapi.json
 	@echo "✓ Schema → frontend/openapi.json"
 
 # Regenerate the typed TS client from the snapshot. Commits the output under
-# frontend/src/lib/api/ so PR diffs show the API surface change (the schema
-# acquisition decision — committed snapshot + committed generated client).
+# frontend/src/lib/api/ so PR diffs show the API surface change (committing both
+# the snapshot and the generated client keeps drift visible in review).
 frontend-gen-api:
 	$(FRONTEND) npm run gen:api
 
-# Playwright end-to-end smoke suite (Phase 5 slice 6). Both targets run the
-# backend under config.settings.smoke (relaxed login throttle, LocMem cache —
+# Playwright end-to-end smoke suite. Both targets run the
+# backend under config.settings.smoke (relaxed login throttle, LocMem cache,
 # no Redis) against a real Postgres (the compose `infra-postgres-1`, or set
 # DATABASE_URL). Export the settings + DB to the whole recipe so the migrate/seed
 # prestep AND Playwright's Django webServer (started by `npm run test:e2e`) share
 # the same database. Ports are env-overridable (E2E_FRONTEND_PORT / E2E_BACKEND_PORT)
 # in case an unrelated local project holds 3000/8000.
 #
-# Local preconditions: (1) the Chromium binary is installed once —
+# Local preconditions: (1) the Chromium binary is installed once with
 # `cd frontend && npx playwright install chromium`; (2) the `make dev` stack must
 # be DOWN on the default ports (e2e starts its OWN smoke-configured servers and
-# fails loudly on a port clash — it no longer silently reuses a dev server), or
+# fails loudly on a port clash, so it no longer silently reuses a dev server), or
 # set E2E_FRONTEND_PORT / E2E_BACKEND_PORT to free ports. Do NOT `make up` to
-# provide Postgres — that starts the FULL dev stack onto 3000/8000, the exact
-# clash above (Codex review); the recipe below starts ONLY the postgres service.
+# provide Postgres: that starts the FULL dev stack onto 3000/8000, the exact
+# clash above; the recipe below starts ONLY the postgres service.
 e2e seed-smoke: export DJANGO_SETTINGS_MODULE := config.settings.smoke
 e2e seed-smoke: export DATABASE_URL := $(if $(DATABASE_URL),$(DATABASE_URL),postgres://postgres:postgres@localhost:5432/millennium)
 
 # Start ONLY the compose postgres (idempotent no-op if already up), then migrate
 # (also idempotent) so a standalone `make seed-smoke` works from a cold start.
-# The compose-up is skipped when the caller provides DATABASE_URL — an external
+# The compose-up is skipped when the caller provides DATABASE_URL, an external
 # DB that may itself hold port 5432. `e2e` reuses this as a prerequisite, so
 # migrate/seed runs before Playwright starts the servers.
 seed-smoke:

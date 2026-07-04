@@ -19,7 +19,7 @@
 #   OFFSITE_KEEP_DAYS       off-box retention in days                (default: 30)
 #   BACKUP_HEALTHCHECK_URL  healthchecks.io-style URL to ping        (unset = no pings)
 set -euo pipefail
-umask 077   # dumps are owner-only (600); a fresh BACKUP_DIR is 700 — DB data isn't world-readable
+umask 077   # dumps are owner-only (600); a fresh BACKUP_DIR is 700, DB data isn't world-readable
 
 REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 BACKUP_DIR="${BACKUP_DIR:-$HOME/millennium-backups}"
@@ -30,7 +30,7 @@ BACKUP_HEALTHCHECK_URL="${BACKUP_HEALTHCHECK_URL:-}"
 
 # Passive dead-man's-switch: ping <URL>/start after pre-flight, <URL> on success,
 # <URL>/fail on any non-zero exit (EXIT trap). Default-off (no-op when unset).
-# The URL is a credential — never echoed. curl errors are swallowed so a notifier
+# The URL is a credential, never echoed. curl errors are swallowed so a notifier
 # outage never fails an otherwise-good backup.
 _healthcheck_ping() {
     local suffix="${1:-}"
@@ -55,7 +55,7 @@ trap _on_exit EXIT
 
 # Fail closed on a bad retention count BEFORE dumping or pruning. The prune below
 # keeps the newest $KEEP by array slice; a 0 / negative / non-numeric KEEP would
-# make `_dump_count - KEEP` select EVERY archive (or error under arithmetic) — a
+# make `_dump_count - KEEP` select EVERY archive (or error under arithmetic), a
 # config typo becoming total backup loss. Require a positive integer.
 if ! [[ "$KEEP" =~ ^[1-9][0-9]*$ ]]; then
     echo "backup_db: KEEP must be a positive integer (got '$KEEP')" >&2
@@ -64,9 +64,9 @@ fi
 
 # Fail closed if no off-box mirror is configured. A backup that lives only on this
 # VPS dies with the VPS (host/disk loss takes the DB and every retained dump
-# together), so a local-only run must NOT silently report success (Codex review
-# 2026-06-14). Set ALLOW_LOCAL_ONLY_BACKUP=1 to deliberately accept local-only
-# (e.g. before R2 is wired up) — then "success" means a local dump only. Pre-flight
+# together), so a local-only run must NOT silently report success. Set
+# ALLOW_LOCAL_ONLY_BACKUP=1 to deliberately accept local-only
+# (e.g. before R2 is wired up): then "success" means a local dump only. Pre-flight
 # (before /start), so a miss pings /fail via the EXIT trap.
 if [[ -z "$BACKUP_REMOTE" && "${ALLOW_LOCAL_ONLY_BACKUP:-}" != "1" ]]; then
     echo "backup_db: BACKUP_REMOTE is unset and ALLOW_LOCAL_ONLY_BACKUP != 1 — refusing to report a VPS-only backup as success. Configure an off-box rclone remote (runbook §3.6), or set ALLOW_LOCAL_ONLY_BACKUP=1 to accept local-only." >&2
@@ -104,14 +104,14 @@ echo "backup_db: wrote $out ($(du -h "$out" | cut -f1))"
 
 # Retention: keep the $KEEP most-recent archives, delete older ones. The dump
 # filenames embed a zero-padded UTC timestamp, so the glob's LEXICAL order is
-# chronological (oldest first) — no `ls -t` needed, and robust against an mtime
+# chronological (oldest first), no `ls -t` needed, and robust against an mtime
 # touched by a copy. `nullglob` makes an empty match an empty array (no error;
 # stays bash-3.2-portable, no `mapfile`). FAIL CLOSED on a real `rm -f` error
 # (read-only / mis-owned BACKUP_DIR): the old `| while rm | … || true` masked
 # every failure, so a prune that couldn't delete would still upload and send the
-# SUCCESS ping while dumps piled up to disk-full (Codex review 2026-06-14).
+# SUCCESS ping while dumps piled up to disk-full.
 # `rm -f` already exits 0 for an already-gone file, so a non-zero here is a real
-# failure worth aborting on — better to alarm than to silently rot the backups.
+# failure worth aborting on: better to alarm than to silently rot the backups.
 shopt -s nullglob
 _dumps=("$BACKUP_DIR"/millennium-*.dump)
 shopt -u nullglob
