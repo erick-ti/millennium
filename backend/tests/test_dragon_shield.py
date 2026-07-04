@@ -19,7 +19,7 @@ _ONE_FOR_ONE_ALT_ROW = (
     "RA03-EN056alt,PlScR,NearMint,1st Edition,English,1.46,2024-02-01,1.20,1.35,1.46"
 )
 # Real DS exports quote the Excel sep hint ('"sep=,"', verified against the sample),
-# so the fixtures use that form — the bare 'sep=,' is covered separately below.
+# so the fixtures use that form. The bare 'sep=,' is covered separately below.
 _SAMPLE = f'"sep=,"\n{_HEADER}\n{_ASH_ROW}\n{_ONE_FOR_ONE_ALT_ROW}\n'
 
 
@@ -53,8 +53,8 @@ def test_parse_handles_quoted_comma_in_set_name() -> None:
 @pytest.mark.parametrize("sep_line", ['"sep=,"', "sep=,"])
 def test_parse_accepts_quoted_and_unquoted_sep_hint(sep_line: str) -> None:
     """Real DS exports quote the hint ('"sep=,"'); some tools emit it bare. Both must
-    be dropped, not read as the header — matching only the bare form batch-failed a
-    valid export (Codex adversarial review, 2026-05-26)."""
+    be dropped, not read as the header: matching only the bare form batch-failed a
+    valid export."""
     rows = parse_dragon_shield(f"{sep_line}\n{_HEADER}\n{_ASH_ROW}\n")
 
     assert len(rows) == 1
@@ -84,7 +84,7 @@ def test_parse_rejects_non_dragon_shield_header() -> None:
 
 def test_parse_short_row_fills_missing_fields_with_blank() -> None:
     """A truncated row (fewer values than the header) leaves later columns blank
-    rather than raising — normalization decides whether the gaps matter."""
+    rather than raising: normalization decides whether the gaps matter."""
     rows = parse_dragon_shield(f"{_HEADER}\nYubel Deck,3,0,Ash Blossom\n")
 
     assert rows[0].raw["Card Name"] == "Ash Blossom"
@@ -94,8 +94,8 @@ def test_parse_short_row_fills_missing_fields_with_blank() -> None:
 @pytest.mark.parametrize("prefix", ["\ufeff", ""])
 def test_parse_strips_leading_bom_before_sep_hint(prefix: str) -> None:
     """Excel "CSV UTF-8" saves prepend a BOM, and str.strip() doesn't treat it as
-    whitespace — an unstripped BOM before the sep hint would batch-fail a valid file
-    (Codex adversarial review, 2026-05-26)."""
+    whitespace, so an unstripped BOM before the sep hint would batch-fail a valid
+    file."""
     rows = parse_dragon_shield(f'{prefix}"sep=,"\n{_HEADER}\n{_ASH_ROW}\n')
 
     assert len(rows) == 1
@@ -169,7 +169,7 @@ def test_normalize_maps_rarity_codes(ds_code: str, expected: str) -> None:
 
 def test_normalize_unmapped_rarity_is_null_with_issue() -> None:
     raw = _ash()
-    raw["Rarity"] = "GUR"  # Gold Ultra Rare — not in the v1 table
+    raw["Rarity"] = "GUR"  # Gold Ultra Rare, not in the v1 table
 
     result = normalize_row(raw)
 
@@ -226,7 +226,7 @@ def test_normalize_invalid_quantity_is_null_with_issue(bad_quantity: str) -> Non
 def test_normalize_invalid_price_is_null_with_issue(bad_price: str) -> None:
     """Format-invalid (free/NaN/negative) and contract-invalid (>2 dp would silently
     round; over Decimal(12, 2) max would error at materialize) prices all flag rather
-    than passing as clean (Codex adversarial review, 2026-05-26)."""
+    than passing as clean."""
     raw = _ash()
     raw["Price Bought"] = bad_price
 
@@ -242,7 +242,7 @@ def test_normalize_invalid_price_is_null_with_issue(bad_price: str) -> None:
 )
 def test_normalize_accepts_in_contract_prices(price: str, expected: str) -> None:
     """0/1/2-dp prices and the Decimal(12, 2) maximum fit the downstream contract, so
-    they normalize clean — no silent rounding, no spurious issue."""
+    they normalize clean: no silent rounding, no spurious issue."""
     raw = _ash()
     raw["Price Bought"] = price
 

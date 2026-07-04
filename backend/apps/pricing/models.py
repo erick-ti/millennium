@@ -18,21 +18,21 @@ class Provider(models.TextChoices):
 class ExternalPriceId(TimeStampedModel):
     """A pricing provider's own identifier for a ``CardPrinting``.
 
-    Printing identity is provider-agnostic (DECISIONS 2026-05-18): a provider's
+    Printing identity is provider-agnostic: a provider's
     product id lives here as ``(printing, provider, external_id)`` rather than as
     a column on ``card_printings``, so adding a second provider is an INSERT, not
     a migration. TCGCSV's ``productId`` is the only provider for Phase 1B.
 
-    A single printing may map to several ids for the *same* provider over time —
-    e.g. a provider-side re-classification keeps the old id resolvable while a new
-    one becomes canonical — so ``(printing, provider)`` is indexed but not unique.
+    A single printing may map to several ids for the *same* provider over time
+    (e.g. a provider-side re-classification keeps the old id resolvable while a new
+    one becomes canonical), so ``(printing, provider)`` is indexed but not unique.
     Uniqueness is on ``(provider, external_id)``: a given provider id resolves to
     exactly one printing.
     """
 
     # CASCADE, unlike CardPrinting.card (PROTECT): an external id is a pure
     # provider mapping with no independent value and nothing referencing it, and
-    # is re-derivable from a provider sync — so it should vanish with its printing
+    # is re-derivable from a provider sync, so it should vanish with its printing
     # rather than block the delete. db_index=False because the (printing, provider)
     # index below already covers printing-keyed lookups; a lone FK index is redundant.
     printing = models.ForeignKey(
@@ -50,7 +50,7 @@ class ExternalPriceId(TimeStampedModel):
     class Meta:
         ordering = ["provider", "external_id"]
         constraints = [
-            # A provider id maps to one printing — the same (provider, external_id)
+            # A provider id maps to one printing, the same (provider, external_id)
             # can't be claimed twice. A plain UNIQUE (no NULL semantics), so unlike
             # the CardPrinting natural key it IS created and exercised on sqlite too.
             models.UniqueConstraint(
@@ -60,7 +60,7 @@ class ExternalPriceId(TimeStampedModel):
         ]
         indexes = [
             # Covering index for the hot "what does <provider> call this printing?"
-            # lookup (DECISIONS 2026-05-18); its leftmost prefix also serves the FK.
+            # lookup; its leftmost prefix also serves the FK.
             models.Index(fields=["printing", "provider"], name="epi_printing_provider_idx"),
         ]
 
@@ -69,8 +69,8 @@ class ExternalPriceId(TimeStampedModel):
 
 
 class PriceSnapshot(TimeStampedModel):
-    """One provider's price for a printing+edition on a given day — append-only
-    daily history (DECISIONS 2026-05-18).
+    """One provider's price for a printing+edition on a given day, append-only
+    daily history.
 
     Pricing refreshes on a daily schedule and historical analytics is a core
     feature, so snapshots are inserted and never updated: "today's price" is the
@@ -78,18 +78,18 @@ class PriceSnapshot(TimeStampedModel):
     range scan, which makes re-running an ingestion idempotent. (Append-only is a
     convention here, not a ``save()``-enforced lock.)
 
-    Edition is a pricing dimension (DECISIONS 2026-05-18): TCGCSV prices the same
+    Edition is a pricing dimension: TCGCSV prices the same
     product differently per ``subTypeName`` (1st Edition vs Unlimited), so a
     printing has one snapshot *per edition* per source per day. ``source`` is the
-    shared ``Provider`` enum rather than a ``price_sources`` FK table (Open
-    Question #1, resolved 2026-05-22: one source today, and per-source config can
-    become a Phase 2 table keyed by this slug without rewriting history).
+    shared ``Provider`` enum rather than a ``price_sources`` FK table (resolved:
+    one source today, and per-source config can become a Phase 2 table keyed by
+    this slug without rewriting history).
     ``source_subtype_name`` keeps the raw provider subtype (e.g. TCGCSV "1st
     Edition") for audit if the edition-normalisation rule ever changes.
 
     The ``printing`` FK is ``PROTECT``: a price *series* is not re-derivable (you
     can't re-fetch a past day's price) and losing it would gut the historical
-    analytics, so a stray printing delete must not cascade it away — unlike the
+    analytics, so a stray printing delete must not cascade it away, unlike the
     re-derivable leaf ``ExternalPriceId`` (CASCADE).
     """
 
@@ -99,14 +99,14 @@ class PriceSnapshot(TimeStampedModel):
     edition = models.CharField(max_length=16, choices=Edition.choices)
     source = models.CharField(max_length=32, choices=Provider.choices)
     snapshot_date = models.DateField()
-    # Every price point is nullable — a provider may report only some of them.
+    # Every price point is nullable, a provider may report only some of them.
     # Decimal (never float) for money; 2 dp matches TCGCSV's USD cents.
     low_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     mid_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     high_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     market_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     direct_low_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    # Multi-source confidence score (DECISIONS 2026-05-18). One trusted source
+    # Multi-source confidence score. One trusted source
     # today, so 1.0; the scoring semantics land in Phase 2, hence no range CHECK yet.
     confidence = models.FloatField(default=1.0)
     # Raw provider subtype the edition was normalised from (e.g. "1st Edition"),
@@ -140,7 +140,7 @@ class PriceSnapshot(TimeStampedModel):
             # Money can't be negative; each price point is NULL or >= 0. NaN/inf are
             # already blocked upstream (the TCGCSV `_to_decimal` boundary guard and
             # Django's DecimalField quantize), so this backstops a negative from any
-            # source — a manual admin edit, a future provider — matching the
+            # source (a manual admin edit, a future provider), matching the
             # CollectionLot / PortfolioValueSnapshot money-CHECK pattern.
             models.CheckConstraint(
                 condition=(models.Q(low_price__isnull=True) | models.Q(low_price__gte=0))
@@ -153,7 +153,7 @@ class PriceSnapshot(TimeStampedModel):
         ]
         indexes = [
             # Covering index for the hot "latest price for this printing+edition"
-            # lookup (DECISIONS 2026-05-18): leftmost prefix + descending date.
+            # lookup: leftmost prefix + descending date.
             models.Index(
                 fields=["printing", "edition", "-snapshot_date"],
                 name="price_snapshot_latest_idx",
@@ -203,15 +203,15 @@ class UnmatchedStatus(models.TextChoices):
 
 class UnmatchedProduct(TimeStampedModel):
     """A pricing-provider product the reconciliation could not safely resolve to
-    exactly one ``CardPrinting`` — the review queue (DECISIONS 2026-05-23 point 8:
-    unresolved conflicts are queued, never silently guessed). Mutable: a human
+    exactly one ``CardPrinting``, the review queue (unresolved conflicts are
+    queued, never silently guessed). Mutable: a human
     triages ``status``.
 
     Upserted on ``(provider, external_id)`` so a daily re-run refreshes an entry
     rather than piling up duplicates, while preserving a human's ``status`` /
     ``notes``. ``product_name`` keeps the raw provider name (its parenthetical is
     the variant signal a human needs); ``reason`` distinguishes the failure class.
-    Not append-only history (unlike ``PriceSnapshot``) — it's a work list — so it
+    Not append-only history (unlike ``PriceSnapshot``), it's a work list, so it
     carries a normal admin with no delete/edit lockdown.
     """
 

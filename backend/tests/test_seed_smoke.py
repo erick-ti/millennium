@@ -1,7 +1,7 @@
 """Tests for the `seed_smoke` management command (Phase 5 slice 6).
 
 The command is test infrastructure (it primes the Playwright smoke DB), but it
-touches enough models that a field/constraint change could silently break it —
+touches enough models that a field/constraint change could silently break it,
 so these tests guard the contract the smoke suite relies on: a login user, an
 import-target printing that is NOT yet owned, and a pre-owned holding with a
 positive quantity. Runs under `config.settings.test` (DEBUG=False), so it
@@ -55,7 +55,7 @@ def test_seed_creates_login_user_with_working_password() -> None:
 
     user = User.objects.get(username=SMOKE_USERNAME)
     assert user.is_active is True
-    # Unprivileged by construction — the smoke flows use the regular API.
+    # Unprivileged by construction: the smoke flows use the regular API.
     assert user.is_staff is False
     assert user.is_superuser is False
     # The password must actually authenticate (set_password, not a raw assign).
@@ -70,7 +70,7 @@ def test_seed_import_target_is_matchable_but_not_yet_owned() -> None:
     assert printing.card.name == IMPORT_CARD_NAME
     assert printing.variant_label is None
     assert printing.is_multi_variant is False
-    # The import flow is what materializes it — the seed must not pre-own it,
+    # The import flow is what materializes it, the seed must not pre-own it,
     # else the smoke's approve would SKIP ("already imported") instead of add.
     assert not CollectionItem.objects.filter(printing=printing).exists()
 
@@ -136,10 +136,10 @@ def test_refuses_to_run_when_not_debug_without_force(monkeypatch: pytest.MonkeyP
 def test_refuses_a_remote_database_target_even_with_force(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """DEBUG guards the settings posture, not the mutation target (Codex round
-    3): smoke/dev settings are always DEBUG=True, so a DATABASE_URL mis-pointed
-    at a deployed DB would pass that check alone. The host guard refuses a
-    non-loopback target — and --force must NOT bypass it (its only meaning is
+    """DEBUG guards the settings posture, not the mutation target: smoke/dev
+    settings are always DEBUG=True, so a DATABASE_URL mis-pointed at a
+    deployed DB would pass that check alone. The host guard refuses a
+    non-loopback target, and --force must NOT bypass it (its only meaning is
     "skip the DEBUG check"). Raises before any DB access → no django_db marker.
     """
     monkeypatch.setitem(
@@ -192,7 +192,7 @@ def test_database_locality_predicate(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.django_db
 def test_refuses_to_claim_a_preexisting_non_seed_smoke_user() -> None:
     """A real account that merely shares the smoke username must NOT be turned
-    into a known-password login (Codex review): the seed owns only the user it
+    into a known-password login: the seed owns only the user it
     created (smoke email, no privilege bits) and fails closed on anything else,
     leaving the account's credentials and privileges untouched.
     """
@@ -235,7 +235,7 @@ def test_smoke_csv_fixture_resolves_exact_against_the_seeded_printing() -> None:
     assert norm.data["set_code"] == IMPORT_SET_CODE
     assert norm.data["set_rarity"] == IMPORT_SET_RARITY
 
-    # The seeded printing is matched EXACT (name agrees, not multi-variant) — the
+    # The seeded printing is matched EXACT (name agrees, not multi-variant): the
     # precondition for the import smoke's Approve step.
     result = match_row(norm.data)
     assert result.confidence == MatchConfidence.EXACT
@@ -273,8 +273,8 @@ def test_reset_survives_protected_valuation_history_on_a_smoke_portfolio() -> No
     """On a shared dev DB the beat-scheduled valuation values EVERY portfolio,
     including the smoke ones, and ``PortfolioValueSnapshot.portfolio`` is
     PROTECT. ``--reset`` must skip (not delete) a smoke portfolio with that
-    history — an unconditional delete raises ``ProtectedError`` and rolls back
-    the whole reset, leaving the smoke suite unrunnable (Codex review).
+    history: an unconditional delete raises ``ProtectedError`` and rolls back
+    the whole reset, leaving the smoke suite unrunnable.
     """
     call_command("seed_smoke", "--force")
     portfolio = Portfolio.objects.get(name=SMOKE_PORTFOLIO_NAME)

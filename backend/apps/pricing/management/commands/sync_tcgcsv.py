@@ -12,10 +12,10 @@ class Command(BaseCommand):
 
     def handle(self, *args: Any, **options: Any) -> None:
         # Reconcile-then-ingest under the compare-to-previous cardinality guard, recording
-        # a SyncRun (DECISIONS 2026-05-24 slice 3) — same orchestration the Celery task uses.
+        # a SyncRun. Same orchestration the Celery task uses.
         outcome = run_tcgcsv_sync()
         if outcome is None:
-            # Another run held the advisory lock — this invocation was skipped.
+            # Another run held the advisory lock, so this invocation was skipped.
             self.stdout.write(
                 self.style.WARNING("TCGCSV sync skipped: another run is already in progress.")
             )

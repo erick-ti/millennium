@@ -27,12 +27,12 @@ function MetricRow({ label, children }: { label: string; children: ReactNode }) 
  * by the summary-card grid (`/portfolios`) and the detail header
  * (`/portfolios/[id]`).
  *
- * NULL-safety is the whole point (DECISIONS 2026-05-25 slice 4a):
+ * NULL-safety is the whole point:
  *  - `snapshot == null` → the portfolio has never been valued; show a notice,
  *    never a row of `$0.00`s.
  *  - `unrealized_gain == null` → partial coverage, so market_value and
  *    cost_basis sum different subsets and their difference isn't a real gain
- *    (`gain_iff_complete`). Render "partial coverage", NOT `$0.00` — a missing
+ *    (`gain_iff_complete`). Render "partial coverage", NOT `$0.00`: a missing
  *    gain is a gap, not zero. A non-null gain CAN be negative (a real loss).
  */
 export function PortfolioMetrics({

@@ -17,8 +17,8 @@ from apps.portfolio.serializers import (
 
 def _parse_iso_date(value: str, *, field: str) -> date:
     """Parse an ISO-8601 date or raise a 400 for the named query param. Duplicated
-    rather than shared because the apps deliberately don't import each other's helpers
-    — the same trim/parse contract recurs across the read API (the pricing viewset
+    rather than shared because the apps deliberately don't import each other's helpers.
+    The same trim/parse contract recurs across the read API (the pricing viewset
     has the same helper)."""
     try:
         return date.fromisoformat(value)
@@ -34,12 +34,12 @@ class PortfolioViewSet(viewsets.ReadOnlyModelViewSet[Portfolio]):
     """Read-only portfolios. Each row carries the latest ``PortfolioValueSnapshot``
     inline (NULL when a portfolio has never been valued, e.g. a freshly-created
     one from a Dragon Shield import that runs before the next 04:00 UTC
-    valuation beat — DECISIONS 2026-05-25 slice 4c)."""
+    valuation beat)."""
 
     serializer_class = PortfolioSerializer
 
     def get_queryset(self) -> QuerySet[Portfolio]:
-        # Portfolio.name has a UNIQUE constraint (DECISIONS 2026-05-22) so name
+        # Portfolio.name has a UNIQUE constraint, so name
         # alone is a fully deterministic order; id added defensively.
         return Portfolio.objects.all().order_by("name", "id")
 
@@ -70,8 +70,8 @@ class PortfolioViewSet(viewsets.ReadOnlyModelViewSet[Portfolio]):
 class PortfolioValueSnapshotViewSet(viewsets.ReadOnlyModelViewSet[PortfolioValueSnapshot]):
     """Read-only append-only daily valuation timeline. The slice-5 portfolio
     chart consumes ``?portfolio=&from=&to=`` to pull a range, then renders the
-    value series. ``unrealized_gain`` may be NULL on a row (partial coverage —
-    DECISIONS 2026-05-25 slice 4a); consumers handle NULL distinctly from 0."""
+    value series. ``unrealized_gain`` may be NULL on a row (partial coverage);
+    consumers handle NULL distinctly from 0."""
 
     serializer_class = PortfolioValueSnapshotSerializer
 

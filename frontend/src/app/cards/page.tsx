@@ -18,7 +18,7 @@ import { TableSkeleton } from "@/components/ui/table-skeleton";
 
 // DRF serves one fixed page size globally (PageNumberPagination, PAGE_SIZE=100).
 // Used only for the cosmetic "page X of Y"; Prev/Next enablement is driven by
-// the authoritative `next`/`previous` links (DECISIONS 2026-05-29 slice 3).
+// the authoritative `next`/`previous` links.
 const PAGE_SIZE = 100;
 
 const columns: Array<ColumnDef<CardList>> = [
@@ -37,7 +37,7 @@ const columns: Array<ColumnDef<CardList>> = [
   {
     accessorKey: "archetype",
     header: "Archetype",
-    // ~40% of cards have no archetype (NULL) — render an em-dash, never "".
+    // ~40% of cards have no archetype (NULL), render an em-dash, never "".
     cell: ({ row }) =>
       row.original.archetype ?? <span className="text-bone-muted">—</span>,
   },
@@ -69,7 +69,7 @@ export default function CardsPage() {
       query: { page, ...(archetype !== null ? { archetype } : {}) },
     }),
     // Keep the current page visible while the next one loads (no flash to a
-    // spinner on every page/filter change). Page-number pattern, per slice 3.
+    // spinner on every page/filter change).
     placeholderData: keepPreviousData,
   });
 
@@ -90,7 +90,7 @@ export default function CardsPage() {
       <PageHeader
         kicker="CATALOG"
         title="Cards"
-        subtitle="The full Yu-Gi-Oh catalog — search, filter, and chart any printing."
+        subtitle="The full Yu-Gi-Oh catalog: search, filter, and chart any printing."
       />
 
       <div className="flex flex-wrap items-center gap-3">

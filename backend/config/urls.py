@@ -3,9 +3,9 @@ from django.urls import URLPattern, URLResolver, include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 # schema/ and docs/ are gated by SPECTACULAR_SETTINGS["SERVE_PERMISSIONS"] =
-# IsNotDemoUser (drf-spectacular uses SERVE_PERMISSIONS, NOT DEFAULT_PERMISSION_CLASSES —
-# Invariant 7): auth required AND not the read-only demo. The OpenAPI schema is recon
-# material for a private app — log into /admin/ first.
+# IsNotDemoUser (drf-spectacular uses SERVE_PERMISSIONS, NOT DEFAULT_PERMISSION_CLASSES,
+# invariant 7 in ARCHITECTURE.md): auth required AND not the read-only demo. The OpenAPI schema is recon
+# material for a private app, log into /admin/ first.
 api_patterns: list[URLPattern | URLResolver] = [
     path("", include("apps.core.urls")),
     path("cards/", include("apps.cards.urls")),

@@ -15,7 +15,7 @@ function useDebounced<T>(value: T, ms: number): T {
   return debounced;
 }
 
-// Local label copies (the collection-page / alerts-page convention — these maps
+// Local label copies (the collection-page / alerts-page convention: these maps
 // are duplicated per consumer rather than shared, to keep each view self-contained).
 // Keyed loosely (`string`) because the holding's enum values arrive as plain strings.
 const CONDITION_LABELS: Record<string, string> = {
@@ -58,10 +58,10 @@ function holdingDescriptor(item: CollectionItemList): string {
  * One-step picker for adding an OWNED holding to a deck: search the collection by
  * card name (the existing `?search=` icontains facet on `/api/collection/items/`)
  * and pick a `CollectionItem`. Searching CollectionItems IS searching owned cards
- * by definition (DECISIONS 2026-05-18), so OWNED-only needs no extra predicate.
+ * by definition, so OWNED-only needs no extra predicate.
  * Adapted from the import-review `PrintingPicker` (debounced search → scrollable
  * result list → `onSelect`); a duplicate add is surfaced by the caller's 409, so the
- * picker does not pre-filter members (the member set spans pages — incomplete
+ * picker does not pre-filter members (the member set spans pages, and incomplete
  * disabling would be worse than none).
  */
 export function HoldingPicker({
@@ -79,7 +79,7 @@ export function HoldingPicker({
   const searchRef = useRef<HTMLInputElement>(null);
 
   // Focus the search input on mount (the picker opens via a button click, which would
-  // otherwise leave focus on that button — the slice-3 focus rule).
+  // otherwise leave focus on that button, per the focus-management convention used across pickers).
   useEffect(() => {
     searchRef.current?.focus();
   }, []);
@@ -89,17 +89,17 @@ export function HoldingPicker({
     enabled: searchEnabled,
     // No keepPreviousData here (unlike the paged tables): on a term change the prior term's
     // results must NOT linger as clickable rows, or a fast typist could add a holding that no
-    // longer matches the search box (Codex adversarial review 2026-05-31). A term change shows
-    // "Searching…" until the new results arrive. staleTime still caches an identical re-search.
+    // longer matches the search box. A term change shows "Searching…" until the new results
+    // arrive. staleTime still caches an identical re-search.
     staleTime: 60 * 1000,
   });
 
-  // Only show holdings you actually hold (quantity > 0) — a deck groups held cards, and the
-  // backend rejects a zero-copy add anyway (Codex adversarial review 2026-05-31).
+  // Only show holdings you actually hold (quantity > 0): a deck groups held cards, and the
+  // backend rejects a zero-copy add anyway.
   const holdings = (holdingsQuery.data?.results ?? []).filter((item) => item.quantity > 0);
   // The collection search paginates at 100 (card-name-only), and this picker shows only page 1.
   // Disclose when there are more matches than shown so a holding on a later page isn't silently
-  // unreachable — the project's no-silent-caps principle (Codex adversarial review 2026-05-31).
+  // unreachable, per the project's no-silent-caps principle.
   const hasMoreMatches = Boolean(holdingsQuery.data?.next);
 
   return (

@@ -10,7 +10,7 @@ class HostMetricSample(TimeStampedModel):
 
     Written by the ``millennium-host-metrics`` systemd timer (host side) via the
     ``record_host_metrics`` management command (container side). The backend container
-    is isolated — it can't read host ``/proc`` or the host disk — so a host-side
+    is isolated (it can't read host ``/proc`` or the host disk), so a host-side
     collector reads ``/proc`` + ``statvfs`` and pipes a JSON sample to the command,
     which persists it here; ``/api/status/infra/`` then serves the latest sample plus a
     short trailing series (the sparkline). This is the same timer→Postgres→backend
@@ -37,7 +37,7 @@ class HostMetricSample(TimeStampedModel):
 
     class Meta:
         # The -id tiebreaker gives a deterministic "latest" for co-timestamped rows
-        # (the SyncRun convention, DECISIONS 2026-05-22).
+        # (the SyncRun convention).
         ordering = ["-created_at", "-id"]
         # The infra endpoint only ever reads the newest N rows; this index serves that
         # ordered read and the prune-by-age delete.

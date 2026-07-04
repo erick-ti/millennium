@@ -74,7 +74,7 @@ function normField(row: ImportRow, key: string): string | null {
 
 type ApproveOutcome = "materialized" | "skipped" | "conflict";
 
-// Use the SDK fns (not the *Mutation helpers) so we can read response.status —
+// Use the SDK fns (not the *Mutation helpers) so we can read response.status:
 // approve returns 409 (a full ImportRow body) when the holding was already
 // imported with a different quantity/cost, which we surface DISTINCTLY rather
 // than treating as a generic error or overwriting cost basis.
@@ -91,8 +91,8 @@ function detailMessage(error: unknown): string | null {
 
 function failure(action: string, error: unknown, response: Response | undefined): Error {
   // A 403 can be a missing/stale CSRF cookie (the on-mount seed raced or failed); re-seed so the
-  // next attempt carries a token without a reload. Harmless for an auth 403 — the backend detail
-  // message below still tells the user to sign in. (Codex review 2026-05-30.)
+  // next attempt carries a token without a reload. Harmless for an auth 403; the backend detail
+  // message below still tells the user to sign in.
   if (response?.status === 403) seedCsrf();
   return new Error(
     detailMessage(error) ??
@@ -204,14 +204,14 @@ export function ImportBatchDetail({ batchId }: { batchId: number }) {
   // One shared mutation object per action can't reliably track WHICH row is in flight
   // (mutation.variables reflects only the latest mutate() call), so a second action would
   // re-enable the first row's buttons mid-request. Disable all row actions while ANY is
-  // pending — at single-user scale serial actions are the norm, and this removes the
+  // pending: at single-user scale serial actions are the norm, and this removes the
   // double-submit / stale-busy ambiguity entirely.
   const anyActionPending =
     approveMutation.isPending || rejectMutation.isPending || overrideMutation.isPending;
 
-  // Page/filter navigation closes any open override picker so it can't stay detached from — or
-  // submit against — a row that's no longer in the visible result set (Codex review 2026-05-30).
-  // Done in the handlers (not an effect — react-hooks/set-state-in-effect) since those are the
+  // Page/filter navigation closes any open override picker so it can't stay detached from, or
+  // submit against, a row that's no longer in the visible result set.
+  // Done in the handlers (not an effect: the react-hooks/set-state-in-effect lint rule flags that) since those are the
   // only ways page/filter change.
   function goToPage(next: number) {
     setPage(next);
@@ -250,8 +250,8 @@ export function ImportBatchDetail({ batchId }: { batchId: number }) {
   const hasNext = Boolean(rowsQuery.data?.next);
   const overridingRow = rows.find((row) => row.id === overridingRowId);
   // Row actions are inert while a mutation is in flight OR while a page/filter transition is
-  // showing stale (keepPreviousData) rows — acting on a row that's about to scroll out of view
-  // would terminally approve/skip the wrong row (Codex review 2026-05-30, the slice-3
+  // showing stale (keepPreviousData) rows: acting on a row that's about to scroll out of view
+  // would terminally approve/skip the wrong row (the slice-3
   // "dim ⇒ non-actionable" rule).
   const actionsLocked = anyActionPending || isPaging;
 
@@ -317,7 +317,7 @@ export function ImportBatchDetail({ batchId }: { batchId: number }) {
     },
   ];
 
-  // The review actions (approve/override/reject) are owner-only — the demo can read the
+  // The review actions (approve/override/reject) are owner-only: the demo can read the
   // review queue but DemoReadOnly blocks the writes, so hide the column entirely.
   if (canWrite) {
     columns.push({

@@ -16,11 +16,11 @@ class MatchResult:
     ``confidence`` is the tier slice 4 writes to ``ImportRow.match_confidence``;
     ``detail`` is a short human-readable note (for the review queue /
     ``error_message``) explaining the outcome. v1 emits EXACT / MEDIUM / UNMATCHED
-    only — HIGH / LOW are reserved for a future fuzzy matcher.
+    only, HIGH / LOW are reserved for a future fuzzy matcher.
 
     Slice-4 materialization policy: only **EXACT** is auto-materializable; MEDIUM
     (printing found but the card-name sanity check disagreed) and UNMATCHED both
-    route to human review — never auto-committed to the collection.
+    route to human review, never auto-committed to the collection.
     """
 
     printing: CardPrinting | None
@@ -32,22 +32,22 @@ def match_row(data: dict[str, Any]) -> MatchResult:
     """Resolve a normalized DS row (slice 2's ``normalized_data``) to a reconciled
     ``CardPrinting``, alias-aware, with a confidence tier.
 
-    Keys on ``(set_code, set_rarity)`` — ``set_code`` is the full card number, so it
-    is card-specific — consulting a YGOPRODeck ``PrintingAlias`` from the provisional
+    Keys on ``(set_code, set_rarity)`` (``set_code`` is the full card number, so it
+    is card-specific), consulting a YGOPRODeck ``PrintingAlias`` from the provisional
     rarity *first* (the authoritative record that TCGCSV reconciled that key to a
     canonical printing, in place; the ``cards/sync.py`` alias-first order), then the
     exact printing (variant NULL). The strict tier rule:
 
         EXACT     = printing found (exact key or alias) AND card name agrees
-        MEDIUM    = printing found but not safe to auto-materialize — card name
-                    disagrees / is missing, or the key is a known multi-variant placeholder
+        MEDIUM    = printing found but not safe to auto-materialize (card name
+                    disagrees / is missing, or the key is a known multi-variant placeholder)
         UNMATCHED = no printing found
 
     ``card_name`` is a confidence *cross-check*, never part of the key: a found
     printing whose catalog card name disagrees is still returned as the best
     candidate (``set_code`` is more authoritative than the free-text name) but flagged
     MEDIUM so slice 4 routes it to review instead of auto-materializing. No printing
-    for the key → UNMATCHED — there is **no** name-based fallback in v1 (a Yu-Gi-Oh
+    for the key -> UNMATCHED. There is **no** name-based fallback in v1 (a Yu-Gi-Oh
     card name maps to many printings/rarities/arts, so a name hit identifies the card
     *concept*, not the owned printing, and must never set ``matched_printing``); the
     unmatched detail still records whether the name exists in the catalog as a triage
@@ -61,7 +61,7 @@ def match_row(data: dict[str, Any]) -> MatchResult:
     set_rarity = _clean(data.get("set_rarity"))
     card_name = _clean(data.get("card_name"))
     if not set_code or not set_rarity:
-        # slice 2 left one NULL (missing column or unmapped rarity) — can't key a printing.
+        # slice 2 left one NULL (missing column or unmapped rarity), can't key a printing.
         return MatchResult(None, MatchConfidence.UNMATCHED, "missing set_code or set_rarity")
 
     printing, ambiguous = _resolve_printing(set_code, set_rarity)
@@ -77,9 +77,9 @@ def match_row(data: dict[str, Any]) -> MatchResult:
         )
 
     # A known multi-variant key is an ambiguous placeholder (reconciliation queued several
-    # sellable variants for it rather than splitting — DECISIONS 2026-05-24): keep it as
-    # the best candidate but downgrade to MEDIUM/review even if the name agrees — never
-    # EXACT/auto-materialize a holding whose variant is unresolved (DECISIONS 2026-05-26).
+    # sellable variants for it rather than splitting): keep it as the best candidate but
+    # downgrade to MEDIUM/review even if the name agrees, never EXACT/auto-materialize a
+    # holding whose variant is unresolved.
     if printing.is_multi_variant:
         return MatchResult(
             printing,
@@ -112,15 +112,14 @@ def _resolve_printing(set_code: str, set_rarity: str) -> tuple[CardPrinting | No
     Alias-first mirrors the alias-consumption order in ``cards/sync.py`` and is what
     makes the resolution authoritative: an alias records that TCGCSV reconciled this
     provisional key to a canonical printing, so it must win even if a stale provisional
-    row still lingers at the same key (DECISIONS 2026-05-24 notes one can). Exact-first
-    would return that stale row, and the name check could mark it EXACT, which slice 4
-    auto-materializes — a wrong/unpriced printing in the collection (Codex review
-    2026-05-26). DS rows always carry the provisional rarity the alias keys on, so
-    alias-first never mis-resolves a legitimately-canonical row.
+    row still lingers at the same key. Exact-first would return that stale row, and the
+    name check could mark it EXACT, which slice 4 auto-materializes, a wrong/unpriced
+    printing in the collection. DS rows always carry the provisional rarity the alias
+    keys on, so alias-first never mis-resolves a legitimately-canonical row.
 
     Returns ``(printing, ambiguous)``; ``ambiguous`` is True when more than one distinct
     printing matches and one can't be safely chosen. In practice ``set_code`` is the
-    full card number (card-specific), so a match is 0 or 1 — the >1 guard is defensive
+    full card number (card-specific), so a match is 0 or 1; the >1 guard is defensive
     (the natural key permits two cards to share a ``(set_code, set_rarity)`` even if real
     data doesn't), routing that to review rather than silently picking one.
     """
@@ -150,7 +149,7 @@ def _unmatched_detail(set_code: str, set_rarity: str, card_name: str) -> str:
     """Triage note for an unmatched row: why no printing, plus whether the card name
     exists in the catalog at all.
 
-    The name check is a read-only diagnostic, NOT a fallback — it never sets a
+    The name check is a read-only diagnostic, NOT a fallback: it never sets a
     ``matched_printing`` (a Yu-Gi-Oh card name maps to many printings, so it identifies
     the card concept, not the owned printing). It only tells the reviewer whether the
     miss is "unknown card" vs "known card, this printing/rarity not in the catalog".

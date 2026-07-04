@@ -43,7 +43,7 @@ def _row(
     acquired: str = "2024-01-15",
 ) -> str:
     """One DS data row. Defaults map to: set_code L5DD-ENC09, Common, 1st Edition,
-    Near Mint, English, qty 3, $0.68, 2024-01-15 — i.e. the ``_printing`` below."""
+    Near Mint, English, qty 3, $0.68, 2024-01-15, i.e. the ``_printing`` below."""
     set_code_col = card_number.split("-")[0]  # the bare prefix DS puts in Set Code (ignored)
     return (
         f"{folder},{quantity},0,{card_name},{set_code_col},\"Some Set\",{card_number},"
@@ -73,7 +73,7 @@ def _printing(
 
 
 def _record_reconciliation() -> None:
-    """Record today's successful TCGCSV pricing/reconcile run — the materialization gate."""
+    """Record today's successful TCGCSV pricing/reconcile run: the materialization gate."""
     record_run(SyncKind.TCGCSV_PRICING, SyncStatus.SUCCESS, product_count=1, price_row_count=1)
 
 
@@ -107,10 +107,10 @@ def test_materializes_exact_with_fresh_reconciliation() -> None:
 
 @pytest.mark.django_db
 def test_exact_staged_pending_when_reconciliation_is_stale() -> None:
-    """The slice-4 gate: an EXACT match must NOT auto-materialize unless a fresh
+    """An EXACT match must NOT auto-materialize unless a fresh
     successful TCGCSV reconciliation exists (else the multi-variant guard may be stale).
-    The row stages PENDING and nothing touches the collection — not even the folder's
-    portfolio is created (DECISIONS 2026-05-26 slice 4)."""
+    The row stages PENDING and nothing touches the collection, not even the folder's
+    portfolio is created."""
     _printing()
     # no reconciliation recorded
 
@@ -133,12 +133,12 @@ def test_exact_staged_pending_when_reconciliation_is_stale() -> None:
 def test_exact_staged_when_printing_created_after_reconciliation() -> None:
     """Per-printing coverage gate: a printing created AFTER the day's reconciliation was
     never multi-variant-checked (is_multi_variant defaults False), so an EXACT match on it
-    stages rather than auto-materializing — even though a same-day reconciliation exists.
+    stages rather than auto-materializing, even though a same-day reconciliation exists.
     The check is the printing's own created_at vs the reconciliation time (not a once-per-
-    batch flag or metadata-SyncRun ordering), which closes the concurrent / partially-failed
-    metadata-sync hole a batch-global gate leaves (Codex review 2026-05-26, round 3)."""
+    batch flag or metadata-SyncRun ordering), which closes the hole a batch-global gate
+    would leave open for a printing created by a concurrent or partially-failed metadata sync."""
     # Reconciliation first; the matched printing is created AFTER it (e.g. a later/concurrent
-    # metadata sync) — so it post-dates the cutoff and is uncovered.
+    # metadata sync), so it post-dates the cutoff and is uncovered.
     record_run(SyncKind.TCGCSV_PRICING, SyncStatus.SUCCESS, product_count=1, price_row_count=1)
     _printing()
 
@@ -147,7 +147,7 @@ def test_exact_staged_when_printing_created_after_reconciliation() -> None:
     assert result.rows_materialized == 0
     assert result.rows_pending_review == 1
     # A reconciliation DID run today (so the batch-level flag is True), but THIS printing
-    # post-dates it — the per-printing check is what stages the row.
+    # post-dates it, so the per-printing check is what stages the row.
     assert result.materialization_allowed is True
     assert CollectionItem.objects.count() == 0
     row = ImportRow.objects.get(batch_id=result.batch_id)
@@ -194,7 +194,7 @@ def test_medium_match_routes_to_review_even_when_fresh() -> None:
 def test_multi_variant_printing_routes_to_review() -> None:
     """A known multi-variant placeholder is downgraded to MEDIUM by the matcher even
     when the name agrees, so run_import stages it for review rather than materializing
-    an ambiguous holding — the whole point of the is_multi_variant flag flowing through."""
+    an ambiguous holding: the whole point of the is_multi_variant flag flowing through."""
     _printing(is_multi_variant=True)
     _record_reconciliation()
 
@@ -245,7 +245,7 @@ def test_audit_row_save_failure_rolls_back_the_materialized_holding(
     can never be orphaned from its audit row (and then silently masked as a duplicate on
     re-import). The row failure is contained: a fresh ERROR row is recorded outside the
     rolled-back block and the batch continues (the run_valuation snapshot/run atomicity
-    pattern, applied per-row; Codex adversarial review 2026-05-26)."""
+    pattern, applied per-row)."""
     _printing()
     _record_reconciliation()
 
@@ -283,7 +283,7 @@ def test_unexpected_loop_failure_records_failed_batch_not_stuck_processing(
     """An unexpected failure mid-loop (here match_row raises on the 2nd row, after the 1st
     already materialized) must not leave the batch stuck in PROCESSING: run_import records a
     terminal FAILED status + error and re-raises, so a re-import doesn't silently SKIP the
-    committed work against a never-resolved batch (Codex adversarial review 2026-05-26).
+    committed work against a never-resolved batch.
     Per-row independence holds -- the 1st row's already-committed holding is not rolled back."""
     _printing()
     _record_reconciliation()
@@ -375,8 +375,9 @@ def test_non_dragon_shield_file_records_a_failed_batch() -> None:
 
 @pytest.mark.django_db
 def test_folder_name_is_trimmed_before_portfolio_get_or_create() -> None:
-    """The deferred natural-key trim obligation (DECISIONS 2026-05-21/22): the importer
-    trims Folder Name, so a padded folder resolves to the same portfolio."""
+    """Natural-key text fields need trimming so lookups aren't split by incidental
+    whitespace: the importer trims Folder Name, so a padded folder resolves to the
+    same portfolio."""
     _printing()
     _record_reconciliation()
 

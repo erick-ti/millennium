@@ -38,15 +38,15 @@ from apps.cards.serializers import (
 )
 class CardViewSet(viewsets.ReadOnlyModelViewSet[Card]):
     """Read-only catalog of card identities. List returns ``{id, passcode, name}``
-    and is ``?search=``-filterable by name (the slice-6 import-review override picker
-    finds a card by name → lists its printings); retrieve nests printings (a card has
-    at most a handful — DECISIONS 2026-05-18) so slice 4's card-detail view loads in
-    one round-trip."""
+    and is ``?search=``-filterable by name (the import-review override picker
+    finds a card by name, then lists its printings); retrieve nests printings (a card
+    has at most a handful) so the card-detail view loads in one round-trip."""
 
     def get_queryset(self) -> QuerySet[Card]:
-        # Card.name isn't unique after normalization (DECISIONS 2026-05-18), so
+        # Card.name isn't guaranteed unique after normalization (Konami has released
+        # cards with disambiguator-only differences that survive normalization), so
         # the surrogate id is the stable tiebreaker for deterministic pagination.
-        # printings_count (slice 4 /cards table) is annotated for BOTH actions:
+        # printings_count (the /cards table) is annotated for BOTH actions:
         # CardDetailSerializer inherits the field from CardListSerializer, so a
         # retrieve must also carry the annotation or serialization would
         # AttributeError on the missing attribute. Count never yields NULL.
@@ -54,17 +54,17 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet[Card]):
         if self.action == "retrieve":
             return qs.prefetch_related("printings")
         # Filtering is a list-only concern: get_object() runs the queryset through
-        # filter_queryset too, so a stray ?search= on a retrieve would 404 it (the
-        # slice-5 import lesson). An empty/whitespace search is a cleared box, not a
-        # filter — ignore it rather than returning zero rows.
+        # filter_queryset too, so a stray ?search= on a retrieve would 404 it. An
+        # empty/whitespace search is a cleared box, not a filter, so it's ignored
+        # rather than returning zero rows.
         if self.action != "list":
             return qs
         search = self.request.query_params.get("search")
         if search is not None and search.strip():
             qs = qs.filter(name__icontains=search.strip())
-        # Exact-match archetype facet (Phase 5). An empty/whitespace value is a
-        # cleared dropdown, not "match the empty archetype" — ignore it (the
-        # search-box convention); NULL archetypes have no selectable value.
+        # Exact-match archetype facet. An empty/whitespace value is a cleared
+        # dropdown, not "match the empty archetype", so it's ignored (the same
+        # convention as the search box); NULL archetypes have no selectable value.
         archetype = self.request.query_params.get("archetype")
         if archetype is not None and archetype.strip():
             qs = qs.filter(archetype=archetype.strip())
@@ -76,7 +76,7 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet[Card]):
     @extend_schema(
         summary="List distinct archetypes",
         description=(
-            "Every distinct non-null archetype, sorted — the source for the "
+            "Every distinct non-null archetype, sorted: the source for the "
             "/cards archetype filter dropdown. Not paginated (a few hundred at most)."
         ),
         responses={200: {"type": "array", "items": {"type": "string"}}},
@@ -86,7 +86,7 @@ class CardViewSet(viewsets.ReadOnlyModelViewSet[Card]):
         # A flat sorted list of distinct archetypes for the filter dropdown. Reads
         # Card.objects directly (not get_queryset) to skip the printings_count
         # annotation + name ordering, which are irrelevant to a distinct-archetype
-        # scan. NULLs excluded — "no archetype" isn't a filterable value.
+        # scan. NULLs excluded, "no archetype" isn't a filterable value.
         values = (
             Card.objects.exclude(archetype__isnull=True)
             .order_by("archetype")
@@ -121,15 +121,16 @@ class CardPrintingViewSet(viewsets.ReadOnlyModelViewSet[CardPrinting]):
     serializer_class = CardPrintingSerializer
 
     def get_queryset(self) -> QuerySet[CardPrinting]:
-        # variant_label nullability and natural-key ambiguity (DECISIONS 2026-05-21)
-        # mean (set_code, set_rarity) alone may alias for sibling variants; add id
-        # as the deterministic tiebreaker for pagination.
+        # variant_label nullability and natural-key ambiguity mean (set_code,
+        # set_rarity) alone may alias for sibling variants; add id as the
+        # deterministic tiebreaker for pagination.
         qs = CardPrinting.objects.select_related("card").order_by(
             "set_code", "set_rarity", "variant_label", "id"
         )
         # Query-param filtering is a list-only concern. get_object() also runs the
         # queryset through filter_queryset, so applying these to a detail action
-        # would let a stray ?card= 404 a retrieve (the imports lesson, slice 5).
+        # would let a stray ?card= 404 a retrieve (the same lesson learned in the
+        # imports review-queue API).
         if self.action != "list":
             return qs
 

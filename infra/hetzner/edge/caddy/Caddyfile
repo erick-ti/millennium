@@ -1,10 +1,10 @@
 # Millennium public edge. Caddy auto-provisions + renews a Let's Encrypt cert
 # for the host below (HTTP-01/TLS-ALPN challenge on :80/:443), so the DNS A
-# record MUST resolve straight to this box — keep it DNS-only (grey cloud) on
+# record MUST resolve straight to this box: keep it DNS-only (grey cloud) on
 # Cloudflare, not proxied (orange cloud), or the challenge fails.
 #
 # GUARDRAIL: this proxies ONLY the Millennium frontend. Never add a vhost for any
-# other service on this box — co-tenant apps stay loopback/SSH-only and must never
+# other service on this box: co-tenant apps stay loopback/SSH-only and must never
 # be exposed through this edge.
 {
 	# Optional but recommended: an email for Let's Encrypt expiry/recovery
@@ -15,22 +15,22 @@
 millennium.erickti.com {
 	encode zstd gzip
 
-	# HSTS — tell browsers to only ever reach this host over HTTPS. Emitted at the
+	# HSTS: tell browsers to only ever reach this host over HTTPS. Emitted at the
 	# EDGE (not Django) on purpose: Caddy owns TLS and is the only hop EVERY response
 	# passes through, so the policy rides the very first HTML byte. Django only sees
 	# /api/* and, because X-Forwarded-Proto isn't propagated through the Next rewrite,
-	# request.is_secure() is False at the backend — so DJANGO_SECURE_HSTS_SECONDS would
-	# be a SILENT NO-OP (it stays at its safe-off Invariant-6 default; see prod.py).
+	# request.is_secure() is False at the backend, so DJANGO_SECURE_HSTS_SECONDS would
+	# be a SILENT NO-OP (it stays at its safe-off default per invariant 6 in ARCHITECTURE.md; see prod.py).
 	#
 	# RAMP (never jump straight to a year on an unproven host: a long max-age pins
 	# browsers to HTTPS and recovery means waiting out the timer):
-	#   max-age=86400 (1 day) → 31536000 (1 year — HERE NOW, ramped 2026-06-18
+	#   max-age=86400 (1 day) → 31536000 (1 year, HERE NOW, ramped 2026-06-18
 	#   after a clean ~24h soak at 1 day with HTTPS serving cleanly).
-	# includeSubDomains scopes to *.millennium.erickti.com (none exist today) — correct
+	# includeSubDomains scopes to *.millennium.erickti.com (none exist today), correct
 	# and harmless, and it does NOT touch the apex erickti.com or any co-tenant host.
 	# Deliberately NO `preload`: near-irreversible (months to delist) and the preload
 	# list targets registrable domains, not a personal subdomain. Verified safe to set
-	# here on 2026-06-16 — HTTPS has served cleanly via Let's Encrypt since 2026-06-15.
+	# here on 2026-06-16: HTTPS has served cleanly via Let's Encrypt since 2026-06-15.
 	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
 
 	# Reach the Millennium frontend over the shared `edge_net` network by its

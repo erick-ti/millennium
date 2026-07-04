@@ -65,7 +65,7 @@ Thumbs.db
 # Raw scanner exports, pricing/metadata samples, and recon notes derived from
 # them are kept local because real Dragon Shield exports + the notes that quote
 # them contain personal collection data (folder names, cards owned, prices paid).
-# Narrow paths only — `docs/` itself stays available for committed project docs.
+# Narrow paths only; `docs/` itself stays available for committed project docs.
 data/samples/
 docs/recon/
 # Hetzner deploy runbook — kept local (public repo): it carries box-specific
@@ -74,4 +74,10 @@ docs/recon/
 # IP-clean config-as-code under infra/hetzner/ is the portfolio surface instead.
 docs/hetzner-deploy-runbook.md
 
-# Note: keep uv.lock checked in for reproducible builds — do not ignore it.
+# ROADMAP.md is intentionally tracked and public in this repo (the milestone
+# history for readers). A global git ignore may list ROADMAP.md as a personal
+# cross-project default; this repo-local negation overrides it so the file
+# stays committable.
+!ROADMAP.md
+
+# Note: keep uv.lock checked in for reproducible builds, do not ignore it.

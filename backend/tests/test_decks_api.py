@@ -119,7 +119,7 @@ def test_rename_deck(client: APIClient) -> None:
 @pytest.mark.django_db
 def test_rename_trims_the_name(client: APIClient) -> None:
     """validate_name runs on PATCH too (DRF runs field validators on partial_update for
-    any provided field) — so a rename trims, not just create."""
+    any provided field), so a rename trims, not just create."""
     deck = Deck.objects.create(name="Snake-Eye")
     resp = client.patch(
         reverse("decks:deck-detail", args=[deck.pk]), {"name": "  Renamed  "}, format="json"
@@ -172,7 +172,7 @@ def test_add_member_returns_denormalized_holding_identity(client: APIClient) -> 
     assert resp.data["card_name"] == "Ash Blossom & Joyous Spring"
     assert resp.data["set_code"] == "L5DD-ENC09"
     assert resp.data["set_rarity"] == "Common"
-    assert resp.data["variant_label"] is None  # a no-variant printing — nullable field
+    assert resp.data["variant_label"] is None  # a no-variant printing, nullable field
     assert resp.data["condition"] == Condition.NEAR_MINT
     assert resp.data["edition"] == Edition.FIRST_EDITION
     assert resp.data["language"] == Language.ENGLISH
@@ -183,8 +183,8 @@ def test_add_member_returns_denormalized_holding_identity(client: APIClient) -> 
 @pytest.mark.django_db
 def test_cannot_add_a_zero_copy_holding(client: APIClient) -> None:
     """A deck groups cards you HOLD, so a lot-less (quantity 0) holding is rejected at the API
-    boundary with a clean 400 — even though the CollectionItem row exists (Codex adversarial
-    review 2026-05-31). Defense-in-depth behind the picker's own quantity>0 filter."""
+    boundary with a clean 400, even though the CollectionItem row exists.
+    Defense-in-depth behind the picker's own quantity>0 filter."""
     deck = Deck.objects.create(name="Snake-Eye")
     item = _item()  # no lots → quantity 0
 
@@ -202,8 +202,8 @@ def test_cannot_add_a_zero_copy_holding(client: APIClient) -> None:
 @pytest.mark.django_db
 def test_member_row_reports_holding_copy_count(client: APIClient) -> None:
     """A holding tagged into a deck is ONE membership (member_count counts holdings), but the
-    row carries the holding's copy count — the SUM of its lots (the CollectionItem.quantity
-    definition) — so the member table can show that one holding is N physical copies."""
+    row carries the holding's copy count, the SUM of its lots (the CollectionItem.quantity
+    definition), so the member table can show that one holding is N physical copies."""
     deck = Deck.objects.create(name="Snake-Eye")
     item = _item()
     CollectionLot.objects.create(collection_item=item, quantity=2)

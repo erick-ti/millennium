@@ -2,7 +2,7 @@
  * A column-count-aware loading skeleton for the read-API tables (collection,
  * cards, …). `role="status"` + `aria-busy` announces the loading state to
  * assistive tech on the initial fetch; page-turn loading is announced by the
- * `PaginationControls` live region instead (DECISIONS 2026-05-29 slice 3).
+ * `PaginationControls` live region instead.
  */
 export function TableSkeleton({
   columnCount,

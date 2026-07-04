@@ -29,7 +29,7 @@ type ValueHistory = { snapshots: PortfolioValueSnapshot[]; truncated: boolean };
 /**
  * Page-walk every value snapshot for one portfolio, following DRF's `next`
  * link. The list is newest-first; the caller re-sorts ascending for the chart.
- * `truncated` is true if the page cap was hit with more rows still available —
+ * `truncated` is true if the page cap was hit with more rows still available,
  * surfaced rather than silently dropped (the project's "no silent caps" rule).
  */
 async function fetchAllSnapshots(
@@ -74,10 +74,10 @@ export function PortfolioDetail({ portfolioId }: { portfolioId: number }) {
 
   // Chart series: market_value over snapshot_date, ascending. market_value is
   // non-null on the API, but a malformed decimal is a gap (drop the point), not
-  // a zero — same rule as the slice-4 price chart. We carry market_value_complete
+  // a zero, same rule as the card price chart. We carry market_value_complete
   // per point: on a partial-coverage day market_value sums only the PRICED
-  // subset (DECISIONS 2026-05-25 slice-4a), so a coverage dip would otherwise
-  // read as a real value drop. Partial points are marked + labeled by the chart.
+  // subset, so a coverage dip would otherwise read as a real value drop.
+  // Partial points are marked and labeled by the chart.
   const series: PricePoint[] = useMemo(
     () =>
       snapshots

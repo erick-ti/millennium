@@ -76,7 +76,7 @@ def test_last_successful_count_returns_latest_success() -> None:
 @pytest.mark.django_db
 def test_last_successful_count_ignores_failed_runs() -> None:
     record_run(SyncKind.YGOPRODECK_METADATA, SyncStatus.SUCCESS, card_count=100)
-    # A later FAILED run carrying a count must NOT become the baseline — a truncated
+    # A later FAILED run carrying a count must NOT become the baseline: a truncated
     # fetch records FAILED, and counting it would poison the floor.
     record_run(SyncKind.YGOPRODECK_METADATA, SyncStatus.FAILED, card_count=3, error="boom")
 
@@ -215,7 +215,7 @@ def test_advisory_lock_acquires_and_releases() -> None:
 def test_advisory_lock_excludes_a_concurrent_connection() -> None:
     """Real mutual exclusion (the point of the lock): while a *separate* connection
     holds the lock, advisory_lock yields False so a concurrent sync skips. Proves it's
-    session-scoped exclusion, not a no-op (adversarial-review F2)."""
+    session-scoped exclusion, not a no-op."""
     other = connections.create_connection("default")
     try:
         with other.cursor() as cur:

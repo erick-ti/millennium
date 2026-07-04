@@ -20,8 +20,8 @@ from apps.imports.sync import ImportRowNotActionable, approve_row
 
 @pytest.fixture
 def client() -> APIClient:
-    """An authenticated APIClient — every imports endpoint requires auth (the DRF default;
-    the schema/docs are gated the same way per Invariant 7)."""
+    """An authenticated APIClient. Every imports endpoint requires auth (the DRF default;
+    the schema/docs are gated the same way, per invariant 7 in ARCHITECTURE.md)."""
     user = get_user_model().objects.create_user("reviewer", "r@example.com", "x")
     api = APIClient()
     api.force_authenticate(user=user)
@@ -47,7 +47,7 @@ def _printing(
 
 def _normalized(**overrides: Any) -> dict[str, Any]:
     """A clean ``normalized_data`` dict (the slice-2 shape, JSON-native) that ``_materialize``
-    can consume — every identity field present, cost/date as strings."""
+    can consume: every identity field present, cost/date as strings."""
     data: dict[str, Any] = {
         "portfolio_name": "Yubel Deck",
         "set_code": "L5DD-ENC09",
@@ -110,8 +110,8 @@ def _override(client: APIClient, row: ImportRow, printing_id: int) -> Any:
 
 @pytest.mark.django_db
 def test_endpoints_require_authentication() -> None:
-    """No anonymous access — the import data + the OpenAPI schema describing it are
-    reconnaissance material for a private app (Invariant 7's posture, here on the data)."""
+    """No anonymous access. The import data and the OpenAPI schema describing it are
+    reconnaissance material for a private app (invariant 7 in ARCHITECTURE.md, here on the data)."""
     anon = APIClient()
     assert anon.get(reverse("imports:importbatch-list")).status_code == status.HTTP_403_FORBIDDEN
     assert anon.get(reverse("imports:importrow-list")).status_code == status.HTTP_403_FORBIDDEN
@@ -143,7 +143,7 @@ def test_batch_list_carries_derived_row_counts(client: APIClient) -> None:
     assert data["rows_materialized"] == 1
     assert data["rows_pending"] == 2
     assert data["rows_error"] == 1
-    # needs_review counts every still-PENDING row (round 2): the MEDIUM *and* the gate-held EXACT.
+    # needs_review counts every still-PENDING row: the MEDIUM *and* the gate-held EXACT.
     assert data["rows_needs_review"] == 2
 
 
@@ -164,7 +164,7 @@ def test_row_list_filters(client: APIClient) -> None:
     assert ids(client.get(url, {"batch": batch.pk})) == {materialized.pk, medium.pk, exact.pk}
     assert ids(client.get(url, {"status": RowStatus.PENDING.value})) == {medium.pk, exact.pk}
     assert ids(client.get(url, {"match_confidence": MatchConfidence.MEDIUM.value})) == {medium.pk}
-    # needs_review == still-PENDING (round 2): both the MEDIUM and the gate-held EXACT row.
+    # needs_review == still-PENDING: both the MEDIUM and the gate-held EXACT row.
     assert ids(client.get(url, {"needs_review": "true"})) == {medium.pk, exact.pk}
     assert ids(client.get(url, {"needs_review": "false"})) == {materialized.pk}
 
@@ -196,7 +196,7 @@ def test_row_detail_nests_printing_with_multi_variant_flag(client: APIClient) ->
 def test_approve_materializes_without_any_reconciliation(client: APIClient) -> None:
     """The headline slice-5 decision: a human approval overrides the auto-materialization
     freshness gate. No TCGCSV reconciliation is recorded here, so run_import would have STAGED
-    this EXACT row — but an explicit approval materializes it (DECISIONS 2026-05-27)."""
+    this EXACT row, but an explicit approval materializes it."""
     batch = _batch()
     printing = _printing()
     row = _row(batch, status=RowStatus.PENDING, confidence=MatchConfidence.EXACT, printing=printing)
@@ -217,7 +217,7 @@ def test_approve_materializes_without_any_reconciliation(client: APIClient) -> N
 
 @pytest.mark.django_db
 def test_approve_medium_name_mismatch_materializes(client: APIClient) -> None:
-    """A MEDIUM row (printing found, card name disagreed) is the reviewer's to accept — approve
+    """A MEDIUM row (printing found, card name disagreed) is the reviewer's to accept: approve
     materializes the best candidate."""
     batch = _batch()
     printing = _printing(name="A Different Card")
@@ -233,7 +233,7 @@ def test_approve_medium_name_mismatch_materializes(client: APIClient) -> None:
 @pytest.mark.django_db
 def test_approve_multi_variant_placeholder_materializes(client: APIClient) -> None:
     """A known multi-variant placeholder is downgraded to MEDIUM by the matcher (never
-    auto-materialized), but a reviewer can still approve it — accepting the generic placeholder
+    auto-materialized), but a reviewer can still approve it, accepting the generic placeholder
     (v1 has no per-variant rows to pick). The flag is surfaced, not a hard block (Fork B)."""
     batch = _batch()
     printing = _printing(is_multi_variant=True)
@@ -276,11 +276,11 @@ def test_actions_refused_on_a_non_review_batch(
     client: APIClient, batch_status: ImportStatus
 ) -> None:
     """A PENDING row can live in a PROCESSING batch (run_import commits rows before it finalizes)
-    or a FAILED batch (a partial run's committed leftovers — a reachable steady state, no race
-    needed). Review actions must refuse it: only a REVIEW batch is reviewable — PROCESSING is
-    run_import's to finalize, FAILED should be re-imported (Codex adversarial review 2026-05-27
-    round 3). Without the guard the action would mutate the row while the batch stayed
-    PROCESSING/FAILED (the recompute no-ops there), desyncing the audit trail."""
+    or a FAILED batch (a partial run's committed leftovers, a reachable steady state, no race
+    needed). Review actions must refuse it: only a REVIEW batch is reviewable, PROCESSING is
+    run_import's to finalize, FAILED should be re-imported. Without the guard the action would
+    mutate the row while the batch stayed PROCESSING/FAILED (the recompute no-ops there),
+    desyncing the audit trail."""
     batch = _batch(status=batch_status)
     printing = _printing()
     other = _printing(name="Other Card", set_code="OTH-EN001")
@@ -308,7 +308,7 @@ def test_approve_unchanged_duplicate_skips(client: APIClient) -> None:
     batch = _batch()
     printing = _printing()
     # Both rows exist up front (as run_import stages them), so the batch stays REVIEW while one
-    # is still pending — the realistic review workflow. An identical second row for the same
+    # is still pending: the realistic review workflow. An identical second row for the same
     # holding (same normalized identity) -> dedup SKIP.
     first = _row(batch, row_number=1, status=RowStatus.PENDING,
                  confidence=MatchConfidence.EXACT, printing=printing)
@@ -330,7 +330,7 @@ def test_approve_changed_duplicate_is_409_and_leaves_lot_untouched(client: APICl
     (overwriting historical cost basis is out of v1 scope; the human decides)."""
     batch = _batch()
     printing = _printing()
-    # Both rows staged up front (batch stays REVIEW while one is pending — the real workflow).
+    # Both rows staged up front (batch stays REVIEW while one is pending: the real workflow).
     first = _row(batch, row_number=1, status=RowStatus.PENDING, confidence=MatchConfidence.EXACT,
                  printing=printing, normalized=_normalized(quantity=3))
     changed = _row(batch, row_number=2, status=RowStatus.PENDING, confidence=MatchConfidence.EXACT,
@@ -350,12 +350,11 @@ def test_approve_changed_duplicate_is_409_and_leaves_lot_untouched(client: APICl
 @pytest.mark.django_db
 def test_changed_duplicate_conflict_is_surfaced_in_the_review_queue(client: APIClient) -> None:
     """A changed-duplicate conflict is PENDING *with* match_confidence=EXACT, yet genuinely needs
-    a human decision (re-approving just 409s). It must appear in the review surface — a
-    `PENDING && != EXACT` rule would hide it, leaving the batch in REVIEW with rows_needs_review=0
-    (Codex adversarial review 2026-05-27, round 2)."""
+    a human decision (re-approving just 409s). It must appear in the review surface: a
+    `PENDING && != EXACT` rule would hide it, leaving the batch in REVIEW with rows_needs_review=0."""
     batch = _batch()
     printing = _printing()
-    # Both rows staged up front (batch stays REVIEW while one is pending — the real workflow).
+    # Both rows staged up front (batch stays REVIEW while one is pending: the real workflow).
     first = _row(batch, row_number=1, status=RowStatus.PENDING, confidence=MatchConfidence.EXACT,
                  printing=printing, normalized=_normalized(quantity=3))
     conflict = _row(batch, row_number=2, status=RowStatus.PENDING, confidence=MatchConfidence.EXACT,
@@ -376,7 +375,7 @@ def test_changed_duplicate_conflict_is_surfaced_in_the_review_queue(client: APIC
     detail = client.get(reverse("imports:importrow-detail", args=[conflict.pk]))
     assert detail.data["needs_review"] is True
     (batch_data,) = client.get(reverse("imports:importbatch-list")).data["results"]
-    assert batch_data["rows_needs_review"] == 1  # the conflict; was 0 before round 2
+    assert batch_data["rows_needs_review"] == 1  # the conflict
 
 
 # --- override -------------------------------------------------------------------
@@ -385,7 +384,7 @@ def test_changed_duplicate_conflict_is_surfaced_in_the_review_queue(client: APIC
 @pytest.mark.django_db
 def test_override_then_approve_materializes(client: APIClient) -> None:
     """An UNMATCHED row has no printing to approve; override picks one (row stays PENDING),
-    then approve materializes it. match_confidence is left at the matcher's verdict — override
+    then approve materializes it. match_confidence is left at the matcher's verdict: override
     keys the workflow off the now-present matched_printing, not a forged tier."""
     batch = _batch()
     row = _row(batch, status=RowStatus.PENDING, confidence=MatchConfidence.UNMATCHED, printing=None)
@@ -437,7 +436,7 @@ def test_reject_marks_skipped_and_completes_batch(client: APIClient) -> None:
 @pytest.mark.django_db
 def test_batch_stays_in_review_while_an_error_row_remains(client: APIClient) -> None:
     """An ERROR row is terminal (fix the source + re-import); it keeps the batch in REVIEW even
-    after every PENDING row is resolved — _recompute_batch_status mirrors run_import (PENDING
+    after every PENDING row is resolved: _recompute_batch_status mirrors run_import (PENDING
     OR ERROR -> REVIEW)."""
     batch = _batch()
     printing = _printing()
@@ -451,11 +450,11 @@ def test_batch_stays_in_review_while_an_error_row_remains(client: APIClient) -> 
     assert batch.status == ImportStatus.REVIEW
 
 
-# --- concurrency: reload + re-check under lock (Codex adversarial review 2026-05-27) --------
+# --- concurrency: reload + re-check under lock --------------------------------------
 # The actions reload the row under a lock and re-check status on the FRESH instance, so a stale
 # instance fetched while PENDING can't act after a concurrent action resolved/changed the row.
 # A real two-connection race can't run deterministically on sqlite (writes serialize, the lock
-# no-ops); these prove the re-check by mutating the DB row after the "caller" fetched it — the
+# no-ops); these prove the re-check by mutating the DB row after the "caller" fetched it: the
 # exact stale-instance condition the lock+re-check defeats. Called directly (no HTTP) so the
 # stale instance is explicit.
 
@@ -537,7 +536,7 @@ def test_upload_runs_import_and_returns_batch_with_counts(client: APIClient) -> 
 def test_upload_of_non_dragon_shield_file_records_a_failed_batch(client: APIClient) -> None:
     """A file that isn't a DS export is a recorded outcome, not a request error: run_import
     writes a FAILED batch (durable history), so the upload returns 201 with status=failed and
-    the UI branches on it — rather than discarding the attempt with a 4xx."""
+    the UI branches on it, rather than discarding the attempt with a 4xx."""
     bad = SimpleUploadedFile("notes.csv", b"alpha,beta\n1,2\n", content_type="text/csv")
 
     resp = client.post(reverse("imports:importbatch-list"), {"file": bad}, format="multipart")
@@ -595,9 +594,9 @@ def test_upload_over_the_row_cap_is_400(
 def test_upload_row_cap_counts_cr_delimited_rows(
     client: APIClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Codex review 2026-06-12: the cap must count rows with the parser's own line
+    """The cap must count rows with the parser's own line
     semantics (splitlines), not a bare newline count. A CR-delimited file contains
-    zero "\\n" but parse_dragon_shield splitlines() it into every row — an LF-only
+    zero "\\n" but parse_dragon_shield splitlines() it into every row: an LF-only
     guard waves the whole file through, bypassing the cap the gunicorn --timeout
     pairing depends on."""
     monkeypatch.setattr("apps.imports.views.MAX_UPLOAD_ROWS", 1)
@@ -618,7 +617,7 @@ def test_upload_at_exactly_the_row_cap_is_accepted(
     client: APIClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Boundary pair to the cap tests: the fixture is exactly 3 lines (sep hint +
-    header + one data row), so a cap of 3 must admit it — the guard is `>`, not
+    header + one data row), so a cap of 3 must admit it. The guard is `>`, not
     `>=`, and lines >= data rows keeps the cap a cheap upper bound, not an
     off-by-one rejection of a legitimate file."""
     monkeypatch.setattr("apps.imports.views.MAX_UPLOAD_ROWS", 3)

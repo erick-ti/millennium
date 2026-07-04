@@ -9,8 +9,8 @@ from apps.imports.models import ImportBatch, ImportRow
 class MatchedPrintingSerializer(serializers.ModelSerializer[CardPrinting]):
     """Read-only nested view of a row's ``matched_printing`` for the review UI. Surfaces
     ``is_multi_variant`` so a reviewer sees that the matcher downgraded a known multi-variant
-    placeholder to MEDIUM (and can weigh it before approving — the auto-path's gate is the
-    human here; DECISIONS 2026-05-27)."""
+    placeholder to MEDIUM (and can weigh it before approving; the auto-path's gate is the
+    human here)."""
 
     card_name = serializers.CharField(source="card.name", read_only=True)
 
@@ -20,11 +20,11 @@ class MatchedPrintingSerializer(serializers.ModelSerializer[CardPrinting]):
 
 
 class ImportBatchSerializer(serializers.ModelSerializer[ImportBatch]):
-    """One import's history record + per-status row counts. The counts are *derived* — the
-    model deliberately does not denormalize them (DECISIONS 2026-05-25 slice 1) — and are
+    """One import's history record + per-status row counts. The counts are *derived*: the
+    model deliberately does not denormalize them, and are
     supplied by the viewset's queryset annotation, so a summary can't drift from its rows.
     ``rows_needs_review`` counts every still-PENDING row (== ``ImportRow.needs_review``): a
-    pending row is, by construction, one the auto-path left for a human or a re-sync —
+    pending row is, by construction, one the auto-path left for a human or a re-sync,
     match-uncertain, freshness-gated, or a changed-duplicate cost conflict alike."""
 
     rows_total = serializers.IntegerField(read_only=True)
@@ -52,8 +52,8 @@ class ImportBatchSerializer(serializers.ModelSerializer[ImportBatch]):
             "rows_needs_review",
         ]
         # rows_needs_review counts every still-PENDING row (== ImportRow.needs_review), so it
-        # equals rows_pending — kept as a task-oriented alias for the review UI. The earlier
-        # "PENDING + sub-EXACT" definition hid changed-duplicate EXACT conflicts (round 2).
+        # equals rows_pending, kept as a task-oriented alias for the review UI. The earlier
+        # "PENDING + sub-EXACT" definition hid changed-duplicate EXACT conflicts.
 
 
 class ImportRowSerializer(serializers.ModelSerializer[ImportRow]):
@@ -62,12 +62,12 @@ class ImportRowSerializer(serializers.ModelSerializer[ImportRow]):
     the ``ImportRow.needs_review`` property (still PENDING → needs a human/re-sync), the one
     definition the count and ``?needs_review`` filter also use, so they can't drift.
 
-    ``allow_null=True`` on ``matched_printing`` is required (Codex slice 2 round 5): the model
-    FK is nullable and UNMATCHED rows ship ``matched_printing=None`` as a normal state — without
+    ``allow_null=True`` on ``matched_printing`` is required: the model
+    FK is nullable and UNMATCHED rows ship ``matched_printing=None`` as a normal state, without
     it the OpenAPI schema declares the property non-null and the generated TS client crashes a
     review UI dereferencing ``row.matched_printing.card_name`` on an unmatched row (which is
     precisely the row the reviewer most needs to act on). Same bug class as
-    ``Portfolio.latest_snapshot`` (round 1), different shape: that one used
+    ``Portfolio.latest_snapshot``, different shape: that one used
     ``@extend_schema_field(Class)``; this one is a direct nested serializer assignment. Both
     shapes need explicit nullability.
     """

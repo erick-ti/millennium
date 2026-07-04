@@ -5,7 +5,7 @@ from apps.cards.models import Card, CardPrinting, MetadataSource, PrintingAlias
 from apps.cards.normalization import normalize_name
 
 # The CardPrinting natural-key UniqueConstraint sets nulls_distinct=False, which
-# sqlite can't honor — so Django skips creating the *entire* constraint there
+# sqlite can't honor, so Django skips creating the *entire* constraint there
 # (confirmed via `manage.py sqlmigrate`). DB-level uniqueness therefore exists
 # only on PostgreSQL; tests that assert enforcement are gated to it. The intent
 # is still checked everywhere by test_printing_constraint_uses_nulls_not_distinct.
@@ -51,7 +51,7 @@ def test_renaming_updates_normalized_name() -> None:
 def test_partial_update_preserves_normalized_name() -> None:
     """A save(update_fields=["name"]) must still persist the derived
     normalized_name. update_or_create takes this partial-update path, so without
-    it the derived field silently desyncs in the DB (DECISIONS 2026-05-20)."""
+    it the derived field silently desyncs in the DB."""
     card = Card.objects.create(name="Dark Magician")
     card.name = "Dark Magician Girl"
     card.save(update_fields=["name"])
@@ -99,7 +99,7 @@ def test_duplicate_printing_with_same_variant_rejected() -> None:
 
 @pytest.mark.django_db
 def test_distinct_variant_labels_coexist() -> None:
-    """Same set/rarity, different artworks — disambiguated by variant_label."""
+    """Same set/rarity, different artworks, disambiguated by variant_label."""
     card = Card.objects.create(name="Blue-Eyes White Dragon")
     for label in ("Version 1", "Version 2", "Version 3"):
         CardPrinting.objects.create(
@@ -286,7 +286,7 @@ def test_printing_alias_resolves_provisional_key_to_canonical() -> None:
 
 @pytest.mark.django_db
 def test_printing_alias_provisional_key_is_unique() -> None:
-    """(source, card, set_code, set_rarity) is unique — all non-null, so enforced on
+    """(source, card, set_code, set_rarity) is unique, all non-null, so enforced on
     sqlite too (unlike the CardPrinting natural key)."""
     card = Card.objects.create(name="Super Polymerization")
     fields = dict(
@@ -320,7 +320,7 @@ def test_printing_alias_invalid_source_rejected_by_db() -> None:
 
 @pytest.mark.django_db
 def test_deleting_printing_cascades_aliases() -> None:
-    """on_delete=CASCADE — the alias is a re-derivable leaf, meaningless without its
+    """on_delete=CASCADE: the alias is a re-derivable leaf, meaningless without its
     printing (the external_price_ids pattern)."""
     card = Card.objects.create(name="Super Polymerization")
     printing = _canonical_printing(card)

@@ -10,14 +10,14 @@ from apps.decks.models import Deck, DeckMembership
 
 
 class DeckSerializer(serializers.ModelSerializer[Deck]):
-    """A deck — read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``
+    """A deck, read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``
     one class serves read+write, so a POST/PATCH body carries only ``name``/``description``
     and the response echoes the saved deck.
 
     ``member_count`` is derived (the count of ``DeckMembership`` rows). The viewset
     annotates it on the list/retrieve queryset, but a freshly created/updated instance
     won't carry the annotation, so it is a ``SerializerMethodField`` that falls back to a
-    live count — the response after a POST/PATCH must still serialize without an
+    live count: the response after a POST/PATCH must still serialize without an
     AttributeError (the cards ``printings_count`` annotation trap, made annotation-safe).
     """
 
@@ -53,7 +53,7 @@ class DeckSerializer(serializers.ModelSerializer[Deck]):
 
 
 class DeckMembershipSerializer(serializers.ModelSerializer[DeckMembership]):
-    """A deck membership — read AND create. The write side carries only ``deck`` +
+    """A deck membership, read AND create. The write side carries only ``deck`` +
     ``collection_item`` (both ``PrimaryKeyRelatedField`` → 400 on an unknown id);
     everything else is the owned holding's identity, denormalized read-only via
     ``source="collection_item.*"`` so the deck-detail member table renders without a
@@ -66,14 +66,14 @@ class DeckMembershipSerializer(serializers.ModelSerializer[DeckMembership]):
     from the model's ``(deck, collection_item)`` UNIQUE: the viewset's ``create`` instead
     ``get_or_create``s and returns a clean 409 for an already-present holding (informative,
     and the same status the import-review frontend already reads), rather than a generic
-    400 — while the DB UNIQUE still backstops a concurrent double-add.
+    400, while the DB UNIQUE still backstops a concurrent double-add.
     """
 
     collection_item = serializers.PrimaryKeyRelatedField(
         queryset=CollectionItem.objects.all()
     )
     # The holding's copy count (SUM of its lots), supplied by the viewset's queryset
-    # annotation — so the member table shows that one tagged holding is N physical copies.
+    # annotation, so the member table shows that one tagged holding is N physical copies.
     # Non-null (Coalesce'd to 0), so no allow_null; not a DeckMembership model field, so the
     # class-level nullability gate skips it.
     quantity = serializers.IntegerField(read_only=True)
@@ -125,11 +125,11 @@ class DeckMembershipSerializer(serializers.ModelSerializer[DeckMembership]):
         validators: list[object] = []
 
     def validate_collection_item(self, value: CollectionItem) -> CollectionItem:
-        # A deck groups cards you actually HOLD — reject a zero-copy (lot-less) holding. Unlike
+        # A deck groups cards you actually HOLD, so reject a zero-copy (lot-less) holding. Unlike
         # the collection *ledger* (which records depleted holdings, and filters quantity nowhere),
         # a deck is forward-looking ("what I'm playing"), so an owned-copies>0 check is the right
-        # owned-only boundary here (Codex adversarial review 2026-05-31). Defense-in-depth: the
-        # picker also filters these out, but a direct API call must still be rejected (clean 400).
+        # owned-only boundary here. Defense-in-depth: the picker also filters these out, but a
+        # direct API call must still be rejected (clean 400).
         total = value.lots.aggregate(total=Sum("quantity"))["total"] or 0
         if total <= 0:
             raise serializers.ValidationError(

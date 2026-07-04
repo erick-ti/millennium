@@ -9,23 +9,23 @@ import { cn } from "@/lib/utils";
 const APP_HOME = "/collection";
 
 /**
- * Landing CTA — one click into the full LIVE app, replacing the old
- * ``<a href="/collection">`` that dead-ended an anonymous recruiter at a bare /login.
+ * Landing CTA: one click into the full LIVE app, replacing the old
+ * ``<a href="/collection">`` that dead-ended an anonymous visitor at a bare /login.
  *
  * Anonymous visitors are signed into the read-only demo account
- * (``POST /api/auth/demo-login/``; CSRF via proxy.ts, the login precedent) and the owner
- * — already signed in — goes straight in as themselves (we never demote their session to
- * the demo). Always HARD-navigates (``window.location``, not ``router.push``) so
- * ``AuthProvider`` re-probes ``/api/auth/me`` with the fresh session — the logout
- * hard-nav precedent; a soft nav would leave the ``/me`` probe stale and the nav chrome
- * wrong.
+ * (``POST /api/auth/demo-login/``; CSRF via proxy.ts, the same pattern used by the login
+ * form) and the owner, already signed in, goes straight in as themselves (we never demote
+ * their session to the demo). Always HARD-navigates (``window.location``, not
+ * ``router.push``) so ``AuthProvider`` re-probes ``/api/auth/me`` with the fresh session,
+ * the same pattern the logout hard-nav uses; a soft nav would leave the ``/me`` probe stale
+ * and the nav chrome wrong.
  */
 export function DemoCta({
   className,
   caption,
 }: {
   className?: string;
-  /** Optional sub-line (e.g. "no sign-in needed") — shown ONLY to a settled anonymous
+  /** Optional sub-line (e.g. "no sign-in needed"), shown ONLY to a settled anonymous
    *  visitor, since the framing is false for a signed-in owner who enters as themselves. */
   caption?: string;
 }) {
@@ -45,15 +45,15 @@ export function DemoCta({
     try {
       const first = await authDemoLoginCreate();
       let data = first.data;
-      // A 403 means the csrftoken cookie wasn't seeded yet — CsrfBootstrap's GET raced this
-      // click. Re-seed (awaiting csrfRetrieve so the cookie is set) and retry ONCE — the
-      // codebase's standard write-403 recovery (login-form / import writes) — so an eager
+      // A 403 means the csrftoken cookie wasn't seeded yet: CsrfBootstrap's GET raced this
+      // click. Re-seed (awaiting csrfRetrieve so the cookie is set) and retry ONCE, the same
+      // write-403 recovery used elsewhere (login form, import writes), so an eager
       // click on the headline CTA doesn't dead-end at /login on a transient race.
       if (!data && first.response?.status === 403) {
         await csrfRetrieve();
         data = (await authDemoLoginCreate()).data;
       }
-      // Success → the app as the demo; otherwise (demo not seeded / a persistent failure)
+      // Success: the app as the demo; otherwise (demo not seeded, or a persistent failure)
       // the login page is the honest fallback.
       window.location.assign(data ? APP_HOME : "/login");
     } catch {

@@ -31,12 +31,12 @@ from apps.portfolio.models import Portfolio
 
 logger = structlog.get_logger(__name__)
 
-# import_source_ref scheme (DECISIONS 2026-05-26 slice 4). The dedup unit the user chose
-# is the *holding*: a Dragon Shield export is a full-collection snapshot with no per-row
-# ids, so re-importing it should find-or-create the same lot, not duplicate it. A
-# CollectionItem's id IS the holding identity (its natural key resolves to one row), so
-# one ref per holding. The "dragon_shield" prefix scopes dedup to this source — a future
-# format's lot for the same holding carries a different prefix and won't collide — and the
+# import_source_ref scheme. The dedup unit chosen for imports is the *holding*: a Dragon
+# Shield export is a full-collection snapshot with no per-row ids, so re-importing it should
+# find-or-create the same lot, not duplicate it. A CollectionItem's id IS the holding
+# identity (its natural key resolves to one row), so one ref per holding. The
+# "dragon_shield" prefix scopes dedup to this source (a future format's lot for the same
+# holding carries a different prefix and won't collide), and the
 # CollectionLot UniqueConstraint(collection_item, import_source_ref) makes the find-or-create
 # race-safe at the DB.
 _IMPORT_SOURCE_PREFIX = "dragon_shield"
@@ -47,9 +47,9 @@ def _import_source_ref(item: CollectionItem) -> str:
 
 
 class ImportRowNotActionable(Exception):
-    """A review action was attempted on a row not in a state that permits it — e.g.
+    """A review action was attempted on a row not in a state that permits it, e.g.
     approving a row with no matched printing, or acting on an already-resolved (non-PENDING)
-    row. The review API (slice 5) maps this to HTTP 400; the message is reviewer-facing."""
+    row. The review API maps this to HTTP 400; the message is reviewer-facing."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,13 +82,13 @@ class ImportPreview:
 
 def _latest_reconciliation_cutoff() -> datetime | None:
     """The ``created_at`` of the latest successful TCGCSV reconciliation today, or ``None``
-    if none ran today — the slice-4 materialization gate's reference time (DECISIONS
-    2026-05-26 slice 3 round-4, evolved across two Codex reviews to a per-printing check).
+    if none ran today: the materialization gate's reference time, refined to a per-printing
+    check after review.
 
     The DS matcher reads ``CardPrinting.is_multi_variant``, of which TCGCSV reconciliation is
     the sole (set-only) writer. A printing the reconciliation never saw reads
     ``is_multi_variant=False`` (the default) and so matches EXACT even if it is really an
-    ambiguous multi-variant placeholder — the fail-open the *pure* matcher cannot close. An
+    ambiguous multi-variant placeholder: the fail-open the *pure* matcher cannot close. An
     EXACT match is trustworthy only if the matched printing was **covered** by a recent
     reconciliation, which the caller checks **per printing**: materialize an EXACT row only
     when this cutoff exists (a same-day reconciliation ran) AND ``printing.created_at < cutoff``
@@ -99,28 +99,28 @@ def _latest_reconciliation_cutoff() -> datetime | None:
     - **Same-day** bounds provider-side staleness (the ``run_valuation`` precedent): TCGCSV can
       add a second sellable variant to an existing key with no catalog change, so the
       reconciliation must be recent, not merely ever-run. (``created_at__date`` truncates in the
-      UTC session TZ Django pins.) This still leaves a <1-day residual — a TCGCSV change *after*
-      today's reconciliation isn't caught until the next one — inherent to daily reconciliation.
+      UTC session TZ Django pins.) This still leaves a <1-day residual: a TCGCSV change *after*
+      today's reconciliation isn't caught until the next one, inherent to daily reconciliation.
     - **Per-printing ``created_at``** (not a once-per-batch flag, nor a metadata-``SyncRun``
-      ordering) closes two holes a global gate leaves (Codex review, round 2 → 3): a batch
+      ordering) closes two holes a global gate leaves: a batch
       boolean is a stale snapshot applied to every row, and metadata writes ``CardPrinting``
-      rows *before* recording its ``SyncRun`` — so a printing created mid-import by a concurrent
+      rows *before* recording its ``SyncRun``, so a printing created mid-import by a concurrent
       or partially-failed metadata sync slips a ``SyncRun``-ordering gate (its ``SyncRun`` isn't
       recorded yet) yet is genuinely uncovered. ``created_at`` is set at catalog entry and is
-      *stable* — reconciliation corrects rarity with an in-place UPDATE that bumps ``updated_at``,
-      not ``created_at`` (verified) — so it is the right coverage proxy, robust where an
+      *stable* (reconciliation corrects rarity with an in-place UPDATE that bumps ``updated_at``,
+      not ``created_at``, verified), so it is the right coverage proxy, robust where an
       ``updated_at`` comparison would not be.
 
     Inherent residual (accepted, not closed by this gate): a metadata sync running *concurrently
     with* a reconciliation can create a printing after that run's catalog read but before its
-    completion — ``created_at < cutoff`` yet uncovered — because ``SyncRun`` records only the
+    completion: ``created_at < cutoff`` yet uncovered, because ``SyncRun`` records only the
     completion time, not the catalog-read start. Narrow (requires concurrent metadata+pricing,
     which hold different advisory locks) and bounded (the multi-variant placeholder is
-    valuation-tolerant and correctable). Full closure needs a per-printing reconciliation-
-    *coverage* signal (reconciliation stamping each printing it processes), deferred to slice 5.
+    valuation-tolerant and correctable). Full closure needs a per-printing reconciliation
+    *coverage* signal (reconciliation stamping each printing it processes), deferred.
 
     When an EXACT row is not covered, it is *staged* PENDING rather than materialized, so a
-    later import (after ``sync_tcgcsv`` re-runs) or the slice-5 review API commits it — the
+    later import (after ``sync_tcgcsv`` re-runs) or the review API commits it: the
     import is never lost, only the auto-commit is held. The coverage decision stays an
     orchestration concern, never coupled into the pure matcher (the valuation precedent).
     """
@@ -137,29 +137,29 @@ def _latest_reconciliation_cutoff() -> datetime | None:
 
 
 def run_import(content: str, *, filename: str) -> ImportResult:
-    """Import one Dragon Shield CSV: parse → stage rows → normalize → match → materialize
+    """Import one Dragon Shield CSV: parse, stage rows, normalize, match, materialize
     EXACT matches, recording an ``ImportBatch`` + its ``ImportRow``s. The single entry
-    point the management command (and the slice-5 API) call — the ``run_*_sync`` precedent.
+    point the management command (and the review API) call, the ``run_*_sync`` precedent.
 
     The batch is created first (PROCESSING), so even a parse failure leaves a FAILED
     ``ImportBatch`` record for the import history. A non-DS file raises ``ImportParseError``
     inside ``parse_dragon_shield`` → the batch is marked FAILED and the function returns
     (no rows persisted). Otherwise each source row is processed independently (one dirty
-    row never aborts the batch — the slice-2 per-row posture): its verbatim ``raw_data`` and
+    row never aborts the batch, the per-row posture): its verbatim ``raw_data`` and
     mapped ``normalized_data`` are stored, the matcher resolves a printing + confidence
-    tier, and the row is routed by this table (DECISIONS 2026-05-26 slice 4):
+    tier, and the row is routed by this table:
 
         normalization issue(s)             -> ERROR  (cannot materialize cleanly; the
                                                        human fixes the source / edits)
-        clean, MEDIUM or UNMATCHED          -> PENDING (human review, slice 5)
-        clean, EXACT, printing uncovered    -> PENDING (staged — no reconciliation today, or
+        clean, MEDIUM or UNMATCHED          -> PENDING (human review)
+        clean, EXACT, printing uncovered    -> PENDING (staged, no reconciliation today, or
                                                         the printing post-dates the latest one)
         clean, EXACT, covered, new holding  -> MATERIALIZED (folder->portfolio, item, lot)
         clean, EXACT, covered, dup unchanged -> SKIPPED (per-holding re-import dedup)
         clean, EXACT, covered, dup changed  -> PENDING  (qty/cost differs -> review)
 
-    Only EXACT auto-materializes (DECISIONS 2026-05-26 slice 3), and only when the matched
-    printing was covered by a same-day TCGCSV reconciliation — a per-printing check
+    Only EXACT auto-materializes, and only when the matched
+    printing was covered by a same-day TCGCSV reconciliation, a per-printing check
     (``_latest_reconciliation_cutoff`` + ``printing.created_at < cutoff``), not a batch-wide
     flag. The batch ends REVIEW if any row needs human attention (PENDING or ERROR), else
     COMPLETED.
@@ -169,12 +169,12 @@ def run_import(content: str, *, filename: str) -> ImportResult:
     portfolio/item/lot writes are atomic on their own). But an unexpected failure in the
     loop or finalization *itself* (a DB error in ``match_row`` / a non-materialize save, or a
     bug) records the batch FAILED and re-raises, so it never lingers in PROCESSING with
-    committed rows unaccounted for — distinct from a parse failure, which returns a FAILED
-    result so the caller reports "not a DS file" (Codex review 2026-05-26). And no advisory
+    committed rows unaccounted for, distinct from a parse failure, which returns a FAILED
+    result so the caller reports "not a DS file". And no advisory
     lock: the
     get-then-create paths are race-safe via ``get_or_create`` + the
     ``(collection_item, import_source_ref)`` UNIQUE, unlike the syncs' beat-vs-manual races
-    (imports are user-triggered, not scheduled). ``content`` is already-decoded text — the
+    (imports are user-triggered, not scheduled). ``content`` is already-decoded text: the
     command decodes the upload as utf-8-sig (BOM-tolerant); the parser strips a BOM too.
     """
     batch = ImportBatch.objects.create(
@@ -243,8 +243,8 @@ def run_import(content: str, *, filename: str) -> ImportResult:
         # a non-materialize row.save / the batch.save, or a bug) must not leave the batch
         # stuck PROCESSING with earlier rows already committed -- a re-import would then SKIP
         # those lots via the per-holding dedup while this batch never reaches a terminal
-        # status, hiding the partial failure from the review/history flow (Codex review
-        # 2026-05-26). Record FAILED + the error and re-raise (the real cause, not the
+        # status, hiding the partial failure from the review/history flow.
+        # Record FAILED + the error and re-raise (the real cause, not the
         # "not a DS file" parse-failure path). Per-row materialize/audit failures are already
         # contained as ERROR rows inside _process_row, so this guards the row-independent loop
         # itself, never a single row -- already-committed rows stay (per-row independence
@@ -265,7 +265,7 @@ def _process_row(
     ``RowStatus``. Saves exactly one ``ImportRow`` and, for an auto-materialized row, the
     portfolio/item/lot it created. ``reconciliation_cutoff`` is the latest same-day
     reconciliation's time (None if none today); an EXACT row materializes only if its matched
-    printing predates it — the per-printing coverage check (see ``_latest_reconciliation_cutoff``)."""
+    printing predates it, the per-printing coverage check (see ``_latest_reconciliation_cutoff``)."""
     normalized = normalize_row(parsed.raw)
     row = ImportRow(
         batch=batch,
@@ -276,8 +276,9 @@ def _process_row(
 
     if normalized.issues:
         # Any normalization issue -> ERROR. The row can't build a clean natural key / lot,
-        # and silently nulling a present-but-unparseable cost/date would lose data (slice 2
-        # flags, never guesses). No match is attempted; the human fixes it (source / slice 5).
+        # and silently nulling a present-but-unparseable cost/date would lose data (the
+        # import flags, never guesses). No match is attempted; the human fixes it (source
+        # or review).
         row.match_confidence = MatchConfidence.UNMATCHED
         row.status = RowStatus.ERROR
         row.error_message = "; ".join(normalized.issues)
@@ -289,19 +290,19 @@ def _process_row(
     row.match_confidence = match.confidence
 
     if match.confidence != MatchConfidence.EXACT or match.printing is None:
-        # MEDIUM (printing found but not safe to auto-commit) / UNMATCHED -> human review
-        # (slice 5). matched_printing keeps the best candidate for MEDIUM; detail explains.
+        # MEDIUM (printing found but not safe to auto-commit) / UNMATCHED -> human review.
+        # matched_printing keeps the best candidate for MEDIUM; detail explains.
         row.status = RowStatus.PENDING
         row.error_message = match.detail
         row.save()
         return RowStatus.PENDING
 
     # Coverage gate: auto-materialize only if a same-day reconciliation ran (cutoff exists)
-    # AND this matched printing predates it -- so the reconciliation saw the printing and its
-    # is_multi_variant flag is trustworthy (DECISIONS 2026-05-26 slice 4). The per-printing
+    # AND this matched printing predates it, so the reconciliation saw the printing and its
+    # is_multi_variant flag is trustworthy. The per-printing
     # created_at check (not a once-per-batch flag) closes the concurrent / partially-failed
     # metadata-sync hole a global gate leaves: a printing created mid-import slips a SyncRun-
-    # ordering gate but not its own created_at (Codex review, round 3). Otherwise stage PENDING.
+    # ordering gate but not its own created_at. Otherwise stage PENDING.
     if reconciliation_cutoff is None:
         row.status = RowStatus.PENDING
         row.error_message = (
@@ -326,7 +327,7 @@ def _process_row(
             outcome, message = _materialize(normalized.data, match.printing)
             # The ImportRow recording the materialization commits in the SAME transaction as
             # the portfolio/item/lot it audits (the run_valuation snapshot/run atomicity
-            # precedent, DECISIONS 2026-05-25 slice 4c): a failed audit save rolls the
+            # precedent): a failed audit save rolls the
             # collection writes back too, so a committed holding can never be orphaned from --
             # and then silently masked as a duplicate on re-import by -- a missing audit row.
             row.status = outcome
@@ -401,7 +402,7 @@ def _materialize(data: dict[str, Any], printing: CardPrinting) -> tuple[RowStatu
 
 def preview_import(content: str) -> ImportPreview:
     """Read-only dry run for ``import_dragon_shield --dry-run``: parse + normalize + match,
-    tallying the match tiers and the reconciliation-freshness gate, writing nothing — no
+    tallying the match tiers and the reconciliation-freshness gate, writing nothing: no
     batch, rows, or holdings. Raises ``ImportParseError`` on a non-DS file (the command
     reports it). Dedup is deliberately NOT simulated (it would need to read would-be
     holdings), so a row counted EXACT here may still SKIP as a duplicate on a real import.
@@ -430,39 +431,38 @@ def preview_import(content: str) -> ImportPreview:
     )
 
 
-# --- review actions (slice 5) ---------------------------------------------------
+# --- review actions ---------------------------------------------------
 # The review API resolves rows run_import staged PENDING (MEDIUM / UNMATCHED / a gate-held
 # EXACT) through three actions, all going through the same _materialize chokepoint the
-# automatic path uses (never re-implementing the collection writes — DECISIONS 2026-05-26
-# slice 4). They are plain orchestration functions (DRF-free, like run_import): the viewset
+# automatic path uses (never re-implementing the collection writes). They are plain
+# orchestration functions (DRF-free, like run_import): the viewset
 # applies HTTP, these own the state transition + the collection writes.
 #
 # Each action, inside one transaction, (1) locks the parent batch and requires it to be in
 # REVIEW, then (2) reloads its row under a row lock and re-checks status on the *fresh* instance
 # (not the one the request fetched). The row re-check stops two concurrent POSTs on the same row
-# from both passing the PENDING check and diverging — a stale approve clobbering a concurrent
+# from both passing the PENDING check and diverging, a stale approve clobbering a concurrent
 # override, an approve+reject leaving a committed lot marked SKIPPED, or sibling approvals
-# recomputing the batch from an uncommitted view (Codex review round 1). The batch-REVIEW gate
+# recomputing the batch from an uncommitted view. The batch-REVIEW gate
 # stops a row being actioned while its batch is still PROCESSING (run_import owns it and would
-# finalize from its own tally) or FAILED (a partial run's leftover committed rows — re-import,
+# finalize from its own tally) or FAILED (a partial run's leftover committed rows, re-import,
 # don't cherry-pick); without it the action mutates the row but _recompute_batch_status no-ops
-# on a non-REVIEW batch, leaving the two inconsistent (Codex review round 3). Single-user, but a
+# on a non-REVIEW batch, leaving the two inconsistent. Single-user, but a
 # FAILED batch's leftover PENDING rows are a reachable steady state and double-clicks / two tabs
-# reach the races, and the project closes audit/collection-divergence (the slice-4 precedent). On
+# reach the races, and the project closes audit/collection-divergence. On
 # sqlite the locks no-op (writes serialize already, like the advisory locks); the re-checks they
 # guard run on every backend. Consistent batch→row lock order across all three → no deadlock.
 
 
 def _lock_review_batch(batch_id: int) -> ImportBatch:
-    """Lock the parent batch and require it to be in REVIEW — the only phase with rows awaiting
+    """Lock the parent batch and require it to be in REVIEW, the only phase with rows awaiting
     human action. Refuses a row whose batch is PROCESSING (``run_import`` owns it and finalizes
-    from its own tally — a review action must not race that), FAILED (a broken/partial import;
+    from its own tally, a review action must not race that), FAILED (a broken/partial import;
     re-import rather than cherry-pick its committed leftover rows), PENDING (pre-processing), or
     COMPLETED (no PENDING rows remain). Every legitimately-actionable PENDING row lives in a
     REVIEW batch, so this blocks nothing valid. The lock serializes against ``run_import``'s final
     ``batch.save`` (its plain UPDATE waits on this row lock) and against sibling review actions;
-    the returned locked batch is reused by ``_recompute_batch_status`` (DECISIONS 2026-05-27
-    round 3)."""
+    the returned locked batch is reused by ``_recompute_batch_status``."""
     batch = ImportBatch.objects.select_for_update().get(pk=batch_id)
     if batch.status != ImportStatus.REVIEW:
         raise ImportRowNotActionable(
@@ -476,7 +476,7 @@ def _lock_row(row_id: int) -> ImportRow:
     """Reload an ``ImportRow`` under a row-level lock for the enclosing ``transaction.atomic``.
     ``of=("self",)`` locks only the import_row table: a plain ``select_for_update()`` alongside
     the nullable ``matched_printing`` select_related would try to lock the nullable side of an
-    outer join — a Postgres error. The joined rows are read, not locked (we never mutate them)."""
+    outer join, a Postgres error. The joined rows are read, not locked (we never mutate them)."""
     return (
         ImportRow.objects.select_for_update(of=("self",))
         .select_related("batch", "matched_printing", "matched_printing__card")
@@ -494,31 +494,31 @@ def _require_pending(row: ImportRow, verb: str) -> None:
 
 def approve_row(row: ImportRow) -> tuple[ImportRow, RowStatus]:
     """Materialize a human-approved PENDING row through the ``_materialize`` chokepoint; return
-    the fresh (locked) row + its outcome — the review API's "approve" action.
+    the fresh (locked) row + its outcome, the review API's "approve" action.
 
-    A reviewer's explicit approval **overrides the automatic freshness gate** (DECISIONS
-    2026-05-27): ``run_import`` stages an EXACT row PENDING unless a same-day TCGCSV
+    A reviewer's explicit approval **overrides the automatic freshness gate**: ``run_import``
+    stages an EXACT row PENDING unless a same-day TCGCSV
     reconciliation *covers* the matched printing, because the *automatic* path has no human
     to weigh the ``is_multi_variant`` fail-open (a not-yet-reconciled multi-variant placeholder
-    reads as a confident match) — but review IS that human attention, so approval commits
+    reads as a confident match), but review IS that human attention, so approval commits
     regardless of reconciliation freshness. A known multi-variant placeholder
     (``is_multi_variant=True``, surfaced to the reviewer by the serializer) is likewise
     approvable: the human accepts the generic placeholder (v1 has no per-variant rows to pick).
 
-    Only a PENDING row with a ``matched_printing`` is approvable — an UNMATCHED row must be
+    Only a PENDING row with a ``matched_printing`` is approvable, an UNMATCHED row must be
     ``override_row``'d to a chosen printing first, and an ERROR row (normalization failed → no
     clean ``normalized_data``) is terminal (fix the source and re-import). The row is reloaded
     under a lock and its status re-checked on that fresh instance, then ``_materialize``
     (portfolio/item/lot find-or-create + per-holding dedup) and the audit-row save commit in one
-    ``transaction.atomic`` — the ``_process_row`` snapshot/audit atomicity, so a failed audit
+    ``transaction.atomic`` (the ``_process_row`` snapshot/audit atomicity), so a failed audit
     save rolls the holding back too. Reloading also means the *current* matched printing is
     materialized (a concurrent override can't be clobbered by this caller's stale instance).
     Returns the outcome: MATERIALIZED (new holding) / SKIPPED (unchanged duplicate) / PENDING
-    (the holding was already imported with a different quantity/cost/date — a conflict the API
+    (the holding was already imported with a different quantity/cost/date, a conflict the API
     surfaces rather than silently overwriting historical cost basis; the row is left PENDING)."""
     with transaction.atomic():
-        # Lock the batch (require REVIEW) before the row — consistent order across actions → no
-        # deadlock; the batch lock also serializes the sibling-row recompute race (round 1).
+        # Lock the batch (require REVIEW) before the row, consistent order across actions → no
+        # deadlock; the batch lock also serializes the sibling-row recompute race.
         batch = _lock_review_batch(row.batch_id)
         locked = _lock_row(row.pk)
         _require_pending(locked, "approved")
@@ -542,18 +542,18 @@ def approve_row(row: ImportRow) -> tuple[ImportRow, RowStatus]:
 
 def override_row(row: ImportRow, printing: CardPrinting) -> ImportRow:
     """Point a PENDING row at a human-chosen ``CardPrinting`` (re-checked under a row lock);
-    return the fresh row — the review API's "override" action. Sets ``matched_printing`` only
+    return the fresh row, the review API's "override" action. Sets ``matched_printing`` only
     and leaves the row PENDING, so the corrected match (and its ``is_multi_variant`` flag) can be
     eyeballed, then ``approve_row``'d.
 
     ``match_confidence`` is deliberately left at the matcher's original verdict: per the
     ``ImportRow`` doctrine ``matched_printing`` is the *authoritative* match signal and
-    confidence is only a matcher-output quality tier — so a human override changes the
+    confidence is only a matcher-output quality tier, so a human override changes the
     authoritative pointer without forging a matcher tier it never produced (there is no MANUAL
     tier; inventing one would be a CHECK-altering enum migration). ``approve_row`` keys on
     PENDING + a present ``matched_printing``, not on confidence, so an overridden UNMATCHED row
     is immediately approvable. The parent batch is locked and required to be in REVIEW (like the
-    other actions — uniform batch→row order), but it is left as-is: the row stays PENDING, so no
+    other actions, uniform batch→row order), but it is left as-is: the row stays PENDING, so no
     batch-status recompute is needed."""
     with transaction.atomic():
         _lock_review_batch(row.batch_id)
@@ -570,7 +570,7 @@ def override_row(row: ImportRow, printing: CardPrinting) -> ImportRow:
 
 
 def reject_row(row: ImportRow) -> ImportRow:
-    """Mark a PENDING row SKIPPED (re-checked under a row lock); return the fresh row — the
+    """Mark a PENDING row SKIPPED (re-checked under a row lock); return the fresh row, the
     review API's "reject" action: the reviewer declines to import this holding. SKIPPED is the
     same terminal state a deduplicated re-import lands in (the model's documented "deduplicated
     on re-import or human-rejected" semantics). Only PENDING rows are rejectable: a MATERIALIZED
@@ -590,16 +590,16 @@ def reject_row(row: ImportRow) -> ImportRow:
 
 def _recompute_batch_status(batch: ImportBatch) -> None:
     """Re-derive a batch's status from its rows after a review action: COMPLETED when no row
-    still needs attention (none PENDING or ERROR), else REVIEW — mirroring ``run_import``'s
+    still needs attention (none PENDING or ERROR), else REVIEW, mirroring ``run_import``'s
     finalization (REVIEW if any PENDING/ERROR else COMPLETED), so a batch progresses to
     COMPLETED as the reviewer clears its queue. Only a batch already in the post-processing
     REVIEW/COMPLETED band is touched; a PENDING/PROCESSING/FAILED batch is left alone (a FAILED
     parse has no rows; an in-flight batch is ``run_import``'s to finalize). ERROR rows keep a
-    batch in REVIEW — they are terminal (fix the source and re-import), so a batch with
+    batch in REVIEW, they are terminal (fix the source and re-import), so a batch with
     unresolved ERROR rows never auto-completes, by design.
 
     The caller (approve/reject) holds a ``select_for_update`` lock on ``batch``, which serializes
-    concurrent sibling-row actions through here — without it, two could each read the rows before
+    concurrent sibling-row actions through here: without it, two could each read the rows before
     the other commits and both leave the batch REVIEW after its last row resolved."""
     if batch.status not in (ImportStatus.REVIEW, ImportStatus.COMPLETED):
         return

@@ -1,9 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Playwright end-to-end smoke suite (Phase 5 slice 6).
+// Playwright end-to-end smoke suite.
 //
 // Scope: testDir "./e2e" + testMatch "**/*.spec.ts" keep Playwright off Vitest's
-// src/**/*.test.{ts,tsx}; Vitest in turn excludes **/e2e/** and **/*.spec.* — so
+// src/**/*.test.{ts,tsx}; Vitest in turn excludes **/e2e/** and **/*.spec.*, so
 // neither runner can claim the other's files even if one lands in the wrong dir.
 // e2e/ is excluded from tsconfig + eslint so the required `lint + build` job is
 // unaffected; Playwright transpiles these specs (esbuild, no type-check) at run
@@ -11,16 +11,16 @@ import { defineConfig, devices } from "@playwright/test";
 // type/import check the CI e2e job runs.
 //
 // Servers: Playwright manages BOTH the Django backend (under config.settings.
-// smoke — relaxed login throttle, LocMem cache, no Redis) and the Next frontend
+// smoke, relaxed login throttle, LocMem cache, no Redis) and the Next frontend
 // (which proxies /api/* to the backend, exercising the real CSRF/session path).
 // The DB must be migrated + seeded BEFORE this runs (`make e2e` / the CI job do
-// that as an explicit prestep — kept out of globalSetup so ordering is
+// that as an explicit prestep, kept out of globalSetup so ordering is
 // unambiguous). Ports are env-overridable because an unrelated local project
 // may hold 3000/8000.
 //
 // Reuse is OPT-IN (E2E_REUSE): by default Playwright always starts its own
 // smoke-configured servers, even locally. Otherwise it would silently reuse a
-// running `make dev` compose stack on the same ports — which runs config.settings
+// running `make dev` compose stack on the same ports, which runs config.settings
 // .dev (the strict 5/min login throttle + Redis cache), NOT smoke, defeating the
 // relaxation and risking an intermittent 429 on rapid re-runs. With `make dev`
 // up on the default ports, e2e now fails loudly (port in use) rather than testing
@@ -41,7 +41,7 @@ export default defineConfig({
   // Pin to .spec so Playwright never claims a src/**/*.test.tsx Vitest file.
   testMatch: "**/*.spec.ts",
   // A small, DB-mutating smoke: run serially for determinism (no cross-spec
-  // races on shared seeded rows) over speed — there are only two specs.
+  // races on shared seeded rows) over speed; there are only two specs.
   fullyParallel: false,
   workers: 1,
   forbidOnly: isCI,
@@ -71,7 +71,7 @@ export default defineConfig({
         DATABASE_URL:
           process.env.DATABASE_URL ??
           "postgres://postgres:postgres@localhost:5432/millennium",
-        // Must include the browser origin or every proxied POST 403s (Invariant 10).
+        // Must include the browser origin or every proxied POST 403s (invariant 10 in ARCHITECTURE.md).
         DJANGO_CSRF_TRUSTED_ORIGINS: process.env.DJANGO_CSRF_TRUSTED_ORIGINS ?? BASE_URL,
       },
     },

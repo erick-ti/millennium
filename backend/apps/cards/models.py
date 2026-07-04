@@ -10,7 +10,7 @@ from apps.core.models import TimeStampedModel
 
 
 class Card(TimeStampedModel):
-    """A unique Yu-Gi-Oh card identity — one row per distinct card.
+    """A unique Yu-Gi-Oh card identity: one row per distinct card.
 
     The surrogate ``id`` is the system identity. ``passcode`` is the Konami
     passcode (YGOPRODeck's ``id``), nullable because TCGCSV-only entities such
@@ -24,12 +24,12 @@ class Card(TimeStampedModel):
     # ``passcode`` is the real identity.
     normalized_name = models.CharField(max_length=255, db_index=True)
     # The card's Yu-Gi-Oh archetype (e.g. "Blue-Eyes", "Sky Striker"), supplied
-    # verbatim by YGOPRODeck metadata — provider-given, not derived, so no save()
+    # verbatim by YGOPRODeck metadata: provider-given, not derived, so no save()
     # computation. Nullable because ~40% of cards have none (Normal Monsters,
     # generic staples): NULL is the canonical "no archetype", never "". Open free
     # text from upstream, NOT a closed vocabulary, so deliberately no CHECK
-    # constraint (unlike Condition/Edition/etc.) — a new upstream archetype must
-    # never need a migration. Indexed because filter/group-by-archetype is the
+    # constraint (unlike Condition/Edition/etc.), so a new upstream archetype
+    # never needs a migration. Indexed because filter/group-by-archetype is the
     # whole point (Phase 5).
     archetype = models.CharField(max_length=255, null=True, blank=True, db_index=True)  # noqa: DJ001
 
@@ -41,8 +41,8 @@ class Card(TimeStampedModel):
         # A partial update that touches `name` (e.g. update_or_create issues
         # save(update_fields={"name", ...})) would otherwise write `name` but
         # drop the recomputed `normalized_name`, silently desyncing the two in
-        # the DB — the exact drift this derivation exists to prevent (DECISIONS
-        # 2026-05-20). Carry normalized_name along whenever name is being saved.
+        # the DB, the exact drift this derivation exists to prevent. Carry
+        # normalized_name along whenever name is being saved.
         update_fields = kwargs.get("update_fields")
         if update_fields is not None and "name" in update_fields:
             kwargs["update_fields"] = {*update_fields, "normalized_name"}
@@ -68,17 +68,17 @@ class CardPrinting(TimeStampedModel):
     set_rarity = models.CharField(max_length=64)
     # Nullable free text (e.g. "alt art", "Version 1"); NULL means "no variant".
     # null=True is deliberate: the natural-key constraint below is NULLS NOT
-    # DISTINCT, so NULL is the single canonical "no variant" value — and save()
+    # DISTINCT, so NULL is the single canonical "no variant" value, and save()
     # coerces ""/whitespace to NULL so it can't become a second one.
     variant_label = models.CharField(max_length=128, null=True, blank=True)  # noqa: DJ001
     # Denormalized human-readable set name (e.g. "Quarter Century Stampede").
     set_name = models.CharField(max_length=255)
     # Set by TCGCSV reconciliation when this generic (variant-NULL) printing's
     # (set_code, set_rarity) has several distinct sellable variants it queued to review
-    # (DECISIONS 2026-05-24) rather than auto-splitting — so this row is an *ambiguous
+    # rather than auto-splitting, so this row is an *ambiguous
     # placeholder*, not a specific owned printing. The Dragon Shield matcher downgrades a
-    # match on it to MEDIUM/review, never EXACT/auto-materialize (DECISIONS 2026-05-26).
-    # Reconciliation only *sets* it — a stale True over-routes to review, which fails
+    # match on it to MEDIUM/review, never EXACT/auto-materialize.
+    # Reconciliation only *sets* it, a stale True over-routes to review, which fails
     # safe; it is cleared if/when variant-splitting replaces this placeholder with real
     # per-variant rows.
     is_multi_variant = models.BooleanField(default=False)
@@ -93,7 +93,7 @@ class CardPrinting(TimeStampedModel):
             ),
             # Canonical-form guard for variant_label: NULL, or a trimmed non-empty
             # string. save() coerces ""/whitespace to NULL on the instance path, but
-            # bulk_create / QuerySet.update / raw SQL bypass save() — without this a
+            # bulk_create / QuerySet.update / raw SQL bypass save(); without this a
             # stray "" or "   " would slip in as a second "no variant" value beside
             # NULL and defeat the natural key above. Unlike that NULLS NOT DISTINCT
             # constraint (which sqlite skips), a CHECK is enforced on every backend.
@@ -132,12 +132,12 @@ class PrintingAlias(TimeStampedModel):
     """Maps a metadata source's *provisional* printing key to the canonical
     ``CardPrinting`` after TCGCSV rarity reconciliation.
 
-    YGOPRODeck seeds printings with a provisional ``set_rarity`` (DECISIONS
-    2026-05-23); when TCGCSV reconciliation corrects that rarity in place, the
+    YGOPRODeck seeds printings with a provisional ``set_rarity``; when TCGCSV
+    reconciliation corrects that rarity in place, the
     original ``(set_code, set_rarity)`` no longer matches on a re-sync, so the
     YGOPRODeck sync would re-create the provisional row as a duplicate. This alias
     records the original key → canonical printing so the re-sync resolves to the
-    canonical row instead — the round-4 rerun-safety prerequisite, i.e. the
+    canonical row instead, the rerun-safety prerequisite, i.e. the
     ``external_price_ids`` pattern applied to metadata identity.
 
     Keyed ``(source, card, set_code, set_rarity)`` where ``set_rarity`` is the

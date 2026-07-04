@@ -63,7 +63,7 @@ from apps.core.enums import Edition
 class CollectionItemViewSet(viewsets.ReadOnlyModelViewSet[CollectionItem]):
     """Read-only collection holdings. List returns one row per holding with
     ``quantity`` = SUM over lots (an item with no lots reads as 0); retrieve
-    nests the lots — the per-acquisition cost-basis history. ``portfolio`` /
+    nests the lots, the per-acquisition cost-basis history. ``portfolio`` /
     ``printing`` FKs and the storage location are pre-joined for the list shape."""
 
     def get_queryset(self) -> QuerySet[CollectionItem]:
@@ -71,9 +71,9 @@ class CollectionItemViewSet(viewsets.ReadOnlyModelViewSet[CollectionItem]):
             CollectionItem.objects.select_related(
                 "printing__card", "portfolio", "storage_location"
             )
-            # quantity isn't a stored column (DECISIONS 2026-05-18 — cost basis
-            # lives on lots, so the item's count is the SUM). Coalesce so an
-            # item with zero lots reads as 0 instead of NULL.
+            # quantity isn't a stored column (cost basis lives on lots, so the
+            # item's count is the SUM). Coalesce so an item with zero lots
+            # reads as 0 instead of NULL.
             .annotate(quantity=Coalesce(Sum("lots__quantity"), 0))
             # The annotate's GROUP BY flips ordered=False, so an explicit
             # order_by is required for paginator determinism (slice-5 lesson).
@@ -94,10 +94,10 @@ class CollectionItemViewSet(viewsets.ReadOnlyModelViewSet[CollectionItem]):
             qs = qs.filter(portfolio_id=int(portfolio))
 
         # Identity facets (Phase 5). Enum values are DB-CHECK-enforced, so an
-        # unknown value can't match a row anyway — but validate up front so the
+        # unknown value can't match a row anyway, but validate up front so the
         # client gets a 400 with the allowed set rather than a silent empty list
         # (the pricing edition-filter precedent). All of these hit fields already
-        # on the item or the select_related printing/card — no new joins.
+        # on the item or the select_related printing/card, no new joins.
         for field, choices in (
             ("condition", Condition.values),
             ("edition", Edition.values),
@@ -113,7 +113,7 @@ class CollectionItemViewSet(viewsets.ReadOnlyModelViewSet[CollectionItem]):
         if set_code is not None:
             qs = qs.filter(printing__set_code=set_code)
 
-        # A cleared search box sends ?search= — empty/whitespace is "no filter",
+        # A cleared search box sends ?search=; empty/whitespace is "no filter",
         # not "match nothing" (the cards-search convention).
         search = params.get("search")
         if search is not None and search.strip():
@@ -150,7 +150,7 @@ class CollectionItemViewSet(viewsets.ReadOnlyModelViewSet[CollectionItem]):
 class CollectionLotViewSet(viewsets.ReadOnlyModelViewSet[CollectionLot]):
     """Read-only per-acquisition lots. List filterable by ``?item=`` /
     ``?portfolio=`` (via the item join). Default order matches the model's
-    natural (item, acquired_at-asc-nulls-last, id) — chronological within a
+    natural (item, acquired_at-asc-nulls-last, id): chronological within a
     holding, with unknown-date lots last."""
 
     serializer_class = CollectionLotSerializer

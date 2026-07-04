@@ -87,7 +87,7 @@ def test_alias_wins_over_a_stale_provisional_row_at_the_same_key() -> None:
     """If a stale provisional printing still lingers at a key the alias maps to a
     canonical printing, the alias wins (the cards/sync.py alias-first order). Exact-
     first would wrongly return the stale row and the name check could mark it EXACT,
-    which slice 4 auto-materializes (Codex adversarial review, 2026-05-26)."""
+    which slice 4 auto-materializes."""
     card = Card.objects.create(name="Super Polymerization")
     canonical = CardPrinting.objects.create(
         card=card, set_code="RA03-EN053", set_rarity="Prismatic Ultimate Rare", set_name="RA03"
@@ -114,7 +114,7 @@ def test_alias_wins_over_a_stale_provisional_row_at_the_same_key() -> None:
 
 @pytest.mark.django_db
 def test_variant_label_is_ignored_for_matching() -> None:
-    """The DS "alt art" variant_label is informational — YGOPRODeck encodes alt-art as
+    """The DS "alt art" variant_label is informational: YGOPRODeck encodes alt-art as
     a distinct rarity (variant NULL), so a row carrying variant_label still matches the
     variant-NULL printing on (set_code, set_rarity)."""
     printing = _printing(set_rarity="Platinum Secret Rare")
@@ -157,7 +157,7 @@ def test_known_multi_variant_key_is_medium_not_exact() -> None:
     """A generic printing flagged is_multi_variant (reconciliation queued several
     sellable variants for its key rather than splitting) is an ambiguous placeholder:
     keep it as the best candidate but downgrade EXACT→MEDIUM even when the name agrees,
-    so slice 4 routes it to review instead of auto-materializing (Codex review 2026-05-26)."""
+    so slice 4 routes it to review instead of auto-materializing."""
     printing = _printing(is_multi_variant=True)
 
     result = match_row(_data())  # set_code/rarity match and the name agrees
@@ -194,7 +194,7 @@ def test_unknown_set_code_is_unmatched() -> None:
 @pytest.mark.django_db
 def test_set_code_exists_at_other_rarity_with_name_in_catalog() -> None:
     """The unmatched detail distinguishes "unknown card" from "known card, this
-    rarity not catalogued", and records that the card name is present — a triage hint
+    rarity not catalogued", and records that the card name is present, a triage hint
     that never sets a printing (no name fallback)."""
     _printing(set_rarity="Common")  # same set_code, different rarity than the query
 
@@ -217,8 +217,8 @@ def test_missing_rarity_is_unmatched() -> None:
 
 @pytest.mark.django_db
 def test_ambiguous_multiple_printings_is_unmatched() -> None:
-    """Two distinct cards sharing one (set_code, set_rarity) — pathological but allowed
-    by the per-card natural key — can't be safely resolved, so route to review rather
+    """Two distinct cards sharing one (set_code, set_rarity) (pathological but allowed
+    by the per-card natural key) can't be safely resolved, so route to review rather
     than silently picking one."""
     _printing(name="Card One", set_code="DUP-EN001", set_rarity="Rare")
     _printing(name="Card Two", set_code="DUP-EN001", set_rarity="Rare")

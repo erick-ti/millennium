@@ -4,7 +4,7 @@
 Runs on the HOST (NOT the backend container, which is isolated and can't see host
 /proc or the host disk). The millennium-host-metrics timer pipes this into a one-off
 ``docker compose run --rm --no-deps -T backend python manage.py record_host_metrics``
-container, which validates + persists it. Pure stdlib — nothing to install on the box.
+container, which validates + persists it. Pure stdlib, nothing to install on the box.
 Reads only world-readable /proc + statvfs, so it needs no privileges.
 """
 
@@ -15,7 +15,7 @@ import os
 import time
 
 
-# The parse_* helpers take text (not a file) so they're pure + unit-testable off-box —
+# The parse_* helpers take text (not a file) so they're pure + unit-testable off-box:
 # the /proc column layout is the most regression-prone part of this collector, and it
 # lives under infra/ where ruff/mypy/pytest don't normally reach (see
 # backend/tests/test_collect_host_metrics.py).
@@ -24,7 +24,7 @@ import time
 def parse_cpu_times(stat_text: str) -> tuple[int, int]:
     """(idle, busy_total) jiffies from the aggregate ``cpu`` line of /proc/stat.
 
-    idle folds in iowait (parts[4]). The busy total sums only parts[:8] — guest
+    idle folds in iowait (parts[4]). The busy total sums only parts[:8]: guest
     (parts[8]) and guest_nice (parts[9]) are ALREADY accounted inside user/nice, so
     summing them would double-count the denominator (cosmetic on a non-virtualising
     box, but wrong)."""
@@ -45,7 +45,7 @@ def cpu_percent(interval: float = 0.3) -> float:
     """Whole-box CPU utilisation over a short sampling interval (a single /proc/stat
     read only gives cumulative-since-boot, so we delta two reads). Clamped to [0, 100]:
     the kernel's iowait counter can move backwards on SMP, so over a ~0.3s window the
-    idle delta can momentarily exceed the busy delta and yield a small negative — which
+    idle delta can momentarily exceed the busy delta and yield a small negative, which
     the ingest command would otherwise reject, discarding the whole (valid) sample."""
     idle1, total1 = _read_cpu_times()
     time.sleep(interval)
@@ -79,7 +79,7 @@ def mem_used_total_mb() -> tuple[int, int]:
 
 def disk_used_total_gb() -> tuple[float, float]:
     """(used, total) GB for the root filesystem. used = blocks not free (matches `df`'s
-    Used column); the percent the UI derives is used/total — i.e. of the FULL disk,
+    Used column); the percent the UI derives is used/total, i.e. of the FULL disk,
     including the ~5% root-reserved blocks, so it reads a touch below `df`'s Use%
     (which divides by used+available)."""
     st = os.statvfs("/")

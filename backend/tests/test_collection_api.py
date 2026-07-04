@@ -92,8 +92,8 @@ def test_endpoints_require_authentication() -> None:
 
 @pytest.mark.django_db
 def test_item_list_aggregates_quantity_from_lots(client: APIClient) -> None:
-    """``quantity`` isn't stored on the item (DECISIONS 2026-05-18) — the list
-    response derives it from the SUM over child lots."""
+    """``quantity`` isn't stored on the item; the list response derives it from
+    the SUM over child lots."""
     item = _item()
     _lot(item, quantity=2)
     _lot(item, quantity=1)
@@ -111,7 +111,7 @@ def test_item_list_aggregates_quantity_from_lots(client: APIClient) -> None:
 
 @pytest.mark.django_db
 def test_item_with_no_lots_reads_quantity_zero(client: APIClient) -> None:
-    """An item without lots reads as quantity 0, not NULL — Coalesce(SUM, 0)."""
+    """An item without lots reads as quantity 0, not NULL, via Coalesce(SUM, 0)."""
     _item()
 
     resp = client.get(reverse("collection:collectionitem-list"))
@@ -157,7 +157,7 @@ def test_item_detail_nests_lots(client: APIClient) -> None:
     assert resp.status_code == status.HTTP_200_OK
     assert resp.data["quantity"] == 3
     lot_ids = [lot["id"] for lot in resp.data["lots"]]
-    # Meta.ordering = (item, acquired_at-asc-nulls-last, id) — known-date lot first.
+    # Meta.ordering = (item, acquired_at-asc-nulls-last, id), so the known-date lot is first.
     assert lot_ids == [lot1.id, lot2.id]
     # NULL unit_cost / acquired_at are NULL, not 0/today (the fake-zero avoidance posture).
     [_, unknown_lot] = resp.data["lots"]
@@ -256,7 +256,7 @@ def test_item_list_search_filters_by_card_name(client: APIClient) -> None:
 
 @pytest.mark.django_db
 def test_item_list_blank_search_returns_all(client: APIClient) -> None:
-    """A cleared search box sends ?search= — empty/whitespace is 'no filter'."""
+    """A cleared search box sends ?search=; empty/whitespace is 'no filter'."""
     _item()
     _item(printing=_printing(set_code="MAMA-EN036", set_rarity="Ultra Rare"))
 
@@ -267,8 +267,8 @@ def test_item_list_blank_search_returns_all(client: APIClient) -> None:
 
 @pytest.mark.django_db
 def test_item_detail_ignores_list_filters(client: APIClient) -> None:
-    """A stray filter param on a retrieve must not 404 via filter_queryset — the
-    list-only guard (the imports slice-5 lesson). The item is near_mint, so a
+    """A stray filter param on a retrieve must not 404 via filter_queryset; the
+    list-only guard follows the imports slice-5 lesson. The item is near_mint, so a
     non-matching ?condition=poor would 404 it if the filter wrongly ran on detail."""
     item = _item()  # NEAR_MINT
     resp = client.get(
@@ -340,7 +340,7 @@ def test_lot_detail_returns_full_shape(client: APIClient) -> None:
 
 @pytest.mark.django_db
 def test_lot_unknown_cost_serializes_as_null(client: APIClient) -> None:
-    """NULL ``unit_cost`` is "unknown" — the slice-4a coverage representation reads it
+    """NULL ``unit_cost`` is "unknown"; the slice-4a coverage representation reads it
     distinctly from 0 to avoid fake-zero cost basis in valuation roll-ups."""
     item = _item()
     _lot(item, unit_cost=None)

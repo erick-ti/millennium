@@ -8,7 +8,7 @@
 # every 2 min risks tipping the web container into an OOM under load. A one-off container
 # gets its own 512m cgroup (the sync timers' precedent), isolated from gunicorn. It also
 # doesn't need the live backend to be up, so a tick during a deploy recreate just spins
-# its own container instead of failing — no backend-running guard needed. `--no-deps`
+# its own container instead of failing, no backend-running guard needed. `--no-deps`
 # keeps a 2-min sampler from auto-starting the stack when it's intentionally down.
 #
 # cd first so compose resolves the `millennium` project from ./docker-compose.yml + .env.

@@ -57,7 +57,7 @@ export function metaFor(status: string): (typeof STATUS_META)[StatusKey] {
 }
 
 // The dependency edge in WORDS, coloured by the UPSTREAM's live status so a broken
-// upstream reads as broken at its dependents (paired with the coloured edge — never
+// upstream reads as broken at its dependents (paired with the coloured edge, never
 // colour-only). The green wording stays "gated on <dep>" (the prior copy).
 export function gateCaption(
   dependsOn: string,
@@ -87,13 +87,13 @@ export const SEVERITY_IRIS: Record<Severity, string> = {
 };
 
 // The headline reflects BOTH the internal pipeline AND the external dead-man checks,
-// so it can't green-wash a degraded external tier (Codex adversarial review). Policy,
+// so it can't green-wash a degraded external tier. Policy,
 // by precedence: failures (a red sync stage, or a DOWN backup/CD check) → loss; then
 // attention (a stale/skipped sync, an OVERDUE `grace` check, or an external tier we
-// can't confirm — provider unavailable / query failed) → flat; then never-run syncs;
+// can't confirm, provider unavailable / query failed) → flat; then never-run syncs;
 // else green. DELIBERATELY NEUTRAL (never move the headline off green): a `paused`
 // check (operator-intentional), a `new`/never-pinged check, an unconfigured tier, and
-// a null check. `severity` is the same verdict the dawn-glow / sentinel consume — bound
+// a null check. `severity` is the same verdict the dawn-glow / sentinel consume, bound
 // to this single source so a beacon can never disagree with the rows.
 export function summarize(
   stages: PipelineStage[],

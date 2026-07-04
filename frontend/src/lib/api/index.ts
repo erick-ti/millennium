@@ -1,41 +1,39 @@
 /**
  * Public API surface for the typed Millennium client.
  *
- * The generated tree under `./generated/` is a regeneration target (DECISIONS
- * 2026-05-27 Phase 4 slice 2):
+ * The generated tree under `./generated/` is a regeneration target:
  *
- *   1. `make frontend-snapshot-schema`  — refresh `frontend/openapi.json` from
+ *   1. `make frontend-snapshot-schema`, refresh `frontend/openapi.json` from
  *      Django via `manage.py spectacular`.
- *   2. `make frontend-gen-api`          — regenerate `./generated/` via
+ *   2. `make frontend-gen-api`, regenerate `./generated/` via
  *      `@hey-api/openapi-ts`.
  *
  * Both the schema snapshot AND the generated output are committed so PR diffs
- * show every API surface change (the user-settled schema-acquisition strategy).
+ * show every API surface change (the settled schema-acquisition strategy).
  *
  * ─────────────────────────────────────────────────────────────────────────
- * WRITES ARE LIVE (slice 6) — but the barrel is still an explicit allowlist.
+ * WRITES ARE LIVE, but the barrel is still an explicit allowlist.
  * ─────────────────────────────────────────────────────────────────────────
  *
- * Slice 6 wired `X-CSRFToken` injection in `frontend/src/proxy.ts`, so the
- * import write helpers (`importsRowsApproveCreate` / `OverrideCreate` /
- * `RejectCreate`, `importsBatchesCreate`) + their `*Mutation` variants are now
- * re-exported and safe to call through the same-origin proxy. Phase 5 adds the
- * price-alert rule-create write (`alertsRulesCreate` + `alertsRulesCreateMutation`)
- * on the same path. Phase 5 deck association adds the deck CRUD + membership
- * add/remove writes (`decksDecksCreate` / `decksDecksDestroy`,
- * `decksMembershipsCreate` / `decksMembershipsDestroy`), called as bare SDK fns so
- * the add can read its 409 (duplicate membership) — the import write pattern.
+ * CSRF token injection in `frontend/src/proxy.ts` means the import write
+ * helpers (`importsRowsApproveCreate` / `OverrideCreate` / `RejectCreate`,
+ * `importsBatchesCreate`) plus their `*Mutation` variants are re-exported and
+ * safe to call through the same-origin proxy. The price-alert rule-create
+ * write (`alertsRulesCreate` + `alertsRulesCreateMutation`) uses the same
+ * path, as does the deck CRUD + membership add/remove writes
+ * (`decksDecksCreate` / `decksDecksDestroy`, `decksMembershipsCreate` /
+ * `decksMembershipsDestroy`), called as bare SDK fns so the add can read its
+ * 409 (duplicate membership) response directly.
  *
- * We deliberately do NOT collapse this to `export * from "./generated"` (the
- * slice-2 comment's suggested one-line revert): hey-api still generates the
- * `*InfiniteOptions` / `*InfiniteQueryKey` helpers with TanStack v5's required
- * `initialPageParam` / `getNextPageParam` suppressed by `// @ts-ignore`, so they
- * compile but can't paginate past page 1 (Codex slice 2 round 7). They remain
- * filtered out below until a project-owned wrapper derives `getNextPageParam`
- * from DRF's `next` field — and the views ship page-number navigation, so that
- * wrapper isn't needed yet. The allowlist is the durable shape; adding a new
- * read endpoint means adding its name here (a missing name is a loud TS error
- * at the call site, not a silent gap).
+ * We deliberately do NOT collapse this to `export * from "./generated"`:
+ * hey-api still generates the `*InfiniteOptions` / `*InfiniteQueryKey`
+ * helpers with TanStack v5's required `initialPageParam` / `getNextPageParam`
+ * suppressed by `// @ts-ignore`, so they compile but can't paginate past page
+ * 1. They remain filtered out below until a project-owned wrapper derives
+ * `getNextPageParam` from DRF's `next` field, and the views ship page-number
+ * navigation, so that wrapper isn't needed yet. The allowlist is the durable
+ * shape; adding a new read endpoint means adding its name here (a missing
+ * name is a loud TS error at the call site, not a silent gap).
  *
  * ─────────────────────────────────────────────────────────────────────────
  *
@@ -100,10 +98,10 @@ export {
 } from "./generated/sdk.gen";
 
 // ─── TanStack Query helpers ────────────────────────────────────────────────
-// Read `*Options` + `*QueryKey` (page-number form — `options.query.page`, what
+// Read `*Options` + `*QueryKey` (page-number form, `options.query.page`, what
 // DRF's PageNumberPagination serves) and the slice-6 import write `*Mutation`
 // helpers. The `*InfiniteOptions` / `*InfiniteQueryKey` variants stay omitted
-// (broken past page 1 — see the header note); add a project-owned wrapper if
+// (broken past page 1, see the header note); add a project-owned wrapper if
 // infinite scroll is ever wanted.
 export {
   alertsEventsListOptions,

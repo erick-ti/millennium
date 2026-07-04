@@ -29,7 +29,7 @@ async function uploadCsv(file: File): Promise<ImportBatch> {
   const { data, error, response } = await importsBatchesCreate({ body: { file } });
   if (!data) {
     // A 403 can be a missing/stale CSRF cookie; re-seed so a retry carries a token without a
-    // reload (harmless for an auth 403). Same recovery as the review actions (Codex 2026-05-30).
+    // reload (harmless for an auth 403). Same recovery as the review actions.
     if (response?.status === 403) seedCsrf();
     // `response` is optional (undefined on a network error before any response).
     const fallback = response
@@ -43,7 +43,7 @@ async function uploadCsv(file: File): Promise<ImportBatch> {
 export function ImportUpload({
   onUploaded,
 }: {
-  /** Called with the created batch on a successful (2xx) upload — the page uses it to
+  /** Called with the created batch on a successful (2xx) upload; the page uses it to
    *  refresh the batch list. Fires for a failed-parse batch too (it's a real record). */
   onUploaded?: (batch: ImportBatch) => void;
 }) {
@@ -70,7 +70,7 @@ export function ImportUpload({
         <h2 className="font-terminal text-xs uppercase tracking-[0.16em] text-gold-700">
           New import
         </h2>
-        {/* Only show the demo notice once auth has settled — during the cold-load probe
+        {/* Only show the demo notice once auth has settled, during the cold-load probe
             window canWrite is transiently false even for the owner. */}
         {authLoading ? null : (
           <ReadOnlyNotice className="mt-3 border-0 bg-transparent px-0 py-0">

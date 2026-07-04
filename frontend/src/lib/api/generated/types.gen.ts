@@ -125,8 +125,8 @@ export type CardDetail = {
 };
 
 /**
- * Card identity in list shape — ``normalized_name`` is deliberately omitted
- * (it's an internal lookup index, not API surface — DECISIONS 2026-05-18).
+ * Card identity in list shape. ``normalized_name`` is deliberately omitted:
+ * it's an internal lookup index, not API surface.
  */
 export type CardList = {
     readonly id: number;
@@ -137,14 +137,14 @@ export type CardList = {
 };
 
 /**
- * A printing — this artwork at this rarity in this set (DECISIONS 2026-05-18).
+ * A printing: this artwork at this rarity in this set.
  *
  * ``is_multi_variant`` flags an ambiguous-placeholder row whose generic
- * ``(set_code, set_rarity)`` covers multiple sellable variants (DECISIONS
- * 2026-05-24); slice 6's import-review UI surfaces it to let a reviewer weigh
- * the MEDIUM downgrade the matcher applies to a match on it (DECISIONS
- * 2026-05-26). ``card`` is the FK id; ``card_name`` is denormalized read-only
- * so a list response doesn't force a per-row `/api/cards/cards/{id}/` lookup.
+ * ``(set_code, set_rarity)`` covers multiple sellable variants; the
+ * import-review UI surfaces it to let a reviewer weigh the MEDIUM downgrade
+ * the matcher applies to a match on it. ``card`` is the FK id; ``card_name``
+ * is denormalized read-only so a list response doesn't force a per-row
+ * `/api/cards/cards/{id}/` lookup.
  */
 export type CardPrinting = {
     readonly id: number;
@@ -207,10 +207,10 @@ export type ClientErrorRequest = {
 };
 
 /**
- * Item detail nests its lots — the per-acquisition cost-basis history slice
- * 4 (card detail) and slice 5 (portfolio drill-down) want together with the
- * aggregate. Lots arrive in the model's natural order (acquired_at ascending,
- * nulls last; id tiebreaker — DECISIONS 2026-05-22).
+ * Item detail nests its lots: the per-acquisition cost-basis history that
+ * the card detail view and the portfolio drill-down view want together with
+ * the aggregate. Lots arrive in the model's natural order (acquired_at ascending,
+ * nulls last, id tiebreaker).
  */
 export type CollectionItemDetail = {
     readonly id: number;
@@ -231,12 +231,11 @@ export type CollectionItemDetail = {
 };
 
 /**
- * One holding — N copies of one printing in one condition/edition/language/
- * portfolio (DECISIONS 2026-05-18). ``quantity`` is derived (SUM over child lots,
- * not stored on the item — DECISIONS 2026-05-18), supplied by the viewset's
- * queryset annotation; an item with no lots reads as 0. The printing's identity
- * fields are denormalized read-only so the slice-3 collection table doesn't
- * need a per-row printing lookup.
+ * One holding: N copies of one printing in one condition/edition/language/
+ * portfolio. ``quantity`` is derived (SUM over child lots, not stored on the
+ * item), supplied by the viewset's queryset annotation; an item with no lots
+ * reads as 0. The printing's identity fields are denormalized read-only so the
+ * collection table doesn't need a per-row printing lookup.
  */
 export type CollectionItemList = {
     readonly id: number;
@@ -256,14 +255,14 @@ export type CollectionItemList = {
 };
 
 /**
- * An acquisition batch under a ``CollectionItem`` — quantity + cost + date.
+ * An acquisition batch under a ``CollectionItem``: quantity, cost, and date.
  *
- * ``unit_cost`` / ``acquired_at`` are nullable ("unknown" — DECISIONS 2026-05-18):
- * a consumer treats NULL distinctly from ``0.00`` / today, the fake-gains-prevention
- * posture that runs all the way up through the slice-4a coverage representation
+ * ``unit_cost`` / ``acquired_at`` are nullable ("unknown"): a consumer treats
+ * NULL distinctly from ``0.00`` / today, the fake-gains-prevention posture
+ * that runs all the way up through the coverage representation
  * (a lot with NULL ``unit_cost`` drops out of the portfolio's ``costed_card_count``).
- * ``import_source_ref`` is the per-holding-per-source dedup key the importer writes
- * (DECISIONS 2026-05-26 slice 4); manual lots have NULL.
+ * ``import_source_ref`` is the per-holding-per-source dedup key the importer writes;
+ * manual lots have NULL.
  */
 export type CollectionLot = {
     readonly id: number;
@@ -288,14 +287,14 @@ export type CollectionLot = {
 export type ConditionEnum = 'mint' | 'near_mint' | 'excellent' | 'good' | 'light_played' | 'played' | 'poor';
 
 /**
- * A deck — read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``
+ * A deck, read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``
  * one class serves read+write, so a POST/PATCH body carries only ``name``/``description``
  * and the response echoes the saved deck.
  *
  * ``member_count`` is derived (the count of ``DeckMembership`` rows). The viewset
  * annotates it on the list/retrieve queryset, but a freshly created/updated instance
  * won't carry the annotation, so it is a ``SerializerMethodField`` that falls back to a
- * live count — the response after a POST/PATCH must still serialize without an
+ * live count: the response after a POST/PATCH must still serialize without an
  * AttributeError (the cards ``printings_count`` annotation trap, made annotation-safe).
  */
 export type Deck = {
@@ -308,7 +307,7 @@ export type Deck = {
 };
 
 /**
- * A deck membership — read AND create. The write side carries only ``deck`` +
+ * A deck membership, read AND create. The write side carries only ``deck`` +
  * ``collection_item`` (both ``PrimaryKeyRelatedField`` → 400 on an unknown id);
  * everything else is the owned holding's identity, denormalized read-only via
  * ``source="collection_item.*"`` so the deck-detail member table renders without a
@@ -321,7 +320,7 @@ export type Deck = {
  * from the model's ``(deck, collection_item)`` UNIQUE: the viewset's ``create`` instead
  * ``get_or_create``s and returns a clean 409 for an already-present holding (informative,
  * and the same status the import-review frontend already reads), rather than a generic
- * 400 — while the DB UNIQUE still backstops a concurrent double-add.
+ * 400, while the DB UNIQUE still backstops a concurrent double-add.
  */
 export type DeckMembership = {
     readonly id: number;
@@ -340,7 +339,7 @@ export type DeckMembership = {
 };
 
 /**
- * A deck membership — read AND create. The write side carries only ``deck`` +
+ * A deck membership, read AND create. The write side carries only ``deck`` +
  * ``collection_item`` (both ``PrimaryKeyRelatedField`` → 400 on an unknown id);
  * everything else is the owned holding's identity, denormalized read-only via
  * ``source="collection_item.*"`` so the deck-detail member table renders without a
@@ -353,7 +352,7 @@ export type DeckMembership = {
  * from the model's ``(deck, collection_item)`` UNIQUE: the viewset's ``create`` instead
  * ``get_or_create``s and returns a clean 409 for an already-present holding (informative,
  * and the same status the import-review frontend already reads), rather than a generic
- * 400 — while the DB UNIQUE still backstops a concurrent double-add.
+ * 400, while the DB UNIQUE still backstops a concurrent double-add.
  */
 export type DeckMembershipRequest = {
     deck: number;
@@ -361,14 +360,14 @@ export type DeckMembershipRequest = {
 };
 
 /**
- * A deck — read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``
+ * A deck, read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``
  * one class serves read+write, so a POST/PATCH body carries only ``name``/``description``
  * and the response echoes the saved deck.
  *
  * ``member_count`` is derived (the count of ``DeckMembership`` rows). The viewset
  * annotates it on the list/retrieve queryset, but a freshly created/updated instance
  * won't carry the annotation, so it is a ``SerializerMethodField`` that falls back to a
- * live count — the response after a POST/PATCH must still serialize without an
+ * live count: the response after a POST/PATCH must still serialize without an
  * AttributeError (the cards ``printings_count`` annotation trap, made annotation-safe).
  */
 export type DeckRequest = {
@@ -407,11 +406,11 @@ export type ErrorGroup = {
 };
 
 /**
- * One import's history record + per-status row counts. The counts are *derived* — the
- * model deliberately does not denormalize them (DECISIONS 2026-05-25 slice 1) — and are
+ * One import's history record + per-status row counts. The counts are *derived*: the
+ * model deliberately does not denormalize them, and are
  * supplied by the viewset's queryset annotation, so a summary can't drift from its rows.
  * ``rows_needs_review`` counts every still-PENDING row (== ``ImportRow.needs_review``): a
- * pending row is, by construction, one the auto-path left for a human or a re-sync —
+ * pending row is, by construction, one the auto-path left for a human or a re-sync,
  * match-uncertain, freshness-gated, or a changed-duplicate cost conflict alike.
  */
 export type ImportBatch = {
@@ -445,12 +444,12 @@ export type ImportBatchStatusEnum = 'pending' | 'processing' | 'review' | 'compl
  * the ``ImportRow.needs_review`` property (still PENDING → needs a human/re-sync), the one
  * definition the count and ``?needs_review`` filter also use, so they can't drift.
  *
- * ``allow_null=True`` on ``matched_printing`` is required (Codex slice 2 round 5): the model
- * FK is nullable and UNMATCHED rows ship ``matched_printing=None`` as a normal state — without
+ * ``allow_null=True`` on ``matched_printing`` is required: the model
+ * FK is nullable and UNMATCHED rows ship ``matched_printing=None`` as a normal state, without
  * it the OpenAPI schema declares the property non-null and the generated TS client crashes a
  * review UI dereferencing ``row.matched_printing.card_name`` on an unmatched row (which is
  * precisely the row the reviewer most needs to act on). Same bug class as
- * ``Portfolio.latest_snapshot`` (round 1), different shape: that one used
+ * ``Portfolio.latest_snapshot``, different shape: that one used
  * ``@extend_schema_field(Class)``; this one is a direct nested serializer assignment. Both
  * shapes need explicit nullability.
  */
@@ -562,8 +561,8 @@ export type MatchConfidenceEnum = 'exact' | 'high' | 'medium' | 'low' | 'unmatch
 /**
  * Read-only nested view of a row's ``matched_printing`` for the review UI. Surfaces
  * ``is_multi_variant`` so a reviewer sees that the matcher downgraded a known multi-variant
- * placeholder to MEDIUM (and can weigh it before approving — the auto-path's gate is the
- * human here; DECISIONS 2026-05-27).
+ * placeholder to MEDIUM (and can weigh it before approving; the auto-path's gate is the
+ * human here).
  */
 export type MatchedPrinting = {
     readonly id: number;
@@ -716,14 +715,14 @@ export type PaginatedPriceSnapshotList = {
 };
 
 /**
- * A deck — read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``
+ * A deck, read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``
  * one class serves read+write, so a POST/PATCH body carries only ``name``/``description``
  * and the response echoes the saved deck.
  *
  * ``member_count`` is derived (the count of ``DeckMembership`` rows). The viewset
  * annotates it on the list/retrieve queryset, but a freshly created/updated instance
  * won't carry the annotation, so it is a ``SerializerMethodField`` that falls back to a
- * live count — the response after a POST/PATCH must still serialize without an
+ * live count: the response after a POST/PATCH must still serialize without an
  * AttributeError (the cards ``printings_count`` annotation trap, made annotation-safe).
  */
 export type PatchedDeckRequest = {
@@ -745,12 +744,12 @@ export type PipelineStage = {
 
 /**
  * A portfolio + its latest ``PortfolioValueSnapshot`` inline (NULL when a
- * portfolio has never been valued). Slice 5's portfolio summary shows
+ * portfolio has never been valued). The portfolio summary shows
  * today's value at a glance without a second round-trip; the value-history
  * chart consumes ``/api/portfolio/snapshots/?portfolio=&from=&to=``.
  *
- * N+1 risk on list is bounded by portfolio count (single digits in practice
- * — Yubel Deck, Long-term hold, etc.). If portfolios ever scale, switch this
+ * N+1 risk on list is bounded by portfolio count (single digits in practice,
+ * e.g. Yubel Deck, Long-term hold). If portfolios ever scale, switch this
  * to a correlated subquery / prefetched-singleton.
  */
 export type Portfolio = {
@@ -760,10 +759,10 @@ export type Portfolio = {
 };
 
 /**
- * Append-only daily valuation row (DECISIONS 2026-05-22).
+ * Append-only daily valuation row.
  *
- * ``unrealized_gain`` is nullable — NULL means partial coverage and the difference
- * of two different subsets isn't a gain (DECISIONS 2026-05-25 slice 4a). The three
+ * ``unrealized_gain`` is nullable: NULL means partial coverage, and the difference
+ * of two different subsets isn't a gain. The three
  * coverage counts say how much of the portfolio each total covers; the derived
  * ``*_complete`` / ``is_complete`` flags read off the model properties (so they
  * can't drift from the counts). Consumers must handle NULL ``unrealized_gain``.
@@ -788,11 +787,11 @@ export type PortfolioValueSnapshot = {
 };
 
 /**
- * One provider's price for a printing+edition on a given day (append-only —
- * DECISIONS 2026-05-18). Every price point is nullable: a provider may report
+ * One provider's price for a printing+edition on a given day (append-only).
+ * Every price point is nullable: a provider may report
  * only some, so a consumer treats NULL distinctly from 0 (the same fake-zero
  * avoidance pattern as ``CollectionLot.unit_cost`` and the slice-4a coverage
- * fields). ``confidence`` is the multi-source scoring placeholder (1.0 today —
+ * fields). ``confidence`` is the multi-source scoring placeholder (1.0 today,
  * one trusted source). ``source_subtype_name`` keeps the provider's raw subtype
  * text (e.g. TCGCSV ``"1st Edition"``) for audit if the edition normalisation
  * rule ever changes.
@@ -972,8 +971,8 @@ export type CardDetailWritable = {
 };
 
 /**
- * Card identity in list shape — ``normalized_name`` is deliberately omitted
- * (it's an internal lookup index, not API surface — DECISIONS 2026-05-18).
+ * Card identity in list shape. ``normalized_name`` is deliberately omitted:
+ * it's an internal lookup index, not API surface.
  */
 export type CardListWritable = {
     passcode?: number | null;
@@ -982,14 +981,14 @@ export type CardListWritable = {
 };
 
 /**
- * A printing — this artwork at this rarity in this set (DECISIONS 2026-05-18).
+ * A printing: this artwork at this rarity in this set.
  *
  * ``is_multi_variant`` flags an ambiguous-placeholder row whose generic
- * ``(set_code, set_rarity)`` covers multiple sellable variants (DECISIONS
- * 2026-05-24); slice 6's import-review UI surfaces it to let a reviewer weigh
- * the MEDIUM downgrade the matcher applies to a match on it (DECISIONS
- * 2026-05-26). ``card`` is the FK id; ``card_name`` is denormalized read-only
- * so a list response doesn't force a per-row `/api/cards/cards/{id}/` lookup.
+ * ``(set_code, set_rarity)`` covers multiple sellable variants; the
+ * import-review UI surfaces it to let a reviewer weigh the MEDIUM downgrade
+ * the matcher applies to a match on it. ``card`` is the FK id; ``card_name``
+ * is denormalized read-only so a list response doesn't force a per-row
+ * `/api/cards/cards/{id}/` lookup.
  */
 export type CardPrintingWritable = {
     card: number;
@@ -1001,10 +1000,10 @@ export type CardPrintingWritable = {
 };
 
 /**
- * Item detail nests its lots — the per-acquisition cost-basis history slice
- * 4 (card detail) and slice 5 (portfolio drill-down) want together with the
- * aggregate. Lots arrive in the model's natural order (acquired_at ascending,
- * nulls last; id tiebreaker — DECISIONS 2026-05-22).
+ * Item detail nests its lots: the per-acquisition cost-basis history that
+ * the card detail view and the portfolio drill-down view want together with
+ * the aggregate. Lots arrive in the model's natural order (acquired_at ascending,
+ * nulls last, id tiebreaker).
  */
 export type CollectionItemDetailWritable = {
     portfolio: number;
@@ -1016,12 +1015,11 @@ export type CollectionItemDetailWritable = {
 };
 
 /**
- * One holding — N copies of one printing in one condition/edition/language/
- * portfolio (DECISIONS 2026-05-18). ``quantity`` is derived (SUM over child lots,
- * not stored on the item — DECISIONS 2026-05-18), supplied by the viewset's
- * queryset annotation; an item with no lots reads as 0. The printing's identity
- * fields are denormalized read-only so the slice-3 collection table doesn't
- * need a per-row printing lookup.
+ * One holding: N copies of one printing in one condition/edition/language/
+ * portfolio. ``quantity`` is derived (SUM over child lots, not stored on the
+ * item), supplied by the viewset's queryset annotation; an item with no lots
+ * reads as 0. The printing's identity fields are denormalized read-only so the
+ * collection table doesn't need a per-row printing lookup.
  */
 export type CollectionItemListWritable = {
     portfolio: number;
@@ -1033,14 +1031,14 @@ export type CollectionItemListWritable = {
 };
 
 /**
- * An acquisition batch under a ``CollectionItem`` — quantity + cost + date.
+ * An acquisition batch under a ``CollectionItem``: quantity, cost, and date.
  *
- * ``unit_cost`` / ``acquired_at`` are nullable ("unknown" — DECISIONS 2026-05-18):
- * a consumer treats NULL distinctly from ``0.00`` / today, the fake-gains-prevention
- * posture that runs all the way up through the slice-4a coverage representation
+ * ``unit_cost`` / ``acquired_at`` are nullable ("unknown"): a consumer treats
+ * NULL distinctly from ``0.00`` / today, the fake-gains-prevention posture
+ * that runs all the way up through the coverage representation
  * (a lot with NULL ``unit_cost`` drops out of the portfolio's ``costed_card_count``).
- * ``import_source_ref`` is the per-holding-per-source dedup key the importer writes
- * (DECISIONS 2026-05-26 slice 4); manual lots have NULL.
+ * ``import_source_ref`` is the per-holding-per-source dedup key the importer writes;
+ * manual lots have NULL.
  */
 export type CollectionLotWritable = {
     collection_item: number;
@@ -1051,14 +1049,14 @@ export type CollectionLotWritable = {
 };
 
 /**
- * A deck — read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``
+ * A deck, read AND create/update (rename). With ``COMPONENT_SPLIT_REQUEST=True``
  * one class serves read+write, so a POST/PATCH body carries only ``name``/``description``
  * and the response echoes the saved deck.
  *
  * ``member_count`` is derived (the count of ``DeckMembership`` rows). The viewset
  * annotates it on the list/retrieve queryset, but a freshly created/updated instance
  * won't carry the annotation, so it is a ``SerializerMethodField`` that falls back to a
- * live count — the response after a POST/PATCH must still serialize without an
+ * live count: the response after a POST/PATCH must still serialize without an
  * AttributeError (the cards ``printings_count`` annotation trap, made annotation-safe).
  */
 export type DeckWritable = {
@@ -1067,7 +1065,7 @@ export type DeckWritable = {
 };
 
 /**
- * A deck membership — read AND create. The write side carries only ``deck`` +
+ * A deck membership, read AND create. The write side carries only ``deck`` +
  * ``collection_item`` (both ``PrimaryKeyRelatedField`` → 400 on an unknown id);
  * everything else is the owned holding's identity, denormalized read-only via
  * ``source="collection_item.*"`` so the deck-detail member table renders without a
@@ -1080,7 +1078,7 @@ export type DeckWritable = {
  * from the model's ``(deck, collection_item)`` UNIQUE: the viewset's ``create`` instead
  * ``get_or_create``s and returns a clean 409 for an already-present holding (informative,
  * and the same status the import-review frontend already reads), rather than a generic
- * 400 — while the DB UNIQUE still backstops a concurrent double-add.
+ * 400, while the DB UNIQUE still backstops a concurrent double-add.
  */
 export type DeckMembershipWritable = {
     deck: number;
@@ -1088,11 +1086,11 @@ export type DeckMembershipWritable = {
 };
 
 /**
- * One import's history record + per-status row counts. The counts are *derived* — the
- * model deliberately does not denormalize them (DECISIONS 2026-05-25 slice 1) — and are
+ * One import's history record + per-status row counts. The counts are *derived*: the
+ * model deliberately does not denormalize them, and are
  * supplied by the viewset's queryset annotation, so a summary can't drift from its rows.
  * ``rows_needs_review`` counts every still-PENDING row (== ``ImportRow.needs_review``): a
- * pending row is, by construction, one the auto-path left for a human or a re-sync —
+ * pending row is, by construction, one the auto-path left for a human or a re-sync,
  * match-uncertain, freshness-gated, or a changed-duplicate cost conflict alike.
  */
 export type ImportBatchWritable = {
@@ -1108,12 +1106,12 @@ export type ImportBatchWritable = {
  * the ``ImportRow.needs_review`` property (still PENDING → needs a human/re-sync), the one
  * definition the count and ``?needs_review`` filter also use, so they can't drift.
  *
- * ``allow_null=True`` on ``matched_printing`` is required (Codex slice 2 round 5): the model
- * FK is nullable and UNMATCHED rows ship ``matched_printing=None`` as a normal state — without
+ * ``allow_null=True`` on ``matched_printing`` is required: the model
+ * FK is nullable and UNMATCHED rows ship ``matched_printing=None`` as a normal state, without
  * it the OpenAPI schema declares the property non-null and the generated TS client crashes a
  * review UI dereferencing ``row.matched_printing.card_name`` on an unmatched row (which is
  * precisely the row the reviewer most needs to act on). Same bug class as
- * ``Portfolio.latest_snapshot`` (round 1), different shape: that one used
+ * ``Portfolio.latest_snapshot``, different shape: that one used
  * ``@extend_schema_field(Class)``; this one is a direct nested serializer assignment. Both
  * shapes need explicit nullability.
  */
@@ -1130,8 +1128,8 @@ export type ImportRowWritable = {
 /**
  * Read-only nested view of a row's ``matched_printing`` for the review UI. Surfaces
  * ``is_multi_variant`` so a reviewer sees that the matcher downgraded a known multi-variant
- * placeholder to MEDIUM (and can weigh it before approving — the auto-path's gate is the
- * human here; DECISIONS 2026-05-27).
+ * placeholder to MEDIUM (and can weigh it before approving; the auto-path's gate is the
+ * human here).
  */
 export type MatchedPrintingWritable = {
     set_code: string;
@@ -1240,12 +1238,12 @@ export type PaginatedPriceSnapshotListWritable = {
 
 /**
  * A portfolio + its latest ``PortfolioValueSnapshot`` inline (NULL when a
- * portfolio has never been valued). Slice 5's portfolio summary shows
+ * portfolio has never been valued). The portfolio summary shows
  * today's value at a glance without a second round-trip; the value-history
  * chart consumes ``/api/portfolio/snapshots/?portfolio=&from=&to=``.
  *
- * N+1 risk on list is bounded by portfolio count (single digits in practice
- * — Yubel Deck, Long-term hold, etc.). If portfolios ever scale, switch this
+ * N+1 risk on list is bounded by portfolio count (single digits in practice,
+ * e.g. Yubel Deck, Long-term hold). If portfolios ever scale, switch this
  * to a correlated subquery / prefetched-singleton.
  */
 export type PortfolioWritable = {
@@ -1253,10 +1251,10 @@ export type PortfolioWritable = {
 };
 
 /**
- * Append-only daily valuation row (DECISIONS 2026-05-22).
+ * Append-only daily valuation row.
  *
- * ``unrealized_gain`` is nullable — NULL means partial coverage and the difference
- * of two different subsets isn't a gain (DECISIONS 2026-05-25 slice 4a). The three
+ * ``unrealized_gain`` is nullable: NULL means partial coverage, and the difference
+ * of two different subsets isn't a gain. The three
  * coverage counts say how much of the portfolio each total covers; the derived
  * ``*_complete`` / ``is_complete`` flags read off the model properties (so they
  * can't drift from the counts). Consumers must handle NULL ``unrealized_gain``.
@@ -1276,11 +1274,11 @@ export type PortfolioValueSnapshotWritable = {
 };
 
 /**
- * One provider's price for a printing+edition on a given day (append-only —
- * DECISIONS 2026-05-18). Every price point is nullable: a provider may report
+ * One provider's price for a printing+edition on a given day (append-only).
+ * Every price point is nullable: a provider may report
  * only some, so a consumer treats NULL distinctly from 0 (the same fake-zero
  * avoidance pattern as ``CollectionLot.unit_cost`` and the slice-4a coverage
- * fields). ``confidence`` is the multi-source scoring placeholder (1.0 today —
+ * fields). ``confidence`` is the multi-source scoring placeholder (1.0 today,
  * one trusted source). ``source_subtype_name`` keeps the provider's raw subtype
  * text (e.g. TCGCSV ``"1st Edition"``) for audit if the edition normalisation
  * rule ever changes.
@@ -2216,7 +2214,7 @@ export type PricingSnapshotsListData = {
     path?: never;
     query?: {
         /**
-         * Filter by edition (a pricing dimension — DECISIONS 2026-05-18).
+         * Filter by edition (a pricing dimension).
          */
         edition?: 'first' | 'limited' | 'unlimited';
         /**

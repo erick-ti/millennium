@@ -31,7 +31,7 @@ class SyncResult:
     printings_created: int = 0
     printings_updated: int = 0
     printings_unchanged: int = 0
-    # Non-null archetypes in this run's fetch — coverage telemetry recorded in the
+    # Non-null archetypes in this run's fetch: coverage telemetry recorded in the
     # SyncRun detail (Phase 5). NOT the guard input: the withdrawal guard reads the live
     # tagged set, not a recorded baseline.
     archetype_count: int = 0
@@ -43,21 +43,21 @@ def sync_cards_from_metadata(
     """Upsert cards and printings from a metadata provider, skipping unchanged rows.
 
     An existing row is written *only* when a field actually differs from the
-    provider's value — an unchanged row is left untouched, so ``updated_at`` stays
+    provider's value, an unchanged row is left untouched, so ``updated_at`` stays
     meaningful (it marks the last real metadata change, not the last sync) and the
     returned counts are a true change signal rather than "everything, every run"
     (which is what an unconditional ``update_or_create`` would report). Writes go
     through ``save`` (never ``bulk_create``), which is what derives
-    ``normalized_name`` and coerces ``variant_label`` (DECISIONS 2026-05-20), so a
+    ``normalized_name`` and coerces ``variant_label``, so a
     re-run over unchanged data performs no writes at all. Single-writer: the daily
     sync is one task, so get-then-write needs no row locking.
 
-    Reconciliation-aware (DECISIONS 2026-05-23 round-4): before matching a printing
+    Reconciliation-aware: before matching a printing
     by its natural key it consults ``PrintingAlias``, so once TCGCSV ingestion has
     corrected a provisional ``set_rarity`` in place, a re-run resolves the original
     provisional key to the canonical printing instead of recreating it as a
     duplicate. (Beat scheduling still waits on the second recurring-safety
-    prerequisite — slice 3/4's compare-to-previous cardinality guard.)
+    prerequisite: the compare-to-previous cardinality guard.)
     """
     cards_created = cards_updated = cards_unchanged = 0
     printings_created = printings_updated = printings_unchanged = 0
@@ -69,7 +69,7 @@ def sync_cards_from_metadata(
     # the destructive op directly: count how many CURRENTLY-tagged cards this run would
     # null, and fail closed if that exceeds a fraction of the tagged set (above a small
     # absolute floor, so early/small states and legit handful-of-card corrections don't
-    # trip it). An aggregate count floor slips a partial loss through — Codex review.
+    # trip it). An aggregate count floor would let a partial loss slip through.
     records = list(provider.fetch_card_metadata())
     archetype_count = sum(1 for record in records if record.archetype is not None)
     if archetype_withdrawal_tolerance is not None:
@@ -117,8 +117,8 @@ def sync_cards_from_metadata(
             if alias is not None:
                 # A prior TCGCSV reconciliation corrected this provisional
                 # (set_code, set_rarity) to a canonical printing; resolve to that row
-                # rather than recreating the provisional one (DECISIONS 2026-05-23
-                # round-4). Treat like an existing printing — refresh set_name if it
+                # rather than recreating the provisional one.
+                # Treat like an existing printing, refresh set_name if it
                 # drifted (the only mutable, non-key field a refresh changes).
                 canonical = alias.printing
                 if canonical.set_name != printing.set_name:
@@ -166,9 +166,9 @@ def sync_cards_from_metadata(
 
 def run_ygoprodeck_sync(*, fetch: JsonFetcher = fetch_json) -> SyncResult | None:
     """Run the YGOPRODeck metadata sync under the compare-to-previous cardinality
-    guard, recording the outcome in ``SyncRun`` (DECISIONS 2026-05-24 slice 3).
+    guard, recording the outcome in ``SyncRun``.
 
-    The recurring-safety guard (round-4 prerequisite #2): once a prior successful run
+    The recurring-safety guard (prerequisite #2): once a prior successful run
     exists, the provider's fetch floor is raised to ``last_good_cards * (1 - tolerance)``,
     so a truncated bulk dump is rejected *before* any write; the first run has no
     history, so the provider's own absolute bootstrap floor applies. A SUCCESS row

@@ -1,4 +1,4 @@
-# DEV ONLY — local laptop compose (postgres/redis/backend/worker/beat/frontend on
+# DEV ONLY: local laptop compose (postgres/redis/backend/worker/beat/frontend on
 # 127.0.0.1). Do NOT run this on the shared Hetzner box: it binds host :8000, which
 # collides with the co-tenant app there. The box uses infra/hetzner/ instead.
 x-backend-env: &backend-env
@@ -25,7 +25,7 @@ x-backend-volumes: &backend-volumes
   volumes:
     - ../backend:/app
     # NOTE: image installs deps into /opt/venv (outside the bind mount), so
-    # rebuilds actually refresh deps. Don't mount anything at /app/.venv —
+    # rebuilds actually refresh deps. Don't mount anything at /app/.venv:
     # a named volume there would shadow the rebuilt image's deps.
 
 services:
@@ -35,7 +35,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: millennium
-    # Loopback-only — default postgres/postgres credentials must never be
+    # Loopback-only. Default postgres/postgres credentials must never be
     # reachable from the host network. Override via a compose override file
     # if you need cross-device DB access.
     ports:
@@ -50,7 +50,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    # Loopback-only — Redis has no password; do not expose to LAN.
+    # Loopback-only. Redis has no password; do not expose to LAN.
     ports:
       - "127.0.0.1:6379:6379"
     healthcheck:
@@ -63,7 +63,7 @@ services:
     <<: [*backend-build, *backend-volumes]
     command: python manage.py runserver 0.0.0.0:8000
     environment: *backend-env
-    # Loopback-only — runserver enables DEBUG tracebacks that leak env vars
+    # Loopback-only. runserver enables DEBUG tracebacks that leak env vars
     # and source. Override via docker-compose.override.yml when cross-device
     # frontend testing is actually needed (Phase 4).
     ports:
@@ -105,9 +105,9 @@ services:
     build:
       context: ../frontend
       dockerfile: Dockerfile
-      # Pin the dev stage: the frontend Dockerfile is multi-stage (slice 3 of
-      # the Railway deploy phase) and an untargeted build produces the
-      # PRODUCTION stage — which would run the standalone server against the
+      # Pin the dev stage: the frontend Dockerfile is multi-stage
+      # and an untargeted build produces the
+      # PRODUCTION stage, which would run the standalone server against the
       # bind mount instead of next dev.
       target: dev
     environment:
@@ -116,7 +116,7 @@ services:
       # talks same-origin to Next and Next forwards to Django (session cookie
       # + CSRF flow stays CORS-free).
       BACKEND_URL: http://backend:8000
-    # Loopback-only — same posture as the dev backend (Invariant 5 echo). next
+    # Loopback-only, same posture as the dev backend (invariant 5 in ARCHITECTURE.md). next
     # dev is less leaky than Django's DEBUG tracebacks, but the convention is
     # "no dev server on coffee-shop wifi."
     ports:
@@ -125,8 +125,8 @@ services:
       - ../frontend:/app
       # Anonymous volumes shield the image's deps + build cache from the host
       # bind mount: host node_modules are built for darwin-arm64 and won't run
-      # on linux-alpine; .next caches are host-arch too. Mirrors Invariant 8's
-      # "deps outside the bind mount" rule for the Node side.
+      # on linux-alpine; .next caches are host-arch too. Mirrors invariant 8 in
+      # ARCHITECTURE.md ("deps outside the bind mount") for the Node side.
       - /app/node_modules
       - /app/.next
     depends_on:

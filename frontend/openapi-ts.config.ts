@@ -1,16 +1,16 @@
 import { defineConfig } from "@hey-api/openapi-ts";
 
 /**
- * Codegen config for `@hey-api/openapi-ts` — generates a typed TS client from
+ * Codegen config for `@hey-api/openapi-ts`, generates a typed TS client from
  * the committed `openapi.json` snapshot (refreshed via `make frontend-snapshot-schema`).
  *
- * The schema acquisition strategy is committed-snapshot + committed-client
- * (DECISIONS 2026-05-27 Phase 4 slice 2): PR diffs show the API surface change,
- * client-gen has no live-Django dependency in CI, and schema drift is auditable.
+ * The schema acquisition strategy is committed-snapshot + committed-client:
+ * PR diffs show the API surface change, client-gen has no live-Django
+ * dependency in CI, and schema drift is auditable.
  *
  * Plugins:
  *  - `@hey-api/client-fetch` emits a fetch-based runtime client INTO the output
- *    folder (the v0.73+ bundled-client pattern — no separate runtime npm pkg).
+ *    folder (the v0.73+ bundled-client pattern, no separate runtime npm pkg).
  *  - `@hey-api/typescript` emits the type declarations for every component.
  *  - `@hey-api/sdk` emits the SDK functions (one per operation).
  *  - `@tanstack/react-query` emits query/mutation/queryKey helpers wrapping each

@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1.7
 
-# Multi-stage (Railway deploy phase slice 3): `dev` is the compose target
-# (infra/docker-compose.yml pins `target: dev` — without the pin compose would
+# Multi-stage: `dev` is the compose target
+# (infra/docker-compose.yml pins `target: dev`, without the pin compose would
 # build the LAST stage and run the production server against the bind mount);
-# an untargeted `docker build` produces the final `runtime` stage — the
+# an untargeted `docker build` produces the final `runtime` stage, the
 # production image Railway deploys.
 
 # --- dev: next dev against the compose bind mount ---------------------------
@@ -15,8 +15,8 @@ WORKDIR /app
 # cache. node_modules then lives at /app/node_modules; compose uses an
 # anonymous volume there to shield it from the host bind mount (host modules
 # are darwin-arm64; the container needs linux-x64-musl). This is the Node
-# equivalent of the backend's /opt/venv-outside-the-bind-mount rule
-# (Invariant 8).
+# equivalent of the backend's rule that its venv lives outside the bind mount,
+# at /opt/venv rather than inside /app (invariant 8 in ARCHITECTURE.md).
 COPY package.json package-lock.json ./
 RUN npm ci
 
@@ -26,17 +26,17 @@ EXPOSE 3000
 
 # next dev binds to localhost by default; -H 0.0.0.0 makes it reachable through
 # the compose port mapping. Compose binds the host port to 127.0.0.1 only
-# (Invariant 5 echo), so this is loopback-only end to end.
+# (invariant 5 in ARCHITECTURE.md), so this is loopback-only end to end.
 CMD ["npm", "run", "dev", "--", "-H", "0.0.0.0"]
 
 # --- build: produce the standalone production bundle ------------------------
 # Deliberately NOT `FROM dev`: the build stage's libc must MATCH the runtime's
 # (both node:24-slim/glibc). `npm ci` selects native-addon binaries by the
-# INSTALL platform, but the addon loads by the RUNTIME libc — Next itself
+# INSTALL platform, but the addon loads by the RUNTIME libc. Next itself
 # ships sharp as an optionalDependency, so an alpine (musl) build stage traces
 # @img/sharp-linuxmusl-* into .next/standalone and the first next/image use
-# would 500 on the glibc runtime, in production only (adversarial review
-# 2026-06-12). The dev stage stays alpine for compose.
+# would 500 on the glibc runtime, in production only. The dev stage stays
+# alpine for compose.
 FROM node:24-slim AS build
 
 WORKDIR /app
@@ -48,7 +48,7 @@ COPY . .
 
 # BACKEND_URL is REQUIRED at build time and fails closed: next.config.ts's
 # /api/* rewrite reads it during `next build`, and the whole config is
-# serialized into the standalone server.js — an unset ARG would silently bake
+# serialized into the standalone server.js: an unset ARG would silently bake
 # the localhost fallback and every /api/* request in production would proxy to
 # nowhere. Changing the backend URL later requires a REBUILD, not a restart
 # (deploy runbook: pin the backend's PORT and never rename the service).
@@ -56,9 +56,9 @@ ARG BACKEND_URL
 # Optional heap cap for the `npm run build` below. Empty by default, so CI /
 # Railway / dev builds (which never pass it) are unaffected; the memory-tight
 # Hetzner box passes NODE_OPTIONS=--max-old-space-size=2048 (via the compose
-# build arg) to bound the 1.5-4 GB Next build spike and keep the co-hosted co-tenant
-# app off the global OOM killer (Codex review 2026-06-14). MUST be promoted to
-# a real ENV — `npm run build` does not see a bare build ARG.
+# build arg) to bound the 1.5-4 GB Next build spike and keep the co-hosted
+# co-tenant app off the global OOM killer. MUST be promoted to
+# a real ENV: `npm run build` does not see a bare build ARG.
 ARG NODE_OPTIONS
 RUN test -n "$BACKEND_URL" || { echo "BACKEND_URL build arg is required (it is baked into the standalone server)" >&2; exit 1; }
 ENV BACKEND_URL=$BACKEND_URL \
@@ -76,7 +76,7 @@ FROM node:24-slim AS runtime
 WORKDIR /app
 
 # The standalone server.js reads PORT (Railway injects it; default 3000 below
-# matches compose/local) and HOSTNAME at startup. "::" binds dual-stack — the
+# matches compose/local) and HOSTNAME at startup. "::" binds dual-stack: the
 # Railway edge and IPv4 clients connect via IPv4-mapped addresses, and any
 # private IPv6 consumer works too (the backend image's [::] posture).
 ENV NODE_ENV=production \
@@ -85,7 +85,7 @@ ENV NODE_ENV=production \
     PORT=3000
 
 # server.js does not serve public/ or .next/static unless they sit inside the
-# standalone tree (per the bundled output.md doc) — copy them in.
+# standalone tree (per the bundled output.md doc), so copy them in.
 COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/.next/static ./.next/static

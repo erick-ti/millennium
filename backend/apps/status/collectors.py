@@ -1,7 +1,7 @@
-"""Internal status tier — pure local DB reads, deliberately NOT cached.
+"""Internal status tier, pure local DB reads, deliberately NOT cached.
 
 This is the heart of the dashboard (the live pipeline flow + app state), so it stays
-as live as a normal query — only the external provider tiers (Hetzner, Healthchecks)
+as live as a normal query. Only the external provider tiers (Hetzner, Healthchecks)
 are cached to spare their rate limits. Everything here reads the run-history tables the
 nightly systemd timers already write (``SyncRun`` / ``ValuationRun`` / ``AlertRun``),
 so "is today's chain green?" is a DB query, not a host call (the backend container can't
@@ -30,7 +30,7 @@ from apps.pricing.models import PriceSnapshot
 from apps.status.models import HostMetricSample
 from apps.valuation.models import ValuationRun
 
-# Captured once per worker at import — uptime is per-worker (WEB_CONCURRENCY starts N
+# Captured once per worker at import: uptime is per-worker (WEB_CONCURRENCY starts N
 # workers, each with its own clock), an approximate "how long has this server been up",
 # not a cluster figure. monotonic so a wall-clock adjustment can't make it go backwards.
 _PROCESS_STARTED = time.monotonic()
@@ -76,7 +76,7 @@ def _derive_stage(
         last_run_at = latest.created_at
         green_today = ran_today and latest.status == _SUCCESS
         if not ran_today:
-            status = _AMBER  # stale — the chain didn't run (or hasn't yet) today
+            status = _AMBER  # stale: the chain didn't run (or hasn't yet) today
         elif latest.status == _SUCCESS:
             status = _GREEN
         elif latest.status == _FAILED:
@@ -98,7 +98,7 @@ def _derive_stage(
 
 
 def _pipeline_stages(today: date) -> list[dict[str, Any]]:
-    """The ordered nightly chain — the flow's data. metadata → pricing → {valuation,
+    """The ordered nightly chain, the flow's data. metadata → pricing → {valuation,
     alerts}; the depends_on edges encode the real same-day-pricing gate that valuation
     and alerts refuse without (so the flow shows where the chain would break). Backup +
     CD stages are appended client-side from /api/status/checks/ (slice 2)."""
@@ -162,7 +162,7 @@ def _pipeline_stages(today: date) -> list[dict[str, Any]]:
 
 def _catalog() -> dict[str, Any]:
     """The state the pipeline maintains. owned_holdings excludes zero-quantity
-    (catalogued-but-not-held) items — the movers ``_owned_pairs`` qty>0 rule."""
+    (catalogued-but-not-held) items, matching the movers ``_owned_pairs`` qty>0 rule."""
     owned = CollectionItem.objects.annotate(
         qty=Coalesce(Sum("lots__quantity"), 0)
     ).filter(qty__gt=0)
@@ -180,9 +180,9 @@ def _catalog() -> dict[str, Any]:
 
 def _latest_valuation() -> dict[str, Any]:
     """The most-recent day's portfolio value. ``complete`` is True only when EVERY
-    portfolio's snapshot that day is fully covered — partial coverage sums a subset, so
+    portfolio's snapshot that day is fully covered. Partial coverage sums a subset, so
     a value with complete=False must not read as a true total (the never-coerce-unknowns
-    -to-zero rule, DECISIONS 2026-05-25). NULL-safe when nothing has been valued yet."""
+    -to-zero rule). NULL-safe when nothing has been valued yet."""
     latest = PortfolioValueSnapshot.objects.order_by("-snapshot_date").first()
     if latest is None:
         return {
@@ -206,7 +206,7 @@ def _latest_valuation() -> dict[str, Any]:
 
 
 def _recent_runs() -> list[dict[str, Any]]:
-    """The last 14 sync runs (newest first) — the cardinality trend the flow charts."""
+    """The last 14 sync runs (newest first): the cardinality trend the flow charts."""
     return [
         {
             "kind": run.kind,
@@ -231,7 +231,7 @@ def _app_meta() -> dict[str, Any]:
 
 
 def build_overview() -> dict[str, Any]:
-    """The internal status tier as one dict — fed straight to ``StatusOverviewSerializer``."""
+    """The internal status tier as one dict, fed straight to ``StatusOverviewSerializer``."""
     today = timezone.localdate()
     return {
         "app": _app_meta(),
@@ -244,7 +244,7 @@ def build_overview() -> dict[str, Any]:
 
 # --- Host-box (infra) tier ---------------------------------------------------
 # The samples are written by the host-side collector (the container can't read host
-# /proc/disk), so this is still a pure DB read — internal, uncached, like the overview.
+# /proc/disk), so this is still a pure DB read: internal, uncached, like the overview.
 
 # Beyond this gap the host collector isn't running (dev, pre-deploy, or a stopped
 # timer); the tile degrades to "awaiting host metrics" rather than charting a frozen
@@ -252,7 +252,7 @@ def build_overview() -> dict[str, Any]:
 _INFRA_STALE_AFTER = timedelta(minutes=15)
 _INFRA_SERIES_LIMIT = 60  # ~2h of 2-min samples for the sparkline
 # Past this gap between the two newest samples, their counter delta no longer means a
-# CURRENT throughput (a missed tick, or the timer being restarted on a deploy) — report
+# CURRENT throughput (a missed tick, or the timer being restarted on a deploy): report
 # no rate rather than a long-window average smeared across the gap. 2x the 120s cadence.
 _NET_RATE_MAX_GAP_SECONDS = 240.0
 
@@ -275,7 +275,7 @@ _INFRA_EMPTY: dict[str, Any] = {
 def _net_throughput(recent: list[HostMetricSample]) -> dict[str, float | None]:
     """Throughput in kbit/s from the delta between the two newest samples (the stored
     counters are cumulative since boot). Null on the first sample or after a reboot (a
-    counter that went backwards) — never a negative or fabricated rate."""
+    counter that went backwards): never a negative or fabricated rate."""
     if len(recent) < 2:
         return {"net_rx_kbps": None, "net_tx_kbps": None}
     latest, prev = recent[0], recent[1]
@@ -293,9 +293,9 @@ def _net_throughput(recent: list[HostMetricSample]) -> dict[str, float | None]:
 
 
 def build_infra_status() -> dict[str, Any]:
-    """The host-box tier — CPU/mem/disk/load + a CPU sparkline, from the samples the
+    """The host-box tier: CPU/mem/disk/load + a CPU sparkline, from the samples the
     host collector writes. No external token/env to configure, so there is no
-    ``configured`` flag — only ``available`` (a RECENT sample exists) and ``stale`` (the
+    ``configured`` flag, only ``available`` (a RECENT sample exists) and ``stale`` (the
     latest is past the freshness window). All-null when no collector has run (dev, or
     before the first timer tick) → the tile shows "awaiting host metrics"."""
     # The (-created_at, -id) tiebreaker is the codebase convention for a deterministic

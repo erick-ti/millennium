@@ -41,8 +41,8 @@ function fieldError(error: unknown, field: string): string | null {
   return null;
 }
 
-// Bare SDK fn (not the *Mutation helper) so we read response.status + the 400 body — the
-// import/alert write pattern (DECISIONS 2026-05-30).
+// Bare SDK fn (not the *Mutation helper) so we read response.status + the 400 body, following
+// the same pattern used for the import and alert write flows.
 async function createDeck(body: DeckRequest): Promise<Deck> {
   const { data, error, response } = await decksDecksCreate({ body });
   if (!data) {
@@ -156,8 +156,8 @@ const columns: Array<ColumnDef<Deck>> = [
   },
   {
     accessorKey: "member_count",
-    // Counts distinct tagged HOLDINGS, not physical cards — a holding can be N copies
-    // (shown per-row on the deck detail). Labeled "Holdings" to stay honest.
+    // Counts distinct tagged HOLDINGS, not physical cards (a holding can be N copies,
+    // shown per-row on the deck detail). Labeled "Holdings" to stay honest.
     header: () => <div className="text-right">Holdings</div>,
     cell: ({ row }) => (
       <div className="text-right nums-terminal">{row.original.member_count}</div>
@@ -198,7 +198,7 @@ export default function DecksPage() {
         {canWrite ? (
           <CreateDeckForm onCreated={handleDeckCreated} />
         ) : authLoading ? null : (
-          // Only show the demo notice once auth has settled — during the cold-load probe
+          // Only show the demo notice once auth has settled: during the cold-load probe
           // window canWrite is transiently false even for the owner.
           <ReadOnlyNotice>The demo can browse decks but not create them.</ReadOnlyNotice>
         )}

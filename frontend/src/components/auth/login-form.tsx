@@ -10,8 +10,8 @@ import { WadjetEye } from "@/components/brand/wadjet-eye";
 import { useAuth } from "@/components/auth-provider";
 import { seedCsrf } from "@/lib/csrf";
 
-// Where a freshly-signed-in user lands when there's no (or an unsafe) `?next=`
-// — e.g. they opened /login directly. NOT "/": that's the public landing, which
+// Where a freshly-signed-in user lands when there's no (or an unsafe) `?next=`,
+// e.g. they opened /login directly. NOT "/": that's the public landing, which
 // hides the app nav, so a signed-in user dropped there has no chrome to reach
 // the app. An explicit `?next=` (e.g. the deep link the auth gate preserves) is
 // still honored.
@@ -77,9 +77,9 @@ export function LoginForm() {
 
   // Already signed in as a REAL owner (e.g. navigated to /login manually, or just logged in)
   // → bounce to the target. A DEMO session is authenticated too, but it lands here to
-  // UPGRADE — let it reach the form; submitting owner credentials replaces the demo session
+  // UPGRADE, let it reach the form; submitting owner credentials replaces the demo session
   // (Django login() rotates it). Without the !isDemo exemption, the "Sign in" affordance in
-  // ReadOnlyNotice would bounce the demo straight back into the app (Codex review 2026-06-21).
+  // ReadOnlyNotice would bounce the demo straight back into the app.
   // Navigation is a side effect, so it lives in an effect.
   useEffect(() => {
     if (isAuthenticated && !isDemo) router.replace(next);
@@ -87,7 +87,7 @@ export function LoginForm() {
 
   return (
     <div className="mx-auto flex max-w-sm flex-col gap-6 px-6 py-16">
-      {/* Signature touch: the brand Eye over the vault entrance — STATIC here
+      {/* Signature touch: the brand Eye over the vault entrance, STATIC here
           (no animate / no live pulse): the login screen should feel calm, not
           like a status light. */}
       <WadjetEye className="mx-auto w-12" />

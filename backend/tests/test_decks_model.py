@@ -41,8 +41,8 @@ def test_membership_str_mentions_deck() -> None:
 
 @pytest.mark.django_db
 def test_membership_is_unique_per_deck_and_holding() -> None:
-    """The (deck, collection_item) UNIQUE — both columns non-null, so a plain UNIQUE
-    created AND exercised on sqlite (no Postgres-only nulls_distinct gap)."""
+    """The (deck, collection_item) UNIQUE has both columns non-null, so a plain UNIQUE
+    constraint is created AND exercised on sqlite (no Postgres-only nulls_distinct gap)."""
     deck = Deck.objects.create(name="Snake-Eye")
     item = _item()
     DeckMembership.objects.create(deck=deck, collection_item=item)
@@ -75,7 +75,7 @@ def test_deleting_a_holding_cascades_its_memberships_but_not_the_deck() -> None:
     """``collection_item`` is CASCADE (NOT the CollectionItem PROTECT-up posture): a
     holding the user no longer owns must not linger in a deck (the OWNED-only invariant),
     so deleting it untags it everywhere rather than raising a ProtectedError naming
-    internal deck tables — the deliberate divergence recorded in DECISIONS 2026-05-31."""
+    internal deck tables. This is a deliberate divergence from the usual PROTECT posture."""
     deck = Deck.objects.create(name="Snake-Eye")
     item = _item()
     DeckMembership.objects.create(deck=deck, collection_item=item)

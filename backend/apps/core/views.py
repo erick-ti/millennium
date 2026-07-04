@@ -17,7 +17,7 @@ from apps.core.serializers import LoginSerializer, UserSerializer
 
 
 class HealthView(APIView):
-    """Liveness probe — returns 200 when the process is up."""
+    """Liveness probe: returns 200 when the process is up."""
 
     permission_classes = [AllowAny]
     authentication_classes: list[type] = []
@@ -32,11 +32,11 @@ class HealthView(APIView):
 
 @method_decorator(ensure_csrf_cookie, name="get")
 class CsrfView(APIView):
-    """Seed the ``csrftoken`` cookie (slice 6, DECISIONS 2026-05-29).
+    """Seed the ``csrftoken`` cookie (slice 6).
 
     Django sets the cookie only when a request *uses* the token (``get_token``);
     with ``CSRF_USE_SESSIONS=False`` and an all-JSON API that never renders a
-    form, nothing here was setting it — so the SPA had no token to send on its
+    form, nothing here was setting it, so the SPA had no token to send on its
     first POST. The frontend GETs this on load; ``CsrfViewMiddleware`` then writes
     the (non-HttpOnly) cookie, and ``proxy.ts`` copies it into ``X-CSRFToken`` on
     unsafe requests. ``AllowAny`` + no auth: a not-yet-signed-in browser must be
@@ -59,13 +59,13 @@ class LoginView(APIView):
     """Establish a session for valid credentials (Phase 5 auth slice).
 
     ``AllowAny`` + no authenticators so an anonymous browser can reach it (the
-    ``HealthView``/``CsrfView`` precedent — every other endpoint stays
+    ``HealthView``/``CsrfView`` precedent, every other endpoint stays
     ``IsAuthenticated``). The credential check + status choice live in
     ``LoginSerializer`` (a failure is a generic 400, see its docstring).
 
     ``csrf_protect`` re-arms CSRF on this POST: DRF marks every ``APIView``
     ``csrf_exempt`` because CSRF normally runs inside
-    ``SessionAuthentication.enforce_csrf`` — which an *anonymous* request never
+    ``SessionAuthentication.enforce_csrf``, which an *anonymous* request never
     reaches (it returns before the check). So without this decorator the login
     POST would be silently CSRF-naked. The ``csrftoken`` is already seeded by
     ``GET /api/csrf/`` on app load and echoed via ``proxy.ts``'s ``X-CSRFToken``
@@ -73,10 +73,10 @@ class LoginView(APIView):
 
     permission_classes = [AllowAny]
     authentication_classes: list[type] = []
-    # Brute-force speed bump on the one anonymous credential surface — CSRF stops
+    # Brute-force speed bump on the one anonymous credential surface: CSRF stops
     # cross-site logins but not a direct client that seeds /api/csrf/ itself. Rate
     # in DEFAULT_THROTTLE_RATES["login"]; over the limit → 429 (single-user app, so
-    # one global bucket behind the proxy is fine — see the settings note).
+    # one global bucket behind the proxy is fine, see the settings note).
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "login"
 
@@ -99,10 +99,10 @@ class LoginView(APIView):
 
 @method_decorator(csrf_protect, name="post")
 class DemoLoginView(APIView):
-    """Establish a session for the read-only demo account (recruiter showcase).
+    """Establish a session for the read-only demo account (a public demo).
 
     A public, password-less counterpart to ``LoginView``: it ``login()``s the seeded
-    ``demo`` account (``DEMO_USERNAME``) so a recruiter reaches the full authenticated
+    ``demo`` account (``DEMO_USERNAME``) so a visitor reaches the full authenticated
     app in one click, while ``DemoReadOnly`` (a global default permission) denies that
     session every unsafe method. ``AllowAny`` + no authenticators (the ``LoginView``
     precedent) so an anonymous browser can reach it; ``csrf_protect`` re-arms CSRF on the
@@ -119,8 +119,8 @@ class DemoLoginView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "demo_login"
     # Bound a demo session's life so a leaked/abandoned one isn't valid for the default two
-    # weeks, and its django_session row turns collectable sooner. 8h is roomy for a recruiter
-    # to explore. (Full reclamation still needs a scheduled `clearsessions` — a deploy-side
+    # weeks, and its django_session row turns collectable sooner. 8h is roomy for a visitor
+    # to explore. (Full reclamation still needs a scheduled `clearsessions`, a deploy-side
     # follow-up; this caps validity in-app regardless.)
     DEMO_SESSION_SECONDS = 60 * 60 * 8
 
@@ -136,11 +136,11 @@ class DemoLoginView(APIView):
     def post(self, request: Request) -> Response:
         # Never downgrade an existing OWNER session to the demo. This endpoint runs with
         # authentication_classes=[], and DRF's Request.user setter overwrites
-        # request._request.user to AnonymousUser — so read the SESSION directly with
+        # request._request.user to AnonymousUser, so read the SESSION directly with
         # django.contrib.auth.get_user (it returns the session's user regardless of DRF). A
         # logged-in owner can reach here if a transient /api/auth/me probe failure made the SPA
-        # show the demo CTA (AuthProvider collapses any /me error to "anonymous") — return the
-        # owner untouched rather than replacing their session (Codex review 2026-06-21). A demo
+        # show the demo CTA (AuthProvider collapses any /me error to "anonymous"). Return the
+        # owner untouched rather than replacing their session. A demo
         # session re-clicking falls through and harmlessly re-establishes the demo.
         current = get_user(request._request)
         if current.is_authenticated and not is_demo_user(current):
@@ -152,15 +152,15 @@ class DemoLoginView(APIView):
                 {"detail": "The demo is not available."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        # Provenance guard — verify the FULL safe posture at request time, never trusting
+        # Provenance guard: verify the FULL safe posture at request time, never trusting
         # that ensure_demo_user's seed hasn't drifted (the seed_smoke precedent). The
         # seed-owned demo is unprivileged (no staff/superuser) AND password-less; refuse to
         # mint a public session for anything else named "demo": a usable password (a
         # hand-created account that must sign in normally) OR any privilege. The privilege
-        # half is load-bearing even though the API is otherwise demo-locked — DemoReadOnly /
+        # half is load-bearing even though the API is otherwise demo-locked: DemoReadOnly /
         # IsNotDemoUser key on the username, but /admin/ is mounted OUTSIDE DRF and shares
         # the session cookie, so a password-less staff/superuser "demo" entered here would
-        # reach the admin (Codex adversarial review 2026-06-21).
+        # reach the admin.
         if user.is_staff or user.is_superuser or user.has_usable_password():
             return Response(
                 {"detail": "The demo is not available."},
@@ -183,14 +183,14 @@ class LogoutView(APIView):
 
     POST (an unsafe method) deliberately, so it travels the *authenticated* CSRF
     path: the caller is authenticated, so ``SessionAuthentication.enforce_csrf``
-    runs and ``proxy.ts`` already injects ``X-CSRFToken`` — no ``csrf_protect``
+    runs and ``proxy.ts`` already injects ``X-CSRFToken``, no ``csrf_protect``
     needed here (unlike login). Returns 200 with a body (not 204) so the generated
     TS client has a typed, non-void response to branch on.
 
     Sets ``permission_classes = [IsAuthenticated]`` to OPT OUT of the global
     ``DemoReadOnly`` write-block: logout is the one unsafe method the demo account
     must be allowed (the ``LogoutButton`` hard-navigates to ``/login`` on a 200; a 403
-    would strand the recruiter in the demo session). Still requires auth, so an
+    would strand the visitor in the demo session). Still requires auth, so an
     anonymous logout 403s like everything else."""
 
     permission_classes = [IsAuthenticated]
@@ -211,7 +211,7 @@ class MeView(APIView):
     Inherits the global ``IsAuthenticated``, so an anonymous request → **403**
     (DRF's session-auth posture: ``authenticate_header`` is ``None``, so a 401
     downgrades to 403). The SPA's ``AuthProvider`` reads that 403 as "not signed
-    in" — it is the expected anonymous signal, not an error to surface."""
+    in", it is the expected anonymous signal, not an error to surface."""
 
     @extend_schema(
         summary="Current authenticated user",
