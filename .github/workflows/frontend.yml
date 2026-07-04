@@ -13,12 +13,8 @@ jobs:
   build:
     name: lint + build
     runs-on: ubuntu-latest
-    # Mirrors the backend `tests` job's posture. Intended as a required check
-    # on `main` — add `frontend / lint + build` to the protect-main ruleset
-    # after this branch merges (the check name has to exist on main once
-    # before GitHub will let you select it). Until then the workflow is
-    # advisory: a broken next.config / TS error / stale import surfaces here
-    # as a red check but does NOT block merge.
+    # Required check named `lint + build` in the protect-main ruleset: a broken
+    # next.config, a TypeScript error, or a stale import blocks the merge here.
     defaults:
       run:
         working-directory: frontend
@@ -36,21 +32,18 @@ jobs:
       - name: install deps
         run: npm ci
 
-      # NOTE: The snapshot → client drift gate (`npm run gen:api` + porcelain
-      # check) deliberately lives in the REQUIRED `tests.yml` workflow, not
-      # here — Codex slice 2 round 4 found that a drift gate in an advisory
-      # workflow doesn't enforce the committed-client contract (a PR with a
-      # stale/missing generated tree could be merged past a red advisory).
-      # This workflow keeps only style/type/build checks (lint + typecheck +
-      # next build); the contract gate is enforced one job over so promotion of
-      # this workflow to required is not a prerequisite for the strategy to be durable.
+      # NOTE: the schema-to-client drift gate (`npm run gen:api` plus a
+      # porcelain check) lives in the `tests.yml` workflow next to the pytest
+      # snapshot check, so both halves of the OpenAPI contract are enforced in
+      # one place. This workflow keeps only the style, type, and build checks
+      # (lint, typecheck, next build).
 
       - name: lint
         run: npm run lint
 
       # Full `tsc --noEmit` over the tsconfig include (which covers *.test.tsx). `next
       # build` only type-checks the app module graph, so a type error in a test fixture
-      # (e.g. a mock drifting from a serializer-derived type) is invisible to it — this
+      # (e.g. a mock drifting from a serializer-derived type) is invisible to it, so this
       # step closes that gap. tsconfig excludes e2e/ (its own typecheck job).
       - name: typecheck
         run: npm run typecheck

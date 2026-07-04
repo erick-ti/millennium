@@ -17,16 +17,13 @@ concurrency:
 
 jobs:
   smoke:
-    # ADVISORY check named `e2e (smoke)`. Deliberately NOT in the protect-main
-    # required-checks set (ruleset 16524398) — selectors churn while the UI
-    # evolves, so it reports on PRs without blocking merges. Promote it to
-    # required once it has proven stable (the frontend.yml advisory→required
-    # precedent: the check name must exist on main once before GitHub lets you
-    # select it). The three required checks stay: `scan for secrets`,
-    # `pytest (postgres)`, `lint + build`.
+    # Required check named `e2e (smoke)` in the protect-main ruleset: the smoke
+    # suite must pass before a PR can merge. It runs the Playwright login,
+    # import, approve, and collection flow plus the deck flow against a real
+    # Django + Next + Postgres stack.
     name: e2e (smoke)
     runs-on: ubuntu-latest
-    # Postgres only — the smoke settings (config.settings.smoke) use a LocMem
+    # Postgres only: the smoke settings (config.settings.smoke) use a LocMem
     # cache and run imports synchronously, so no Redis/Celery is needed.
     services:
       postgres:
@@ -46,7 +43,7 @@ jobs:
       DJANGO_SETTINGS_MODULE: config.settings.smoke
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/millennium
       # The browser hits Next at localhost:3000; this origin must be CSRF-trusted
-      # (Invariant 10) or every proxied POST 403s.
+      # (invariant 10 in ARCHITECTURE.md) or every proxied POST 403s.
       DJANGO_CSRF_TRUSTED_ORIGINS: http://localhost:3000
       # Next proxies /api/* here; the Playwright webServer starts Django on this port.
       BACKEND_URL: http://127.0.0.1:8000

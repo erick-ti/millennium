@@ -6,8 +6,8 @@ on:
   workflow_dispatch:  # allow manual runs from the Actions tab
 
 # Least privilege: build the production images, never push them. No registry
-# auth, no packages:write — this gate proves the images BUILD AND BOOT, it does
-# not publish them (Railway builds its own from the repo).
+# auth and no packages:write. This gate proves the images build and boot; it
+# does not publish them (the deploy builds its own from the repo).
 permissions:
   contents: read
 
@@ -19,19 +19,16 @@ concurrency:
 
 jobs:
   backend:
-    # REQUIRED check named `backend image` (promoted into the protect-main ruleset
-    # 2026-06-13, after passing its first runs — the frontend.yml/e2e.yml
-    # advisory→required precedent). Because it gates `main`, a red image build
-    # blocks the merge, so Railway autodeploy-on-main (Wait-for-CI off) never sees
-    # a broken-image commit. Closes the long-standing unguarded gotcha "No CI builds the backend
-    # image": a fail-closed prod env var added WITHOUT a matching placeholder in
-    # the Dockerfile collectstatic RUN broke the Railway image build undetected
-    # until a deploy. The BUILD runs collectstatic under config.settings.prod, so
-    # a missing placeholder fails the build; the BOOT smoke then runs the actual
-    # gunicorn CMD (the [::]:$PORT bind + flags from the image slice) and hits the
-    # DB-free, AllowAny /api/health/, catching a broken CMD / prod-settings import
-    # that the build alone cannot. No Postgres/Redis needed: health touches
-    # neither, and DATABASE_URL/REDIS_URL connect lazily (placeholders suffice).
+    # Required check named `backend image`: a red build blocks the merge, so
+    # continuous delivery never deploys a broken image. The build runs
+    # collectstatic under config.settings.prod, so a required prod env var added
+    # without a matching placeholder in the Dockerfile collectstatic step fails
+    # the build here rather than at deploy time. The boot smoke then runs the
+    # actual gunicorn CMD (the `[::]:$PORT` bind) and hits the DB-free, AllowAny
+    # /api/health/, catching a broken CMD or prod-settings import that the build
+    # alone cannot. No Postgres or Redis is needed: health touches neither, and
+    # the DATABASE_URL and REDIS_URL connection strings resolve lazily, so
+    # placeholders suffice.
     name: backend image
     runs-on: ubuntu-latest
     steps:
@@ -56,14 +53,14 @@ jobs:
       - name: boot + health smoke
         run: |
           # Placeholder prod env (the Dockerfile collectstatic shape) + SSL
-          # redirect OFF (the health probe is plain HTTP — a 301 would fail it)
+          # redirect OFF (the health probe is plain HTTP, so a 301 would fail it)
           # + loopback ALLOWED_HOSTS for the curl Host header. No real DB/Redis:
           # /api/health/ is static, and the connection strings resolve lazily.
-          # Run on an INJECTED non-default PORT (8901) mapped to host 8000: if a
-          # regression ignored $PORT / dropped the `[::]:${PORT:-8000}` shell
-          # expansion and bound the baked 8000, nothing would listen on
-          # container:8901 and the curl would fail — so this proves Railway's
-          # injected-PORT contract, not merely the default.
+          # Run on an injected non-default PORT (8901) mapped to host 8000: if a
+          # regression ignored $PORT (dropped the `[::]:${PORT:-8000}` shell
+          # expansion) and bound the baked 8000, nothing would listen on
+          # container:8901 and the curl would fail. This proves the container
+          # honors an injected PORT, not merely the default.
           docker run -d --name backend-boot -e PORT=8901 -p 8000:8901 \
             -e DJANGO_SETTINGS_MODULE=config.settings.prod \
             -e DJANGO_SECRET_KEY=ci-boot-not-real \
@@ -94,23 +91,20 @@ jobs:
           exit 1
 
   frontend:
-    # REQUIRED check named `frontend image` (promoted into protect-main 2026-06-13,
-    # same as `backend image` above — a red build blocks the merge, so the
-    # autodeploy posture never ships a broken image). MORE valuable than the backend job:
-    # compose pins `target: dev`, so NOTHING in the repo (not even make dev/build)
-    # builds the production build/runtime stages — only a Railway deploy did,
-    # until now. The build proves the standalone bundle assembles and the
-    # required BACKEND_URL ARG guard fires; the boot smoke (on an injected
-    # non-default PORT) proves the runtime stage serves `/`, serves a referenced
-    # `/_next/static/*` asset (the `.next/static` COPY actually landed), AND that
-    # the baked /api/* rewrite forwards to BACKEND_URL — exercised against a stub
-    # aliased to the baked hostname (the e2e suite runs `next start` from SOURCE,
-    # never this Docker standalone image, so the image's proxy + asset paths are
-    # otherwise unguarded). NOT covered: the glibc-build/glibc-runtime libc match
-    # for traced native addons (sharp) loads lazily only on a /_next/image
-    # request, and the app has no next/image usage, so neither the build nor this
-    # smoke exercises it; the node:24-slim build stage is the structural guard
-    # (revisit the smoke if next/image is added).
+    # Required check named `frontend image`: a red build blocks the merge. This
+    # matters more than the backend job because the Compose files pin
+    # `target: dev`, so nothing else in the repo builds the production
+    # build/runtime stages. The build proves the standalone bundle assembles and
+    # the required BACKEND_URL build-arg guard fires; the boot smoke (on an
+    # injected non-default PORT) proves the runtime stage serves `/`, serves a
+    # referenced `/_next/static/*` asset (so the `.next/static` COPY landed), and
+    # that the baked /api/* rewrite forwards to BACKEND_URL, exercised against a
+    # stub aliased to the baked hostname (the e2e suite runs `next start` from
+    # source, never this standalone image, so the image's proxy and asset paths
+    # are otherwise unguarded). Not covered: the native-addon libc match (sharp)
+    # loads lazily only on a /_next/image request and the app has no next/image
+    # usage, so neither the build nor this smoke exercises it; the node:24-slim
+    # build stage is the structural guard there (revisit if next/image is added).
     name: frontend image
     runs-on: ubuntu-latest
     steps:
@@ -127,11 +121,11 @@ jobs:
           push: false
           load: true  # into the daemon so the boot smoke can run it
           tags: millennium-frontend:ci
-          # The documented deploy target. It is baked into the standalone
-          # server.js; the smoke below points a stub at this exact hostname (via
-          # a docker network alias) so the proxied request actually resolves.
+          # The internal backend URL is baked into the standalone server.js; the
+          # smoke below points a stub at this exact hostname (via a docker network
+          # alias) so the proxied request actually resolves.
           build-args: |
-            BACKEND_URL=http://backend.railway.internal:8000
+            BACKEND_URL=http://backend:8000
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,scope=frontend,mode=max
 
@@ -145,9 +139,9 @@ jobs:
           docker network create ci-net
           trap 'docker rm -f frontend-boot backend-stub >/dev/null 2>&1 || true; docker network rm ci-net >/dev/null 2>&1 || true' EXIT
           docker run -d --name backend-stub --network ci-net \
-            --network-alias backend.railway.internal \
+            --network-alias backend \
             "$STUB" -listen=:8000 -text='{"status":"ok"}'
-          # Injected non-default PORT (3901) mapped to host 3000 — same
+          # Injected non-default PORT (3901) mapped to host 3000, the same
           # injected-PORT proof as the backend job: server.js must honor $PORT,
           # or nothing listens on container:3901 and every curl below fails.
           docker run -d --name frontend-boot --network ci-net -e PORT=3901 -p 3000:3901 millennium-frontend:ci
@@ -167,7 +161,7 @@ jobs:
             exit 1
           fi
           echo "frontend image served / with 200"
-          # Static assets must serve from the standalone tree — i.e. the
+          # Static assets must serve from the standalone tree, i.e. the
           # `.next/static` COPY in the runtime stage actually landed. Fetch a
           # /_next/static/* path referenced by the served shell: if the COPY
           # regressed, the shell still returns 200 but every asset 404s, leaving
@@ -175,7 +169,7 @@ jobs:
           # shell always references static chunks).
           asset=$(curl -s http://127.0.0.1:3000/ | grep -o '/_next/static/[^"]*' | head -1)
           if [ -z "$asset" ]; then
-            echo "::error::no /_next/static/ asset referenced by the served shell — build or parse problem"
+            echo "::error::no /_next/static/ asset referenced by the served shell (build or parse problem)"
             docker logs frontend-boot || true
             exit 1
           fi
