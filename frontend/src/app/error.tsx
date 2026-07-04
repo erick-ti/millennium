@@ -1,21 +1,36 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
+import { reportClientError } from "@/lib/report-error";
 
 /**
  * The vault-themed error boundary for the route segment (replaces Next's default
  * error page). `reset()` re-renders the failed segment; the link is the escape
  * hatch if the error persists. A root-layout crash falls through to Next's
  * built-in global error — out of scope here (it can't use the theme's fonts).
+ *
+ * A render error never reaches `window.onerror`, so the boundary beacons it itself
+ * (apps.audit). `error.digest` is Next's correlation hash for an SSR-side error.
  */
 export default function Error({
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    reportClientError({
+      message: error.message || "Render error",
+      name: error.name,
+      stack: error.stack,
+      requestId: error.digest,
+    });
+  }, [error]);
+
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-6xl flex-col items-center justify-center px-6 py-24 text-center">
       <p className="font-terminal text-xs uppercase tracking-[0.3em] text-loss">

@@ -25,7 +25,7 @@ A personal Yu-Gi-Oh collection portfolio tracker that treats a card collection l
 
 **Railway was evaluated + fully repo-prepped (#40–#44), now retained as the evaluated managed-PaaS alternative:** prod settings (env-tunable cookie SameSite + `DJANGO_NUM_PROXIES` knob), the backend + frontend production images, the CI image-build gate (`images.yml`, a required check), Railway config-as-code (`infra/railway/*.railway.json`), and `docs/railway-deploy-runbook.md` (banner-marked superseded; its env matrix predates the DatabaseCache change). Kept as a documented alternative + portfolio artifact, not the live target.
 
-**Status (2026-06-19):** this deploy milestone is fully shipped (every item closed). With deployment done AND the bespoke "Vault" visual identity complete (see Completed milestones), there is **no active build milestone** — the **AWS migration** (under Upcoming milestones) is the next dedicated phase when chosen.
+**Status (2026-06-21):** this deploy milestone is fully shipped (every item closed). Deployment, the bespoke "Vault" visual identity, AND the read-only recruiter demo are all complete (see Completed milestones), so there is **no active build milestone** — the **AWS migration** (under Upcoming milestones) is the next dedicated phase when chosen.
 
 ## Completed milestones
 
@@ -38,6 +38,7 @@ A personal Yu-Gi-Oh collection portfolio tracker that treats a card collection l
 - **Auth/login slice** (completed 2026-05-31, PR #33). Custom Django session-cookie endpoints (login/logout/me; AllowAny + `csrf_protect` login, throttled) + a `/login` page, `AuthProvider`, and a global client-side 403→/login gate. The app is now usable end-to-end in a browser; slice-6's CSRF/write plumbing is exercisable against a real session. Six Codex adversarial-challenge rounds.
 - **Phase 5: Portfolio analytics** (completed 2026-06-12, PRs #34–#39). Archetype tagging, advanced collection filtering, biggest movers, price alerts, deck association, and a Playwright smoke suite (login→import→approve→collection + deck flows) with a guarded `seed_smoke` command and an advisory e2e CI job. Per-slice Codex adversarial review throughout.
 - **Bespoke "Vault" visual identity** (completed 2026-06-19, PRs #46 + #57). A bespoke Egyptian-vault-meets-Bloomberg-terminal identity replacing the default shadcn/Geist look: a public landing page + a dark aged-gold-on-tomb-black design system with the Eye-of-Wadjet as a functional sync mark and one foil card (#46), then the per-component bespoke elevation of every authed view to that bar — a shared PageHeader, lit `.vitrine` panels, the trading-desk table treatment, an area-gradient chart, CVD-safe deltas, and vault-themed 404/error pages (#57). Restraint is the thesis (one gold accent, hairline ornament, no drop shadows). In-house multi-lens + Codex adversarial review + a Playwright/axe pass (0 violations) throughout.
+- **Read-only recruiter demo** (completed 2026-06-21, PR #60). A one-click "Enter the vault" demo so the full authenticated app is explorable without credentials, while the security architecture stays intact: a public password-less `POST /api/auth/demo-login/`, a single `DemoReadOnly` permission ANDed into the global defaults that read-only-locks the demo across every endpoint, `IsNotDemoUser` keeping it out of the OpenAPI schema, and a server-derived `is_demo` flag the SPA uses to hide write affordances. **Single-tenant — the demo shows the owner's real data** ("my real collection IS the demo"); seeded create-only by the deploy migrate one-shot (`ensure_demo_user`). In-house adversarial workflow + 5 Codex adversarial passes (privilege/owner-session/CSRF-race/seeder guards). See DECISIONS 2026-06-21.
 
 ## Upcoming milestones
 
@@ -45,7 +46,7 @@ A personal Yu-Gi-Oh collection portfolio tracker that treats a card collection l
 
 ## Non-goals
 
-- **Multi-tenant / custom accounts.** Single user. Django's built-in auth + admin only.
+- **Multi-tenant / custom accounts.** Single user. Django's built-in auth + admin only. (The read-only recruiter demo is a deliberate, bounded exception: a single seeded `demo` persona that is single-tenant — it shares the owner's data read-only — NOT per-user data isolation or multi-tenancy.)
 - **Real-time pricing.** Scheduled refresh. No websockets, no polling.
 - **Card scanner / OCR.** CSV import only from external apps.
 - **Marketplace.** No buy/sell/trade workflows. No transactions table.

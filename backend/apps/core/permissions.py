@@ -83,3 +83,22 @@ class IsNotDemoUser(BasePermission):
             getattr(request.user, "is_authenticated", False)
             and not is_demo_user(request.user)
         )
+
+
+class IsSuperUser(BasePermission):
+    """Owner-only (Django superuser). Gates the ``/ops`` observability console, which
+    surfaces the audit + error logs — operational data that neither the read-only demo
+    nor a future non-super staff account should read.
+
+    Set EXPLICITLY on the view (``permission_classes = [IsAuthenticated, IsSuperUser]``)
+    so it REPLACES the global ``DemoReadOnly`` default rather than ANDing onto it; combined
+    with ``IsAuthenticated`` the outcomes are anonymous → 403, demo → 403, non-super → 403,
+    owner → 200. The ``is_superuser`` flag the SPA reads off ``/api/auth/me`` is display
+    logic only (hide the nav link); THIS class is the authorization boundary."""
+
+    def has_permission(self, request: Request, view: APIView) -> bool:
+        user = request.user
+        return bool(
+            getattr(user, "is_authenticated", False)
+            and getattr(user, "is_superuser", False)
+        )

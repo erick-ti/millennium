@@ -14,6 +14,9 @@ interface AuthState {
   isDemo: boolean;
   /** Owner session — authenticated AND not the demo; may perform writes. */
   canWrite: boolean;
+  /** Django superuser — gates the owner-only /ops console link (display only; the
+   *  server enforces the real boundary via IsSuperUser). */
+  isSuperuser: boolean;
   /** Re-probe `/api/auth/me` (after login/logout changes the session). */
   refetch: () => void;
 }
@@ -47,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated,
     isDemo,
     canWrite: isAuthenticated && !isDemo,
+    isSuperuser: isAuthenticated && (user?.is_superuser ?? false),
     refetch: () => {
       void queryClient.invalidateQueries({ queryKey: authMeRetrieveQueryKey() });
     },

@@ -67,6 +67,7 @@ LOCAL_APPS = [
     "apps.alerts",
     "apps.decks",
     "apps.status",
+    "apps.audit",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -86,6 +87,10 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_structlog.middlewares.RequestMiddleware",
+    # LAST, inside django_structlog's RequestMiddleware: by the time AuditMiddleware runs,
+    # request.user / request.session are populated AND the per-request `request_id` is
+    # bound to structlog contextvars (so audit rows correlate with the JSON app logs).
+    "apps.audit.middleware.AuditMiddleware",
 ]
 
 # ---------------------------------------------------------------------------
@@ -208,7 +213,15 @@ REST_FRAMEWORK = {
     # session with no password to brute-force, so it must never drain the credential
     # bucket — its own (looser) cap just stops session-creation spam (one DB session
     # row per call). Same REMOTE_ADDR keying via NUM_PROXIES below.
-    "DEFAULT_THROTTLE_RATES": {"login": "5/min", "demo_login": "30/min"},
+    # client_error throttles the public frontend-error beacon (POST /api/audit/client-errors/).
+    # Like login it keys on REMOTE_ADDR (NUM_PROXIES=0), so behind the proxy it's ONE global
+    # bucket — fine: a generous cap absorbs a real error burst while bounding abuse, and the
+    # body cap + field truncation + daily retention prune bound the damage either way.
+    "DEFAULT_THROTTLE_RATES": {
+        "login": "5/min",
+        "demo_login": "30/min",
+        "client_error": "60/min",
+    },
     # NUM_PROXIES=0 makes DRF derive the throttle identity from REMOTE_ADDR and
     # IGNORE the client-supplied X-Forwarded-For. Without it, DRF's default
     # (NUM_PROXIES=None) keys on the *entire XFF header* (throttling.py get_ident),
@@ -294,7 +307,7 @@ CELERY_BEAT_SCHEDULE: dict[str, Any] = {
 # Archetype (Phase 5) is guarded differently — not by a fetch-count floor but by the
 # WITHDRAWAL it would cause: it's a single OPTIONAL field, so a degraded fetch (the key
 # dropped for some or all cards) would null existing tags. An aggregate count floor lets
-# a *partial* loss slip under it (Codex adversarial review), so the sync instead fails
+# a *partial* loss slip under it, so the sync instead fails
 # closed when ONE run would null archetype on more than this FRACTION of the currently
 # tagged cards. A small absolute floor (in cards/sync.py) keeps early/small states and
 # legitimate handful-of-card corrections from tripping it.
@@ -328,6 +341,55 @@ HEALTHCHECKS_READ_API_KEY = env.str("HEALTHCHECKS_READ_API_KEY", default="")
 HEALTHCHECKS_BACKUP_SLUG = env.str("HEALTHCHECKS_BACKUP_SLUG", default="")
 HEALTHCHECKS_CD_SLUG = env.str("HEALTHCHECKS_CD_SLUG", default="")
 STATUS_CACHE_TTL = env.int("STATUS_CACHE_TTL", default=60)
+
+# ---------------------------------------------------------------------------
+# Audit / error-log retention + the public-beacon abuse bound (apps.audit)
+#
+# How long the append-only AuditEvent / ErrorLog rows are kept before the daily
+# `prune_audit` timer deletes them. OPTIONAL with safe defaults (the NUM_PROXIES /
+# GIT_SHA precedent — read from the real process env), but VALIDATED positive: a <=0
+# value FAILS CLOSED at boot (_validated_retention_days), because prune deletes rows
+# older than now-days, so days<=0 makes the cutoff now-or-future and would irreversibly
+# wipe the append-only store. Audit-of-the-owner is kept a
+# year; backend error noise 90 days; FRONTEND errors only 30 days because the frontend
+# beacon is a PUBLIC unauthenticated write surface, so its rows are the cheapest to abuse
+# and the least valuable to retain long.
+#
+# MAX_PUBLIC_FRONTEND_ERRORS_PER_DAY hard-caps how many PUBLIC frontend beacons are
+# persisted per UTC day. "Public" = anonymous OR the read-only demo: the demo session is
+# publicly obtainable in one click (POST /api/auth/demo-login/ is AllowAny), so it is NOT a
+# trust boundary for this write surface. The `client_error`
+# throttle (60/min) bounds the burst RATE, but CSRF is not a bot defense (the seed endpoint
+# is public + the cookie is JS-readable), so a scripted client — anonymous OR holding a demo
+# cookie — could otherwise accumulate ~86k rows/day until the prune window, a disk-fill risk
+# on the shared box. This quota + the 30-day frontend retention bound the public frontend
+# store to roughly cap*30 rows. Only a REAL (non-demo) account is exempt, so genuine owner
+# reports are never dropped.
+# ---------------------------------------------------------------------------
+
+def _validated_retention_days(name: str, raw: int) -> int:
+    """Fail closed at boot on a non-positive retention window (the _validated_num_proxies
+    precedent): prune deletes rows older than now-days, so days<=0 makes the cutoff now-or-
+    future and would irreversibly wipe the append-only audit/error store."""
+    if raw <= 0:
+        raise ImproperlyConfigured(
+            f"{name} must be >= 1, got {raw}. A non-positive retention window makes the "
+            "prune cutoff now-or-future and would delete the entire audit/error store."
+        )
+    return raw
+
+
+AUDIT_EVENT_RETENTION_DAYS = _validated_retention_days(
+    "AUDIT_EVENT_RETENTION_DAYS", env.int("AUDIT_EVENT_RETENTION_DAYS", default=365)
+)
+ERROR_LOG_RETENTION_DAYS = _validated_retention_days(
+    "ERROR_LOG_RETENTION_DAYS", env.int("ERROR_LOG_RETENTION_DAYS", default=90)
+)
+FRONTEND_ERROR_LOG_RETENTION_DAYS = _validated_retention_days(
+    "FRONTEND_ERROR_LOG_RETENTION_DAYS",
+    env.int("FRONTEND_ERROR_LOG_RETENTION_DAYS", default=30),
+)
+MAX_PUBLIC_FRONTEND_ERRORS_PER_DAY = env.int("MAX_PUBLIC_FRONTEND_ERRORS_PER_DAY", default=2000)
 
 # ---------------------------------------------------------------------------
 # Logging — structlog + stdlib bridge

@@ -2,7 +2,7 @@
 
 import { type Client, formDataBodySerializer, type Options as Options2, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AlertsEventsListData, AlertsEventsListResponses, AlertsRulesCreateData, AlertsRulesCreateErrors, AlertsRulesCreateResponses, AlertsRulesListData, AlertsRulesListResponses, AuthDemoLoginCreateData, AuthDemoLoginCreateErrors, AuthDemoLoginCreateResponses, AuthLoginCreateData, AuthLoginCreateErrors, AuthLoginCreateResponses, AuthLogoutCreateData, AuthLogoutCreateResponses, AuthMeRetrieveData, AuthMeRetrieveResponses, CardsCardsArchetypesRetrieveData, CardsCardsArchetypesRetrieveResponses, CardsCardsListData, CardsCardsListResponses, CardsCardsRetrieveData, CardsCardsRetrieveResponses, CardsPrintingsListData, CardsPrintingsListResponses, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponses, CollectionItemsListData, CollectionItemsListResponses, CollectionItemsRetrieveData, CollectionItemsRetrieveResponses, CollectionLotsListData, CollectionLotsListResponses, CollectionLotsRetrieveData, CollectionLotsRetrieveResponses, CsrfRetrieveData, CsrfRetrieveResponses, DecksDecksCreateData, DecksDecksCreateErrors, DecksDecksCreateResponses, DecksDecksDestroyData, DecksDecksDestroyResponses, DecksDecksListData, DecksDecksListResponses, DecksDecksPartialUpdateData, DecksDecksPartialUpdateResponses, DecksDecksRetrieveData, DecksDecksRetrieveResponses, DecksDecksUpdateData, DecksDecksUpdateResponses, DecksMembershipsCreateData, DecksMembershipsCreateErrors, DecksMembershipsCreateResponses, DecksMembershipsDestroyData, DecksMembershipsDestroyResponses, DecksMembershipsListData, DecksMembershipsListResponses, HealthRetrieveData, HealthRetrieveResponses, ImportsBatchesCreateData, ImportsBatchesCreateErrors, ImportsBatchesCreateResponses, ImportsBatchesListData, ImportsBatchesListResponses, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponses, ImportsRowsApproveCreateData, ImportsRowsApproveCreateErrors, ImportsRowsApproveCreateResponses, ImportsRowsListData, ImportsRowsListResponses, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateErrors, ImportsRowsOverrideCreateResponses, ImportsRowsRejectCreateData, ImportsRowsRejectCreateErrors, ImportsRowsRejectCreateResponses, ImportsRowsRetrieveData, ImportsRowsRetrieveResponses, PortfolioPortfoliosListData, PortfolioPortfoliosListResponses, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponses, PortfolioSnapshotsListData, PortfolioSnapshotsListResponses, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponses, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveErrors, PricingSnapshotsLatestRetrieveResponses, PricingSnapshotsListData, PricingSnapshotsListResponses, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponses, StatusChecksRetrieveData, StatusChecksRetrieveResponses, StatusInfraRetrieveData, StatusInfraRetrieveResponses, StatusOverviewRetrieveData, StatusOverviewRetrieveResponses, ValuationMoversListData, ValuationMoversListResponses } from './types.gen';
+import type { AlertsEventsListData, AlertsEventsListResponses, AlertsRulesCreateData, AlertsRulesCreateErrors, AlertsRulesCreateResponses, AlertsRulesListData, AlertsRulesListResponses, AuditClientErrorsCreateData, AuditClientErrorsCreateErrors, AuditClientErrorsCreateResponses, AuditErrorGroupsListData, AuditErrorGroupsListResponses, AuditEventsListData, AuditEventsListResponses, AuditEventsRetrieveData, AuditEventsRetrieveResponses, AuthDemoLoginCreateData, AuthDemoLoginCreateErrors, AuthDemoLoginCreateResponses, AuthLoginCreateData, AuthLoginCreateErrors, AuthLoginCreateResponses, AuthLogoutCreateData, AuthLogoutCreateResponses, AuthMeRetrieveData, AuthMeRetrieveResponses, CardsCardsArchetypesRetrieveData, CardsCardsArchetypesRetrieveResponses, CardsCardsListData, CardsCardsListResponses, CardsCardsRetrieveData, CardsCardsRetrieveResponses, CardsPrintingsListData, CardsPrintingsListResponses, CardsPrintingsRetrieveData, CardsPrintingsRetrieveResponses, CollectionItemsListData, CollectionItemsListResponses, CollectionItemsRetrieveData, CollectionItemsRetrieveResponses, CollectionLotsListData, CollectionLotsListResponses, CollectionLotsRetrieveData, CollectionLotsRetrieveResponses, CsrfRetrieveData, CsrfRetrieveResponses, DecksDecksCreateData, DecksDecksCreateErrors, DecksDecksCreateResponses, DecksDecksDestroyData, DecksDecksDestroyResponses, DecksDecksListData, DecksDecksListResponses, DecksDecksPartialUpdateData, DecksDecksPartialUpdateResponses, DecksDecksRetrieveData, DecksDecksRetrieveResponses, DecksDecksUpdateData, DecksDecksUpdateResponses, DecksMembershipsCreateData, DecksMembershipsCreateErrors, DecksMembershipsCreateResponses, DecksMembershipsDestroyData, DecksMembershipsDestroyResponses, DecksMembershipsListData, DecksMembershipsListResponses, HealthRetrieveData, HealthRetrieveResponses, ImportsBatchesCreateData, ImportsBatchesCreateErrors, ImportsBatchesCreateResponses, ImportsBatchesListData, ImportsBatchesListResponses, ImportsBatchesRetrieveData, ImportsBatchesRetrieveResponses, ImportsRowsApproveCreateData, ImportsRowsApproveCreateErrors, ImportsRowsApproveCreateResponses, ImportsRowsListData, ImportsRowsListResponses, ImportsRowsOverrideCreateData, ImportsRowsOverrideCreateErrors, ImportsRowsOverrideCreateResponses, ImportsRowsRejectCreateData, ImportsRowsRejectCreateErrors, ImportsRowsRejectCreateResponses, ImportsRowsRetrieveData, ImportsRowsRetrieveResponses, PortfolioPortfoliosListData, PortfolioPortfoliosListResponses, PortfolioPortfoliosRetrieveData, PortfolioPortfoliosRetrieveResponses, PortfolioSnapshotsListData, PortfolioSnapshotsListResponses, PortfolioSnapshotsRetrieveData, PortfolioSnapshotsRetrieveResponses, PricingSnapshotsLatestRetrieveData, PricingSnapshotsLatestRetrieveErrors, PricingSnapshotsLatestRetrieveResponses, PricingSnapshotsListData, PricingSnapshotsListResponses, PricingSnapshotsRetrieveData, PricingSnapshotsRetrieveResponses, StatusChecksRetrieveData, StatusChecksRetrieveResponses, StatusInfraRetrieveData, StatusInfraRetrieveResponses, StatusOverviewRetrieveData, StatusOverviewRetrieveResponses, ValuationMoversListData, ValuationMoversListResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -72,6 +72,93 @@ export const alertsRulesCreate = <ThrowOnError extends boolean = false>(options:
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Report a frontend error
+ *
+ * Record a frontend error reported by the SPA (global handler / error boundary).
+ *
+ * ``AllowAny`` + no authenticators (the ``CsrfView`` precedent) — an anonymous visitor
+ * hits errors too, and the beacon must work before sign-in. ``csrf_protect`` re-arms
+ * CSRF on this POST (a bare ``APIView`` is ``csrf_exempt``, and ``SessionAuthentication``
+ * skips the check for anonymous requests, so it would otherwise be CSRF-naked); since
+ * only same-origin JS can read the ``csrftoken`` cookie, this also enforces same-origin.
+ * Its OWN throttle scope so beacon traffic can't drain the ``login`` bucket; the body is
+ * capped + every field truncated, and there is no free-form payload field, so the public
+ * surface can't be used to exfiltrate data or bloat the store.
+ *
+ * The actor/session are read from the SESSION (``get_user``) because
+ * ``authentication_classes=[]`` blanks DRF's ``request.user`` (the ``DemoLoginView``
+ * pattern). A PUBLIC beacon — anonymous OR the read-only demo, both publicly obtainable —
+ * is subject to a per-UTC-day quota (``MAX_PUBLIC_FRONTEND_ERRORS_PER_DAY``): the throttle
+ * bounds the rate but not the total, and CSRF is not a bot defense, so without the quota a
+ * scripted client (anonymous or holding a demo cookie) could fill the store before the
+ * prune window. Over quota → accept-but-DROP (still 204, no cap oracle). Only a real
+ * (non-demo) account is exempt. Returns 204 — the reporter is fire-and-forget.
+ */
+export const auditClientErrorsCreate = <ThrowOnError extends boolean = false>(options: Options<AuditClientErrorsCreateData, ThrowOnError>) => (options.client ?? client).post<AuditClientErrorsCreateResponses, AuditClientErrorsCreateErrors, ThrowOnError>({
+    url: '/api/audit/client-errors/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Fingerprint-grouped error triage for the /ops console — superuser only.
+ *
+ * Each row is a distinct ``(fingerprint, source, exception_class)`` with its dedup count,
+ * first/last-seen, and the latest occurrence's representative message/path. Computed in
+ * ``get_queryset`` (a Python list, the ``MoversViewSet`` precedent) and paginated by the
+ * list mixin; bounded by the 90-day retention prune + low traffic, so all groups fit in
+ * memory. ``?source=`` filters backend vs frontend.
+ */
+export const auditErrorGroupsList = <ThrowOnError extends boolean = false>(options?: Options<AuditErrorGroupsListData, ThrowOnError>) => (options?.client ?? client).get<AuditErrorGroupsListResponses, unknown, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'sessionid',
+            type: 'apiKey'
+        }],
+    url: '/api/audit/error-groups/',
+    ...options
+});
+
+/**
+ * Read-only audit feed for the /ops console — superuser only.
+ *
+ * ``[IsAuthenticated, IsSuperUser]`` is set EXPLICITLY so it replaces the global
+ * ``DemoReadOnly`` default: anonymous/demo/non-super all 403, owner 200. List filters
+ * (``?actor_type=&method=&status_code=&search=``) apply on the list action only — the
+ * list-only guard from the read-API convention, so a stray param can't 404 a retrieve.
+ */
+export const auditEventsList = <ThrowOnError extends boolean = false>(options?: Options<AuditEventsListData, ThrowOnError>) => (options?.client ?? client).get<AuditEventsListResponses, unknown, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'sessionid',
+            type: 'apiKey'
+        }],
+    url: '/api/audit/events/',
+    ...options
+});
+
+/**
+ * Read-only audit feed for the /ops console — superuser only.
+ *
+ * ``[IsAuthenticated, IsSuperUser]`` is set EXPLICITLY so it replaces the global
+ * ``DemoReadOnly`` default: anonymous/demo/non-super all 403, owner 200. List filters
+ * (``?actor_type=&method=&status_code=&search=``) apply on the list action only — the
+ * list-only guard from the read-API convention, so a stray param can't 404 a retrieve.
+ */
+export const auditEventsRetrieve = <ThrowOnError extends boolean = false>(options: Options<AuditEventsRetrieveData, ThrowOnError>) => (options.client ?? client).get<AuditEventsRetrieveResponses, unknown, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'sessionid',
+            type: 'apiKey'
+        }],
+    url: '/api/audit/events/{id}/',
+    ...options
 });
 
 /**

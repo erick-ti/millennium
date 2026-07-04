@@ -70,6 +70,8 @@ def test_demo_login_establishes_read_only_session(demo_user: User) -> None:
         "username": DEMO_USERNAME,
         "email": "",
         "is_demo": True,
+        "is_staff": False,
+        "is_superuser": False,
     }
     assert "sessionid" in resp.cookies
     # The session now authenticates a previously-403 read endpoint via real SessionAuth.

@@ -1,0 +1,21 @@
+[Unit]
+Description=Millennium — daily audit/error-log retention prune (07:00 UTC)
+
+[Timer]
+# Deletes AuditEvent / ErrorLog rows past AUDIT_EVENT_RETENTION_DAYS /
+# ERROR_LOG_RETENTION_DAYS / FRONTEND_ERROR_LOG_RETENTION_DAYS (apps.audit). Daily,
+# NOT write-time: the audit middleware runs on the hot request path, so pruning there
+# would add DELETE contention to every mutation.
+#
+# 07:00 UTC — after the 06:00 backup on the nominal schedule. Persistent=FALSE (not true,
+# matching the "dependents don't backfill" timer convention): after downtime spanning both
+# schedules, Persistent=true would catch up the backup AND this prune with no ordering, so
+# the prune could delete rows before that day's dump captures them. The prune is
+# idempotent, so a skipped run just defers cleanup to the next 07:00.
+# Reuses the millennium-sync@.service template (%i = the manage.py command).
+OnCalendar=*-*-* 07:00:00 UTC
+Persistent=false
+Unit=millennium-sync@prune_audit.service
+
+[Install]
+WantedBy=timers.target

@@ -9,6 +9,7 @@ import "./globals.css";
 import { AppGrain } from "@/components/app-grain";
 import { AuthProvider } from "@/components/auth-provider";
 import { CsrfBootstrap } from "@/components/csrf-bootstrap";
+import { ErrorReporter } from "@/components/error-reporter";
 import { Nav } from "@/components/nav";
 import { Providers } from "@/components/providers";
 
@@ -58,6 +59,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <Providers>
           <CsrfBootstrap />
+          <ErrorReporter />
           <AuthProvider>
             <AppGrain />
             <Nav />
