@@ -7,7 +7,7 @@
 # production image Railway deploys.
 
 # --- dev: next dev against the compose bind mount ---------------------------
-FROM node:24-alpine AS dev
+FROM node:26-alpine AS dev
 
 WORKDIR /app
 
@@ -37,7 +37,7 @@ CMD ["npm", "run", "dev", "--", "-H", "0.0.0.0"]
 # @img/sharp-linuxmusl-* into .next/standalone and the first next/image use
 # would 500 on the glibc runtime, in production only. The dev stage stays
 # alpine for compose.
-FROM node:24-slim AS build
+FROM node:26-slim AS build
 
 WORKDIR /app
 
@@ -71,7 +71,7 @@ RUN npm run build
 # Debian-slim, NOT alpine: musl DNS resolution of *.railway.internal is the
 # documented Alpine private-networking failure class on Railway; glibc
 # sidesteps it entirely.
-FROM node:24-slim AS runtime
+FROM node:26-slim AS runtime
 
 WORKDIR /app
 
