@@ -1,5 +1,12 @@
 # Dependabot config. Weekly checks, grouped into one PR per ecosystem to keep
 # the noise down. See docs.github.com for the ecosystem list.
+# The npm and uv groups cover only minor and patch updates; major bumps arrive
+# as individual PRs so one breaking major can't fail the whole grouped batch.
+# Each ecosystem has a 7-day cooldown: a version update waits until the release
+# has aged past the window where most malicious releases get caught and yanked.
+# Security updates (advisory-backed) bypass cooldown and still come promptly.
+# Aged PRs are vetted (age, advisories, install-script and tarball deltas) before
+# merge; nothing auto-merges to main.
 version: 2
 updates:
   # Backend Python dependencies (uv-managed: pyproject.toml + uv.lock).
@@ -7,24 +14,32 @@ updates:
     directory: "/backend"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     groups:
       backend-python:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   # Frontend Node dependencies.
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     groups:
       frontend-npm:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   # GitHub Actions pinned in the workflows.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     groups:
       github-actions:
         patterns: ["*"]
@@ -34,6 +49,8 @@ updates:
     directory: "/backend"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     groups:
       backend-docker:
         patterns: ["*"]
@@ -41,6 +58,8 @@ updates:
     directory: "/frontend"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     groups:
       frontend-docker:
         patterns: ["*"]
