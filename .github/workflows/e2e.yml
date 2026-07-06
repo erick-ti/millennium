@@ -49,10 +49,10 @@ jobs:
       BACKEND_URL: http://127.0.0.1:8000
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v8.2.0
         with:
           python-version: "3.13"
 
@@ -70,7 +70,7 @@ jobs:
         run: uv run python manage.py seed_smoke --reset
 
       - name: setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "24"
           cache: npm
@@ -98,7 +98,7 @@ jobs:
 
       - name: upload report
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: frontend/playwright-report/

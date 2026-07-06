@@ -39,10 +39,10 @@ jobs:
         working-directory: backend
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v8.2.0
         with:
           python-version: "3.13"
 
@@ -62,7 +62,7 @@ jobs:
       # client that no longer matches the committed schema.
 
       - name: setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "24"
           cache: npm

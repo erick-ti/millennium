@@ -15,12 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # full history so PR scans cover the entire diff range, not just the tip commit
           fetch-depth: 0
 
       - name: gitleaks
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
