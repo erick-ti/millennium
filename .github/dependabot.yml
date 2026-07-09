@@ -29,6 +29,14 @@ updates:
     cooldown:
       default-days: 7
     groups:
+      # Listed first so @hey-api/* matches here, not the catch-all below
+      # (Dependabot puts a dependency in the first group it matches). An
+      # @hey-api/openapi-ts bump regenerates the committed API client, so it
+      # gets its own PR to handle with `make frontend-gen-api`. It is a 0.x
+      # package, so even a "minor" bump is breaking and would otherwise trip
+      # the client drift gate from inside the auto-safe group.
+      frontend-heyapi:
+        patterns: ["@hey-api/*"]
       frontend-npm:
         patterns: ["*"]
         update-types: ["minor", "patch"]
