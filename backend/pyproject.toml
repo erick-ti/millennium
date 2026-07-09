@@ -27,7 +27,7 @@ dev = [
     "pytest-django>=4.9",
     "pytest-cov>=5.0",
     "ruff>=0.15.20",
-    "mypy>=1.11",
+    "mypy>=2.1.0",
     "django-stubs[compatible-mypy]>=5.1",
     "djangorestframework-stubs[compatible-mypy]>=3.15",
 ]
