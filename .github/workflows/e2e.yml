@@ -1,7 +1,11 @@
 name: e2e
 
+# push only on main: PR branches are already covered by the pull_request
+# run, and an unscoped push trigger fired a duplicate run on every PR
+# (this is the heaviest job in the repo, so the duplicate cost the most).
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:  # allow manual runs from the Actions tab
 

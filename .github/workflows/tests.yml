@@ -1,7 +1,10 @@
 name: tests
 
+# push only on main: PR branches are already covered by the pull_request
+# run, and an unscoped push trigger fired a duplicate run on every PR.
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:  # allow manual runs from the Actions tab
 
