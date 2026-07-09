@@ -1,10 +1,11 @@
 name: gitleaks
 
-# push is scoped to main so PR branches get exactly one run (pull_request).
-# An unscoped push trigger fired a second, duplicate run per PR, and the
-# push-event run is unreliable on Dependabot branches. Pre-merge coverage
-# holds: the pull_request run gates every merge, and a local pre-commit
-# gitleaks hook scans each commit before it is ever pushed.
+# push is scoped to main so PR branches get exactly one run (pull_request),
+# which scans the branch's whole commit range and gates every merge, so
+# nothing reaches main unscanned. Scanning branch pushes would not prevent
+# a leak anyway: the job starts after GitHub has accepted the objects, and
+# on a public repo that acceptance is the exposure. A branch that never
+# opens a PR is not scanned by this workflow.
 on:
   push:
     branches: [main]
