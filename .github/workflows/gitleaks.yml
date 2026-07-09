@@ -1,7 +1,13 @@
 name: gitleaks
 
+# push is scoped to main so PR branches get exactly one run (pull_request).
+# An unscoped push trigger fired a second, duplicate run per PR, and the
+# push-event run is unreliable on Dependabot branches. Pre-merge coverage
+# holds: the pull_request run gates every merge, and a local pre-commit
+# gitleaks hook scans each commit before it is ever pushed.
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:  # allow manual runs from the Actions tab
 
