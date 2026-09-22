@@ -12,12 +12,23 @@
 # only fetches a public repo and decides locally. Worst case if compromised:
 # "read a public repo." The trust arrow points outward, like backup_db.sh's rclone.
 #
-# CI ASSUMPTION (do not remove): this trusts origin/main because branch protection
-# (the protect-main ruleset, six required checks) blocks any commit from landing
-# on main without green CI. Every commit on main is therefore green-by-construction,
-# so we deploy origin/main with no token. *** IF BRANCH PROTECTION IS EVER WEAKENED
-# OR REMOVED, THIS DEPLOYER NO LONGER GUARANTEES CI-GREEN RELEASES ***. Restore it,
-# or add a `gh api` check-run gate between the fetch and the deploy below.
+# CI GATE: branch protection (the protect-main ruleset, six required checks) keeps
+# a red PR head off main, but it does not make a MERGE COMMIT's own tree tested
+# before it lands: the ruleset does not require branches to be up to date, so a PR
+# head can be green against a stale base, and the merge commit's push-triggered run
+# only starts AFTER the merge, i.e. after this poller may already have deployed it
+# (on 2026-09-20 a merge commit received no check suite at all and deployed
+# unnoticed). So a commit deploys only once ci_gate.py (beside this script, run from
+# the CURRENTLY INSTALLED checkout before any reset, so a candidate cannot influence
+# its own gating) reports every required check completed + successful on THAT sha,
+# read from GitHub's public check-runs API without a token. Absent, queued, or
+# running checks (or an unreadable API) mean WAIT, bounded by DEPLOY_CI_WAIT_MAX
+# before the dead-man alerts; a red check alerts now and never deploys; a blank
+# DEPLOY_REQUIRED_CHECKS refuses (an empty list would be trivially green). There is
+# no off switch: the bypass is a manual pinned deploy (stop millennium-deploy.timer,
+# then `git checkout <sha> && ./deploy.sh` under the poller's flock). The gate checks
+# the checks, not the ruleset, so it still holds if branch protection is ever
+# weakened.
 #
 # DEPLOYED-STATE MARKER: the source of truth for "what is live" is
 # $STATE_DIR/last_deployed_sha (written ONLY after deploy.sh AND the public probe
@@ -62,9 +73,28 @@ MARKER="$STATE_DIR/last_deployed_sha"
 FETCH_TIMEOUT="${DEPLOY_FETCH_TIMEOUT:-60}"
 DEPLOY_TIMEOUT="${DEPLOY_RUN_TIMEOUT:-1200}"
 PROBE_TIMEOUT="${DEPLOY_PROBE_TIMEOUT:-15}"
+# CI check-run gate (see header). The required names mirror the protect-main
+# ruleset; override ONLY to track a renamed job (comma-separated, quoted in
+# deploy.env). Unset = the default six; set-but-BLANK = refuse to deploy (an empty
+# list would be trivially green, so it is never a way to switch the gate off).
+GITHUB_REPO="${DEPLOY_GITHUB_REPO:-erick-ti/millennium}"
+REQUIRED_CHECKS="${DEPLOY_REQUIRED_CHECKS-scan for secrets,pytest (postgres),lint + build,e2e (smoke),backend image,frontend image}"
+# How long a candidate may stay absent/queued/running before the dead-man gets /fail
+# (CI normally completes in ~3 min; the alert means "no run exists or CI is stuck:
+# look at GitHub Actions"). GATE_TIMEOUT bounds one evaluation (one API request,
+# two at most).
+CI_WAIT_MAX="${DEPLOY_CI_WAIT_MAX:-1800}"
+GATE_TIMEOUT="${DEPLOY_GATE_TIMEOUT:-30}"
+# ci_gate.py ships beside this script and runs from the INSTALLED checkout (this
+# script's own directory), never from the candidate commit.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CI_GATE="$SCRIPT_DIR/ci_gate.py"
 
 mkdir -p "$STATE_DIR"
 chmod 700 "$STATE_DIR" 2>/dev/null || true
+# A stuck or red candidate keeps one small run log per tick (logs are kept on any
+# non-zero exit for post-mortem); bound the pile.
+find "$STATE_DIR" -maxdepth 1 -name 'run.*.log' -mtime +7 -delete 2>/dev/null || true
 
 # Single-instance guard: a slow deploy must never overlap the next timer tick. The
 # lock lives in the millennium-owned STATE_DIR, so there is no co-tenant symlink /
@@ -183,6 +213,100 @@ if [[ -n "$DEPLOYED" && "$DEPLOYED" == "$NEW" ]]; then
     _hc_ping
     exit 0
 fi
+
+# CI check-run gate. Deploy $NEW only once GitHub reports every required check
+# green on THAT commit (see the header). Runs BEFORE /start, the env-file guards,
+# and the reset, so a blocked candidate leaves the checkout, the marker, and the
+# dead-man's state exactly as they were. Verdicts: ready = deploy; pending/unknown =
+# wait (probe + success ping as on a no-op tick, alert only past DEPLOY_CI_WAIT_MAX);
+# failed/config error = exit 1 (the EXIT trap pings /fail with the verdict; sticky
+# each tick).
+STEP="ci-gate"
+NOW="$(date +%s)"
+if [[ -z "${REQUIRED_CHECKS//[[:space:],]/}" ]]; then
+    log "REFUSING to deploy: DEPLOY_REQUIRED_CHECKS is blank (an empty check list would be trivially green). Unset it for the default six or list the required job names."
+    exit 1
+fi
+_req_args=()
+IFS=',' read -r -a _req_names <<<"$REQUIRED_CHECKS"
+for _n in "${_req_names[@]}"; do _req_args+=(--require "$_n"); done
+
+VERDICT="unknown"
+GATE_LINE=""
+_backoff="$(cat "$STATE_DIR/ci_gate.backoff" 2>/dev/null || true)"
+if [[ "$_backoff" =~ ^[0-9]+$ ]] && (( _backoff > NOW )); then
+    # GitHub rate-limited an earlier tick: honor its reset time, no request until then.
+    VERDICT="pending"
+    GATE_LINE="pending rate-limit backoff until $_backoff ($(( _backoff - NOW ))s left)"
+else
+    rm -f "$STATE_DIR/ci_gate.backoff"
+    _gate_rc=0
+    GATE_LINE="$(timeout "$GATE_TIMEOUT" python3 "$CI_GATE" --repo "$GITHUB_REPO" --sha "$NEW" "${_req_args[@]}" 2>>"$LOG")" || _gate_rc=$?
+    GATE_LINE="${GATE_LINE%%$'\n'*}"
+    # Every verdict needs BOTH the exit code and the matching verdict word on stdout:
+    # an empty or odd answer is never trusted (python itself exits 2 when it cannot
+    # open the script, which must not read as "pending" with a blank reason). Any
+    # other code (a crash 1, a timeout 124, a missing python3 127) is unreadable.
+    case "$_gate_rc" in
+        0) _expect="ready" ;;
+        2) _expect="pending" ;;
+        3) _expect="failed" ;;
+        4) _expect="unknown" ;;
+        5) _expect="config-error" ;;
+        *) _expect="" ;;
+    esac
+    if [[ -n "$_expect" && "$GATE_LINE" == "$_expect "* ]]; then
+        VERDICT="$_expect"
+    else
+        VERDICT="unknown"
+        GATE_LINE="unknown gate exit $_gate_rc without a${_expect:+ $_expect} verdict: ${GATE_LINE:-<no output>}"
+    fi
+    if [[ "$GATE_LINE" =~ retry_at=([0-9]+) ]]; then
+        printf '%s\n' "${BASH_REMATCH[1]}" >"$STATE_DIR/ci_gate.backoff"
+    fi
+fi
+# Record the verdict for the operator (ci_gate.status = the last one, ci_gate.log =
+# recent history) and for a /fail body (via the run log).
+_stamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+log "ci-gate $NEW_SHA: $GATE_LINE"
+printf '%s %s %s\n' "$_stamp" "$NEW_SHA" "$GATE_LINE" >>"$STATE_DIR/ci_gate.log"
+printf '%s %s %s\n' "$_stamp" "$NEW_SHA" "$GATE_LINE" >"$STATE_DIR/ci_gate.status"
+if (( $(wc -l <"$STATE_DIR/ci_gate.log") > 200 )); then
+    tail -n 200 "$STATE_DIR/ci_gate.log" >"$STATE_DIR/ci_gate.log.tmp" \
+        && mv "$STATE_DIR/ci_gate.log.tmp" "$STATE_DIR/ci_gate.log"
+fi
+
+case "$VERDICT" in
+    ready)
+        rm -f "$STATE_DIR/ci_wait" "$STATE_DIR/ci_gate.backoff"
+        ;;
+    failed|config-error)
+        log "NOT deploying $NEW_SHA: $GATE_LINE (site stays on $OLD_SHA)"
+        exit 1
+        ;;
+    *)
+        # pending / unknown: wait, bounded. ci_wait = "<sha> <first-seen epoch>",
+        # restarted whenever the candidate changes, so a fresh commit is never
+        # "stuck" on its predecessor's clock.
+        _since="$NOW"
+        _wait="$(cat "$STATE_DIR/ci_wait" 2>/dev/null || true)"
+        if [[ "$_wait" == "$NEW "* ]]; then
+            _prev="${_wait#* }"
+            if [[ "$_prev" =~ ^[0-9]+$ ]]; then _since="$_prev"; fi
+        fi
+        printf '%s %s\n' "$NEW" "$_since" >"$STATE_DIR/ci_wait"
+        _waited=$(( NOW - _since ))
+        if (( _waited > CI_WAIT_MAX )); then
+            log "CI still not green on $NEW_SHA after ${_waited}s (limit ${CI_WAIT_MAX}s): $GATE_LINE. Check GitHub Actions; if no run exists, dispatch the workflows by hand."
+            exit 1
+        fi
+        log "waiting for CI on $NEW_SHA (${_waited}s of ${CI_WAIT_MAX}s): $GATE_LINE"
+        STEP="probe-wait"
+        probe_public
+        _hc_ping
+        exit 0
+        ;;
+esac
 
 # Deploy origin/main. Covers "main moved", "the previous deploy failed" (the marker
 # only advances on full success), and "marker missing/unknown", all redeploy here,
