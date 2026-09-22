@@ -8,12 +8,13 @@ from django.core.management import call_command
 from django.db.models import Count
 from django.http import HttpResponse
 from django.test import RequestFactory
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.audit import utils
 from apps.audit.middleware import AuditMiddleware
-from apps.audit.models import AuditEvent, ErrorLog
+from apps.audit.models import AuditEvent, ErrorLog, ErrorSource
 from apps.core.permissions import IsSuperUser
 
 # ---------------------------------------------------------------------------
@@ -495,6 +496,27 @@ def test_client_error_requires_csrf() -> None:
     resp = client.post("/api/audit/client-errors/", {"message": "boom"}, format="json")
     assert resp.status_code == 403
     assert ErrorLog.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_client_error_with_seeded_csrf_token_is_recorded() -> None:
+    """The CSRF-enforced path the SPA actually takes: seed the csrftoken cookie, POST the
+    beacon with the header, get 204 and one frontend ErrorLog. Django's CSRF check reads
+    ``request.POST`` (a body parse) BEFORE the view reads ``request.body``; on DRF < 3.17.2
+    that first parse streamed the raw request, so the view's ``len(request.body)`` raised
+    ``RawPostDataException`` and every real beacon was a backend 500. DRF 3.17.2 parses
+    from the cached body, so this passes there and fails on 3.17.1: a positive control
+    for the bump, and the guard that the beacon keeps working under real CSRF."""
+    client = APIClient(enforce_csrf_checks=True)
+    client.get(reverse("core:csrf"))  # seeds the csrftoken cookie, as the SPA does on load
+    token = client.cookies["csrftoken"].value
+
+    resp = client.post(
+        "/api/audit/client-errors/", {"message": "boom"}, format="json", HTTP_X_CSRFTOKEN=token
+    )
+
+    assert resp.status_code == 204
+    assert ErrorLog.objects.filter(source=ErrorSource.FRONTEND).count() == 1
 
 
 def test_validated_retention_days_rejects_non_positive() -> None:
