@@ -80,14 +80,20 @@ the systemd units, `deploy.sh` (idempotent, with a `caddy validate` gate before
 reloading the edge), and `backup_db.sh`.
 
 Deployment is pull-based. A `millennium-deploy.timer` runs `deploy_poll.sh`
-every couple of minutes on the box: it fetches `origin/main`, and if the tip has
-advanced past the recorded deployed commit it checks out the new commit and runs
-`deploy.sh`. The recorded "deployed commit" marker is the source of truth for
-what is live, not git `HEAD`: the poller writes the marker only after `deploy.sh`
-and a public-route health probe both pass, so a failed deploy retries on the
-next tick instead of reporting a false success. Nothing pushes into the box, so
-no inbound deploy credential lives on it. A rollback is a `git revert` on
-`origin/main`, which the poller then deploys like any other change.
+every couple of minutes on the box: it fetches `origin/main`, and if the tip
+has advanced past the recorded deployed commit it checks out the new commit
+and runs `deploy.sh`. Before it touches the checkout it asks GitHub's public
+check-runs API, without a token, whether every required check is green on that
+exact commit: queued, running, or absent checks make it wait, with an alert if
+the wait passes 30 minutes; a check that finishes with anything but success
+alerts at once and holds production on the last good commit until a re-run
+passes or a fix lands. The recorded "deployed commit" marker is the source of
+truth for what is live, not git `HEAD`: the poller writes the marker only
+after `deploy.sh` and a public-route health probe both pass, so a failed
+deploy retries on the next tick instead of reporting a false success. Nothing
+pushes into the box, so no inbound deploy credential lives on it. A rollback
+is a `git revert` on `origin/main`, which the poller then deploys like any
+other change.
 
 ## Monitoring and backups
 
