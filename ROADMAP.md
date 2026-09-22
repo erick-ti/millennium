@@ -23,7 +23,7 @@ A personal Yu-Gi-Oh collection tracker that treats a card collection like an inv
 
 The application is live at https://millennium.erickti.com and there is no active build milestone. Deployment, the bespoke "Vault" visual identity, the public read-only demo, and the superuser operations console are all complete (see Completed milestones). The AWS migration under Upcoming milestones is the next dedicated phase when chosen.
 
-The live deployment runs frontend, backend, and Postgres on a single VPS behind a standalone Caddy edge (automatic TLS, the only public listener). The daily sync, valuation, and alert management commands run as systemd timers rather than an always-on worker; Redis is not used in production (the cache is Django's database cache on the existing Postgres). Pull-based continuous deployment ships merges to `main` to the box within a couple of minutes: a poller checks out the new commit, deploys, gates on a public-route health probe, and records the deployed commit only after both succeed. HTTPS is enforced with HSTS at the Caddy edge (one-year max-age, no preload). Off-box database backups run daily and are restore-tested. Railway was evaluated and fully repo-prepped as a managed-PaaS alternative (see below); the VPS is the live target.
+The live deployment runs frontend, backend, and Postgres on a single VPS behind a standalone Caddy edge (automatic TLS, the only public listener). The daily sync, valuation, and alert management commands run as systemd timers rather than an always-on worker; Redis is not used in production (the cache is Django's database cache on the existing Postgres). Pull-based continuous deployment ships merges to `main` to the box within a few minutes: a poller waits until the merge commit's required checks are green, checks out the new commit, deploys, gates on a public-route health probe, and records the deployed commit only after both succeed. HTTPS is enforced with HSTS at the Caddy edge (one-year max-age, no preload). Off-box database backups run daily and are restore-tested. Railway was evaluated and fully repo-prepped as a managed-PaaS alternative (see below); the VPS is the live target.
 
 ## Completed milestones
 
@@ -48,6 +48,8 @@ The live deployment runs frontend, backend, and Postgres on a single VPS behind 
 - **Visitor analytics (superuser).** Unique-visitor and geolocation metrics plus page and action counts, sourced from the Caddy edge access logs (Django cannot see real client IPs behind the proxy) and ingested through the same host-metrics timer pattern. Requires privacy hardening (geo-enrich at ingestion, store derived city and coarse location plus a salted IP hash, never the raw IP, with short retention). Build-vs-buy is open: a bespoke log pipeline versus a self-hosted Plausible or Umami.
 - **Operations console polish.** A severity-summary header widget and correlation of errors to the deployed commit (the deploy commit is already collected).
 - **Prune-audit monitoring.** The audit-prune timer has no dead-man's-switch yet (unlike the backup and deploy timers), so a silent prune failure would not alert. Low stakes since the prune is idempotent.
+- **Django 6.2 LTS migration (April 2027).** The 6.0 and 6.1 majors are held by configuration until then; the codebase already satisfies the 6.0 removals, so the jump is expected to be small.
+- **ESLint 10.** Blocked until `eslint-config-next`'s plugins (`eslint-plugin-import`, `eslint-plugin-jsx-a11y`) accept it; a forced install against their peer ranges is not an option.
 
 ## Non-goals
 
