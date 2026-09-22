@@ -20,6 +20,13 @@ updates:
       backend-python:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+    # Django stays on the 5.2 LTS (supported to April 2028); the 6.x majors
+    # are declined until the 6.2 LTS. Only major version updates are ignored:
+    # 5.2.x patch and security releases still arrive. Remove this entry at
+    # the 6.2 LTS jump.
+    ignore:
+      - dependency-name: "django"
+        update-types: ["version-update:semver-major"]
 
   # Frontend Node dependencies.
   - package-ecosystem: "npm"
