@@ -52,6 +52,16 @@ jobs:
       - name: sync deps
         run: uv sync --frozen --group dev
 
+      - name: lint (ruff + mypy strict)
+        # `make lint` must pass on every commit (invariant 4 in
+        # ARCHITECTURE.md), but nothing enforced it past the developer's
+        # machine. It runs here, inside the required job, so it gates merges
+        # and the CD poller without a ruleset change. Dependency bumps to
+        # mypy or the Django/DRF stubs can break strict mode without touching
+        # application code, which is why it runs on every PR.
+        working-directory: ${{ github.workspace }}
+        run: make lint
+
       - name: pytest (postgres-backed settings)
         # Includes `tests/test_schema.py::test_committed_openapi_snapshot_matches_live_schema`,
         # the schema-to-snapshot half of the drift gate.
