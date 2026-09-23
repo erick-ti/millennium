@@ -62,7 +62,7 @@ def _value_snapshot(
     market_value: Decimal = Decimal("0"),
     cost_basis: Decimal = Decimal("0"),
     liquidation_value: Decimal = Decimal("0"),
-    unrealized_gain: Decimal | None | _Derive = _DERIVE,
+    unrealized_gain: Decimal | _Derive | None = _DERIVE,
     total_card_count: int = 1,
     priced_card_count: int = 1,
     costed_card_count: int = 1,
