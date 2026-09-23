@@ -27,6 +27,17 @@ updates:
     ignore:
       - dependency-name: "django"
         update-types: ["version-update:semver-major"]
+      # The Django stubs are held below 6.1 in pyproject (6.1 models the
+      # Django 6.1 admin API this 5.2 app cannot satisfy), and
+      # djangorestframework-stubs 3.18 requires django-stubs 6.1. Dependabot
+      # would otherwise raise those bounds itself, so only patch updates of
+      # the three stubs packages are taken. Lift with the Django upgrade.
+      - dependency-name: "django-stubs"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
+      - dependency-name: "django-stubs-ext"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
+      - dependency-name: "djangorestframework-stubs"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
 
   # Frontend Node dependencies.
   - package-ecosystem: "npm"
