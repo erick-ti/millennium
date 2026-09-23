@@ -49,7 +49,9 @@ The live deployment runs frontend, backend, and Postgres on a single VPS behind 
 - **Operations console polish.** A severity-summary header widget and correlation of errors to the deployed commit (the deploy commit is already collected).
 - **Prune-audit monitoring.** The audit-prune timer has no dead-man's-switch yet (unlike the backup and deploy timers), so a silent prune failure would not alert. Low stakes since the prune is idempotent.
 - **Django 6.2 LTS migration (April 2027).** The 6.0 and 6.1 majors are held by configuration until then; the codebase already satisfies the 6.0 removals, so the jump is expected to be small.
-- **ESLint 10.** Blocked until `eslint-config-next`'s plugins (`eslint-plugin-import`, `eslint-plugin-jsx-a11y`) accept it; a forced install against their peer ranges is not an option.
+- **ESLint 10.** Blocked until `eslint-config-next`'s plugins (`eslint-plugin-import`, `eslint-plugin-jsx-a11y`, `eslint-plugin-react`) accept it; a forced install against their peer ranges is not an option.
+- **TypeScript 7.** Blocked until `typescript-eslint` accepts it; its packages pin `typescript <6.1.0`, so the major cannot install today. Held by configuration until then.
+- **react-table 9 migration.** The `DataTable` component and its column definitions are written against the `@tanstack/react-table` v8 API, so the v9 major is a code migration with a visual check of every table, not a dependency bump. Held by configuration until it is planned.
 
 ## Non-goals
 
