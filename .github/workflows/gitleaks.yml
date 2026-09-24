@@ -1,20 +1,20 @@
 name: gitleaks
 
-# push is scoped to main so PR branches get exactly one run (pull_request),
-# which scans the branch's whole commit range and gates every merge, so
-# nothing reaches main unscanned. Scanning branch pushes would not prevent
-# a leak anyway: the job starts after GitHub has accepted the objects, and
-# on a public repo that acceptance is the exposure. A branch that never
-# opens a PR is not scanned by this workflow.
+# Scan PRs and pushes to main without a duplicate run on each PR branch push.
+# Branches without a PR are not scanned here. A push scan starts after GitHub
+# accepts the objects; push protection and local hooks act before that point.
+# This check blocks merges only where repository rules require it.
 on:
   push:
     branches: [main]
   pull_request:
-  workflow_dispatch:  # allow manual runs from the Actions tab
+  workflow_dispatch:
 
-# Least privilege: gitleaks only reads repo contents to scan.
+# PR scans read the commit list through the API, including on private repos.
+# Comments are disabled below, so the token needs no write permissions.
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   scan:
@@ -24,10 +24,38 @@ jobs:
       - name: checkout
         uses: actions/checkout@v7
         with:
-          # full history so PR scans cover the entire diff range, not just the tip commit
           fetch-depth: 0
+
+      # v3 reads only the first page of PR commits (30). Refuse longer PRs
+      # until upstream covers the full list and the boundary test passes.
+      # This guards pagination only; it does not change the action's
+      # first-parent scan or its exclusion of merge commits.
+      - name: check PR scan limit
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as event_file:
+              event = json.load(event_file)
+          count = event.get("pull_request", {}).get("commits")
+          if type(count) is not int or count < 1:
+              print("::error::Cannot establish the PR commit count; refusing a partial scan.")
+              sys.exit(1)
+          if count > 30:
+              print(
+                  f"::error::This PR has {count} commits. The scanner reads only the first 30. "
+                  "Split the PR or squash its branch to 30 commits or fewer, then push again."
+              )
+              sys.exit(1)
+          print(f"PR commit count is within the scanner limit: {count}/30")
+          PY
 
       - name: gitleaks
         uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
