@@ -2,7 +2,8 @@ name: gitleaks
 
 # Scan PRs and pushes to main without a duplicate run on each PR branch push.
 # Branches without a PR are not scanned here. A push scan starts after GitHub
-# accepts the objects; push protection and local hooks act before that point.
+# accepts the objects. Push protection, where enabled, checks pushes before
+# GitHub accepts them.
 # This check blocks merges only where repository rules require it.
 on:
   push:
