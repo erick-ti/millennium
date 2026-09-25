@@ -52,6 +52,9 @@ The live deployment runs frontend, backend, and Postgres on a single VPS behind 
 - **ESLint 10.** Blocked until `eslint-config-next`'s plugins (`eslint-plugin-import`, `eslint-plugin-jsx-a11y`, `eslint-plugin-react`) accept it; a forced install against their peer ranges is not an option.
 - **TypeScript 7.** Blocked until `typescript-eslint` accepts it; its packages pin `typescript <6.1.0`, so the major cannot install today. Held by configuration until then.
 - **react-table 9 migration.** The `DataTable` component and its column definitions are written against the `@tanstack/react-table` v8 API, so the v9 major is a code migration with a visual check of every table, not a dependency bump. Held by configuration until it is planned.
+- **Alert management.** Rules can be created but not edited, deleted, or muted; thresholds are percent moves only (no absolute-price trigger); the rules filter lists the first 100 rules; events are an in-app feed with no email delivery (no mail backend is configured).
+- **Deck refinements.** A deck tags whole holdings, so a per-copy model (some copies of a holding in a deck, the rest not) and a deck-level value rollup are open; the holding picker and the import override picker each show only the first 100 matches.
+- **Import review coverage flag.** Review rows do not say whether the matched printing was covered by the latest price reconciliation, which is why an exact match can be staged for review instead of materialized; a per-row coverage flag would make that visible.
 
 ## Non-goals
 
